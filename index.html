@@ -67,6 +67,15 @@ body {
 .bar i { display: block; height: 100%; width: 100%; background: #f2a3b0; transition: width .25s ease, background .25s; }
 .bar i.low { background: var(--tomato); }
 .spacer { flex: 1; }
+/* music / sound / install buttons stack in the top-right corner */
+.hud { padding-right: calc(max(16px, env(safe-area-inset-right, 0px)) + 96px); }
+.toggles {
+  position: fixed; z-index: 2;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+}
+.toggles .chip { min-height: 32px; padding: 4px 10px; font-size: 12px; box-shadow: 2px 2px 0 var(--ink); }
 .prog { font-size: 12px; font-weight: 900; color: var(--muted); font-variant-numeric: tabular-nums; }
 .board-list .lv { font-size: 11px; font-weight: 900; color: var(--muted); letter-spacing: .04em; }
 .btn { font: 800 13px var(--body); cursor: pointer; }
@@ -143,10 +152,12 @@ body {
   <div class="chip"><span class="lbl">Score</span><span id="score" class="num">0</span></div>
   <div class="chip"><span class="lbl">Level</span><span id="level" class="num">1</span><span id="lvlProg" class="prog">0/12</span></div>
   <div class="chip"><span class="lbl">Salad</span><div class="bar"><i id="bar"></i></div><span id="crumbs" class="num">12</span></div>
-  <span class="spacer"></span>
-  <button id="install" class="chip btn" type="button" hidden>Install app</button>
-  <button id="mute" class="chip btn" type="button" aria-pressed="false">Sound on</button>
 </header>
+<div class="toggles">
+  <button id="install" class="chip btn" type="button" hidden>Install app</button>
+  <button id="musicBtn" class="chip btn" type="button" aria-pressed="true">Music on</button>
+  <button id="mute" class="chip btn" type="button" aria-pressed="false">Sound on</button>
+</div>
 
 <section id="panel" class="panel" aria-live="polite">
   <h1 id="title">Aunty Ant Squish</h1>
@@ -235,7 +246,7 @@ const cv = document.getElementById("field");
 const ctx = cv.getContext("2d");
 const $ = id => document.getElementById(id);
 const ui = { score: $("score"), crumbs: $("crumbs"), bar: $("bar"), panel: $("panel"), title: $("title"), lede: $("lede"),
-  legend: $("legend"), results: $("results"), go: $("go"), hint: $("hint"), mute: $("mute"),
+  legend: $("legend"), results: $("results"), go: $("go"), hint: $("hint"), mute: $("mute"), musicBtn: $("musicBtn"),
   rScore: $("rScore"), rBest: $("rBest"), rKills: $("rKills"), rLevel: $("rLevel"),
   level: $("level"), lvlProg: $("lvlProg"), faceMsg: $("faceMsg"),
   boardTitle: $("boardTitle"), boardList: $("boardList"), boardNote: $("boardNote"),
@@ -798,6 +809,82 @@ const sfx = {
   combo(m) { if (!ok()) return; [0, 0.07, 0.14].forEach((d, i) => tone(0.12, 520 * (1 + m * 0.12) * (1 + i * 0.26), 520 * (1 + m * 0.12) * (1 + i * 0.26), 0.12, "triangle", d)); },
   over() { if (!ok()) return; [0, 0.18, 0.36].forEach((d, i) => tone(0.3, 330 / (1 + i * 0.2), 300 / (1 + i * 0.2), 0.15, "triangle", d)); },
 };
+/* ---------- background music ----------
+   A little picnic tune made on the fly: bass, plucky melody, soft drums.
+   Four bars over C, Am, F, G in eighth notes; speeds up each level. */
+const M_ROOTS = [48, 45, 41, 43];
+const M_BASS = [0, null, 7, null, 12, null, 7, 0];
+const M_MELODY = [
+  [72, 76, 79, 76, 74, 72, null, 67],
+  [69, 72, 76, 72, 74, null, 72, 69],
+  [65, 69, 72, 74, 76, 74, 72, null],
+  [74, null, 71, 74, 79, 77, 76, 74],
+];
+const music = { on: true, timer: null, step: 0, next: 0, gain: null };
+try { music.on = localStorage.getItem("antSquishMusic") !== "0"; } catch (e) {}
+const musicTempo = () => bonus ? 160 : Math.min(150, 108 + (level - 1) * 4);
+function mNote(m, t, dur, vol, type) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(music.gain); o.start(t); o.stop(t + dur + 0.02);
+}
+function mDrum(i, t) {
+  if (i % 4 === 0) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    g.gain.setValueAtTime(0.14, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    o.connect(g).connect(music.gain); o.start(t); o.stop(t + 0.15);
+  }
+  if (i % 2 === 1 && noiseBuf) {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = noiseBuf; f.type = "highpass"; f.frequency.value = 7000;
+    g.gain.setValueAtTime(0.03, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    s.connect(f).connect(g).connect(music.gain); s.start(t); s.stop(t + 0.05);
+  }
+}
+function musicStep(s, t) {
+  const bar = s >> 3, i = s & 7, up = bonus ? 12 : 0;
+  if (M_BASS[i] !== null) mNote(M_ROOTS[bar] + M_BASS[i], t, 0.2, 0.1, "triangle");
+  const m = M_MELODY[bar][i];
+  if (m !== null) { mNote(m + up, t, 0.22, 0.05, "triangle"); mNote(m + up, t, 0.12, 0.018, "square"); }
+  mDrum(i, t);
+}
+function musicTick() {
+  if (!ac) return;
+  if (music.next < ac.currentTime) music.next = ac.currentTime + 0.05; // skip notes missed while hidden
+  while (music.next < ac.currentTime + 0.12) {
+    musicStep(music.step, music.next);
+    music.next += 60 / musicTempo() / 2;
+    music.step = (music.step + 1) % 32;
+  }
+}
+function startMusic() {
+  if (!music.on || !ac || music.timer) return;
+  if (!music.gain) { music.gain = ac.createGain(); music.gain.connect(ac.destination); }
+  music.gain.gain.cancelScheduledValues(ac.currentTime);
+  music.gain.gain.setValueAtTime(0.7, ac.currentTime);
+  music.step = 0; music.next = ac.currentTime + 0.05;
+  music.timer = setInterval(musicTick, 25);
+  musicTick();
+}
+function stopMusic() {
+  if (!music.timer) return;
+  clearInterval(music.timer); music.timer = null;
+  if (ac && music.gain) {
+    music.gain.gain.cancelScheduledValues(ac.currentTime);
+    music.gain.gain.setValueAtTime(music.gain.gain.value, ac.currentTime);
+    music.gain.gain.linearRampToValueAtTime(0, ac.currentTime + 0.3);
+  }
+}
+function setMusicLabel() { ui.musicBtn.textContent = music.on ? "Music on" : "Music off"; ui.musicBtn.setAttribute("aria-pressed", String(music.on)); }
+ui.musicBtn.addEventListener("click", () => {
+  music.on = !music.on; setMusicLabel(); ensureAudio();
+  try { localStorage.setItem("antSquishMusic", music.on ? "1" : "0"); } catch (e) {}
+  if (music.on && mode === "play") startMusic(); else stopMusic();
+});
 function setMuteLabel() { ui.mute.textContent = muted ? "Sound off" : "Sound on"; ui.mute.setAttribute("aria-pressed", String(muted)); }
 ui.mute.addEventListener("click", () => {
   muted = !muted; setMuteLabel(); ensureAudio();
@@ -924,6 +1011,7 @@ function startGame() {
   ui.panel.hidden = true;
   bonus = false; bonusDone = false;
   startLevel(1);
+  startMusic();
 }
 function endGame() {
   mode = "over";
@@ -945,6 +1033,7 @@ function endGame() {
   renderBoard();
   ui.panel.hidden = false;
   ui.panel.scrollTop = 0;
+  stopMusic();
   sfx.over();
   setTimeout(() => (saving ? ui.saveName : ui.go).focus({ preventScroll: true }), 50);
 }
@@ -1102,7 +1191,7 @@ function drawLegend() {
 
 function boot() {
   resize();
-  setHud(); setMuteLabel(); initFaces(); initBoard();
+  setHud(); setMuteLabel(); setMusicLabel(); initFaces(); initBoard();
   for (let i = 0; i < 6; i++) spawn(null, { x: rnd(W * 0.05, W * 0.95), y: rnd(H * 0.1, H * 0.95) });
   window.addEventListener("resize", resize);
   if (typeof window.claude?.hot?.snapshot === "function") window.claude.hot.snapshot(() => ({ best }));
