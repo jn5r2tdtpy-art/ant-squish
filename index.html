@@ -783,7 +783,7 @@ function makeStage(k) {
   const gap = Math.max(0.16, 0.3 - k * 0.03);  // seconds between ants in a wave
   const queue = [];
   let at = 2.4;
-  for (let w = 0; w < 5; w++) {
+  for (let w = 0; w < 10; w++) {
     const path = (w + k) % FLY_PATHS.length;
     const paired = k >= 3 || (k >= 1 && w % 2 === 1);  // mirrored pairs in later stages
     const wobble = k >= 2 ? 0.015 + k * 0.006 : 0;
