@@ -166,7 +166,7 @@ body {
     <li><canvas data-ant="black" width="104" height="68"></canvas><div><b>Black ant</b><small>Slow and steady</small></div><span class="pts">1</span></li>
     <li><canvas data-ant="fire" width="104" height="68"></canvas><div><b>Fire ant</b><small>Fast. Joins in level 2</small></div><span class="pts">3</span></li>
     <li><canvas data-ant="soldier" width="104" height="68"></canvas><div><b>Soldier ant</b><small>Two squishes. Joins in level 3</small></div><span class="pts">5</span></li>
-    <li><canvas data-ant="giant" width="104" height="68"></canvas><div><b>Giant two-headed ant</b><small>Six squishes. Joins after level 8</small></div><span class="pts">30</span></li>
+    <li><canvas data-ant="giant" width="104" height="68"></canvas><div><b>Giant two-headed ant</b><small>Six squishes. Joins in level 13</small></div><span class="pts">30</span></li>
   </ul>
   <div id="results" class="results" hidden>
     <div><span class="lbl">Score</span><span id="rScore" class="num">0</span></div>
@@ -276,7 +276,7 @@ function levelInfo(n) {
     fire: n >= 2 ? Math.min(0.35, 0.15 + (n - 2) * 0.05) : 0,
     soldier: n >= 3 ? Math.min(0.25, 0.1 + (n - 3) * 0.04) : 0,
     trail: n >= 4 ? Math.max(8, 18 - (n - 4) * 2) : 0,
-    giant: n >= 9 ? Math.min(0.12, 0.06 + (n - 9) * 0.015) : 0,
+    giant: n >= 13 ? Math.min(0.12, 0.06 + (n - 13) * 0.015) : 0,
   };
 }
 function levelIntro(n) {
@@ -284,7 +284,7 @@ function levelIntro(n) {
     : n === 2 ? "Fire ants join in. They're fast!"
     : n === 3 ? "Soldier ants arrive. Two squishes each"
     : n === 4 ? "Watch out for ant trails"
-    : n === 9 ? "Giant two-headed ants! Six squishes each"
+    : n === 13 ? "Giant two-headed ants! Six squishes each"
     : "Faster and hungrier";
 }
 let comboN = 0, comboT = 0, shake = 0;
