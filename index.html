@@ -262,7 +262,7 @@ function levelInfo(n) {
   };
 }
 function levelIntro(n) {
-  return n === 1 ? "Black ants are coming for the salad"
+  return n === 1 ? "Here come the black ants"
     : n === 2 ? "Fire ants join in. They're fast!"
     : n === 3 ? "Soldier ants arrive. Two squishes each"
     : n === 4 ? "Watch out for ant trails"
@@ -1008,7 +1008,10 @@ function draw() {
     ctx.font = `${Math.min(52, W / 9) * pop}px "Lilita One", "Arial Rounded MT Bold", sans-serif`;
     ctx.lineWidth = 8; ctx.strokeStyle = "#2b1a10"; ctx.strokeText(banner.title, W / 2, y);
     ctx.fillStyle = "#d9452b"; ctx.fillText(banner.title, W / 2, y);
-    ctx.font = `800 ${Math.min(18, W / 24)}px Nunito, "Segoe UI", sans-serif`;
+    let subSize = Math.min(18, W / 24);
+    ctx.font = `800 ${subSize}px Nunito, "Segoe UI", sans-serif`;
+    const subW = ctx.measureText(banner.sub).width;
+    if (subW > W - 40) { subSize *= (W - 40) / subW; ctx.font = `800 ${subSize}px Nunito, "Segoe UI", sans-serif`; }
     ctx.lineWidth = 5; ctx.strokeStyle = "#fff3d6"; ctx.strokeText(banner.sub, W / 2, y + Math.min(44, W / 10));
     ctx.fillStyle = "#2b1a10"; ctx.fillText(banner.sub, W / 2, y + Math.min(44, W / 10));
     ctx.globalAlpha = 1;
