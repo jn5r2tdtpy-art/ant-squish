@@ -155,6 +155,7 @@ body {
     <li><canvas data-ant="black" width="104" height="68"></canvas><div><b>Black ant</b><small>Slow and steady</small></div><span class="pts">1</span></li>
     <li><canvas data-ant="fire" width="104" height="68"></canvas><div><b>Fire ant</b><small>Fast. Joins in level 2</small></div><span class="pts">3</span></li>
     <li><canvas data-ant="soldier" width="104" height="68"></canvas><div><b>Soldier ant</b><small>Two squishes. Joins in level 3</small></div><span class="pts">5</span></li>
+    <li><canvas data-ant="giant" width="104" height="68"></canvas><div><b>Giant two-headed ant</b><small>Six squishes. Joins after level 8</small></div><span class="pts">30</span></li>
   </ul>
   <div id="results" class="results" hidden>
     <div><span class="lbl">Score</span><span id="rScore" class="num">0</span></div>
@@ -220,6 +221,7 @@ const TYPES = {
   fire:    { color: "#b5371f", len: 27, speed: 96, hp: 1, pts: 3, goo: "rgba(130,48,22,.5)" },
   soldier: { color: "#3b2214", len: 42, speed: 38, hp: 2, pts: 5, goo: "rgba(80,60,26,.6)", big: true },
   gold:    { color: "#d9a514", len: 30, speed: 115, hp: 1, pts: 25, goo: "rgba(230,190,60,.6)" },
+  giant:   { color: "#1e120b", len: 58, speed: 30, hp: 6, pts: 30, goo: "rgba(70,52,22,.65)", big: true, twin: true },
 };
 const MAX_CRUMBS = 12;
 const FACE_PX = 128;
@@ -253,7 +255,7 @@ let score = 0, crumbs = MAX_CRUMBS, kills = 0, elapsed = 0, spawnT = 0, trailT =
 // Levels: squish `goal` ants to clear one. New ant kinds join as levels go up.
 let level = 1, levelKills = 0, levelT = 0, between = 0, banner = null;
 // Bonus round: once, after clearing BONUS_AFTER. Salad is safe, points double.
-const BONUS_AFTER = 7, BONUS_SECONDS = 15;
+const BONUS_AFTER = 4, BONUS_SECONDS = 15;
 let bonus = false, bonusDone = false, bonusT = 0, bonusKills = 0, bonusPts = 0;
 function levelInfo(n) {
   return {
@@ -263,6 +265,7 @@ function levelInfo(n) {
     fire: n >= 2 ? Math.min(0.35, 0.15 + (n - 2) * 0.05) : 0,
     soldier: n >= 3 ? Math.min(0.25, 0.1 + (n - 3) * 0.04) : 0,
     trail: n >= 4 ? Math.max(8, 18 - (n - 4) * 2) : 0,
+    giant: n >= 9 ? Math.min(0.12, 0.06 + (n - 9) * 0.015) : 0,
   };
 }
 function levelIntro(n) {
@@ -270,6 +273,7 @@ function levelIntro(n) {
     : n === 2 ? "Fire ants join in. They're fast!"
     : n === 3 ? "Soldier ants arrive. Two squishes each"
     : n === 4 ? "Watch out for ant trails"
+    : n === 9 ? "Giant two-headed ants! Six squishes each"
     : "Faster and hungrier";
 }
 let comboN = 0, comboT = 0, shake = 0;
@@ -339,23 +343,25 @@ function drawAnt(c, x, y, ang, L, col, phase, o = {}) {
     c.fillStyle = "#d8344a";
     c.beginPath(); c.arc(cx + cr * 0.1, -cr * 0.2, cr * 0.32, 0, TAU); c.fill();
   }
-  // the face: kept upright while walking, pancaked when squished
-  c.save();
-  c.translate(hx, 0);
-  if (o.dead) c.scale(1, 0.75); else c.rotate(-ang);
-  const team = o.team || 0;
-  if (faceCutout[team]) {
-    const fz = fr;
-    c.fillStyle = "rgba(60,30,10,.28)";
-    c.beginPath(); c.ellipse(1.5, 2, fz * 0.66, fz * 0.92, 0, 0, TAU); c.fill();
-    c.drawImage(faces[team], -fz, -fz, fz * 2, fz * 2);
-  } else {
-    c.fillStyle = col;
-    c.beginPath(); c.arc(0, 0, fr + Math.max(1.5, L * 0.05), 0, TAU); c.fill();
-    c.drawImage(faces[team], -fr, -fr, fr * 2, fr * 2);
+  // the face(s): kept upright while walking, pancaked when squished
+  const heads = o.twin ? [[0, -1], [1, 1]] : [[o.team || 0, 0]];
+  const hr = o.twin ? fr * 0.72 : fr;
+  for (const [team, side] of heads) {
+    c.save();
+    c.translate(o.twin ? hx - fr * 0.15 : hx, side * fr * 0.62);
+    if (o.dead) c.scale(1, 0.75); else c.rotate(-ang);
+    if (faceCutout[team]) {
+      c.fillStyle = "rgba(60,30,10,.28)";
+      c.beginPath(); c.ellipse(1.5, 2, hr * 0.66, hr * 0.92, 0, 0, TAU); c.fill();
+      c.drawImage(faces[team], -hr, -hr, hr * 2, hr * 2);
+    } else {
+      c.fillStyle = col;
+      c.beginPath(); c.arc(0, 0, hr + Math.max(1.5, L * 0.05), 0, TAU); c.fill();
+      c.drawImage(faces[team], -hr, -hr, hr * 2, hr * 2);
+    }
+    if (o.flash > 0) { c.fillStyle = "rgba(255,240,215,.7)"; c.beginPath(); c.arc(0, 0, hr, 0, TAU); c.fill(); }
+    c.restore();
   }
-  if (o.flash > 0) { c.fillStyle = "rgba(255,240,215,.7)"; c.beginPath(); c.arc(0, 0, fr, 0, TAU); c.fill(); }
-  c.restore();
   c.restore();
 }
 
@@ -596,6 +602,7 @@ function pickType() {
   if (bonus) { const r = Math.random(); return r < 0.1 ? "gold" : r < 0.4 ? "fire" : r < 0.5 ? "soldier" : "black"; }
   if (mode !== "play") return Math.random() < 0.2 ? "fire" : Math.random() < 0.12 ? "soldier" : "black";
   const L = levelInfo(level), pf = L.fire, ps = L.soldier;
+  if (L.giant && Math.random() < L.giant && ants.filter(a => a.t === TYPES.giant).length < 2) return "giant";
   const r = Math.random();
   return r < ps ? "soldier" : r < ps + pf ? "fire" : "black";
 }
@@ -1015,7 +1022,7 @@ function drawSplat(s) {
   for (const [dx, dy, dr] of s.drops) { ctx.beginPath(); ctx.arc(dx, dy, dr, 0, TAU); ctx.fill(); }
   ctx.restore();
   ctx.globalAlpha = alpha * 0.85;
-  drawAnt(ctx, 0, 0, s.ang, s.L, s.t.color, 0, { dead: true, big: s.t.big, team: s.team });
+  drawAnt(ctx, 0, 0, s.ang, s.L, s.t.color, 0, { dead: true, big: s.t.big, twin: s.t.twin, team: s.team });
   ctx.restore();
 }
 
@@ -1031,7 +1038,15 @@ function draw() {
     const x = f.x0 + (cookie.x - f.x0) * e, y = f.y0 + (cookie.y - f.y0) * e - Math.sin(f.t * Math.PI) * 40;
     ctx.fillStyle = "#fff6f2"; ctx.beginPath(); ctx.arc(x, y, 4 * S, 0, TAU); ctx.fill();
   }
-  for (const a of ants) drawAnt(ctx, a.x, a.y, a.ang, a.L, a.t.color, a.phase, { carry: a.carry, flash: a.flash, big: a.t.big, cracked: a.cracked, team: a.team });
+  for (const a of ants) drawAnt(ctx, a.x, a.y, a.ang, a.L, a.t.color, a.phase, { carry: a.carry, flash: a.flash, big: a.t.big, twin: a.t.twin, cracked: a.cracked, team: a.team });
+  // health bar over tough ants that have been hit
+  for (const a of ants) {
+    if (a.t.hp < 3 || a.hp === a.t.hp) continue;
+    const bw = 44 * S, bx = a.x - bw / 2, by = a.y - a.L * 0.95;
+    ctx.fillStyle = "#2b1a10"; ctx.fillRect(bx - 2, by - 2, bw + 4, 9);
+    ctx.fillStyle = "#fff3d6"; ctx.fillRect(bx, by, bw, 5);
+    ctx.fillStyle = a.hp <= 2 ? "#d9452b" : "#5f8a3a"; ctx.fillRect(bx, by, bw * a.hp / a.t.hp, 5);
+  }
   for (const p of parts) { ctx.globalAlpha = p.life / p.max; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill(); }
   ctx.globalAlpha = 1;
   for (const r of rings) {
@@ -1080,7 +1095,7 @@ function drawLegend() {
     const t = TYPES[c.dataset.ant], g = c.getContext("2d");
     g.clearRect(0, 0, c.width, c.height);
     g.save(); g.scale(2, 2);
-    drawAnt(g, 18, 17, 0, 24, t.color, 0.8, { big: t.big, team: c.dataset.ant === "fire" ? 2 : 0 });
+    drawAnt(g, t.twin ? 16 : 18, 17, 0, t.twin ? 22 : 24, t.color, 0.8, { big: t.big, twin: t.twin, team: c.dataset.ant === "fire" ? 2 : 0 });
     g.restore();
   });
 }

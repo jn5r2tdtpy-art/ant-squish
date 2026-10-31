@@ -1,5 +1,5 @@
 // Ant Squish offline cache. Bump VERSION when you change any file.
-const VERSION = "ant-squish-v7";
+const VERSION = "ant-squish-v8";
 const CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
