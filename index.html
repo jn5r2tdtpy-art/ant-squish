@@ -829,7 +829,6 @@ function stageHit(f) {
   }
   floats.push({ x: f.x, y: f.y - 16, text: "+" + gain, life: 0.9, col: f.gold ? "#a8790a" : "#2b1a10", size: f.gold ? 26 : 20 });
   sfx.squish(false);
-  if (f.team === 1) sfx.face2();
   setHud();
 }
 function updateStage(dt) {
