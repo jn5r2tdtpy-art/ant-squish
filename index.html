@@ -784,15 +784,18 @@ function makeStage(k) {
   const queue = [];
   let at = 2.4;
   for (let w = 0; w < 10; w++) {
+    // each wave is a little harder than the last: faster, tighter, wobblier
+    const r = w / 9;
+    const wdur = Math.max(3.2, dur * (1 - 0.3 * r)), wgap = Math.max(0.12, gap * (1 - 0.3 * r));
     const path = (w + k) % FLY_PATHS.length;
-    const paired = k >= 3 || (k >= 1 && w % 2 === 1);  // mirrored pairs in later stages
-    const wobble = k >= 2 ? 0.015 + k * 0.006 : 0;
+    const paired = k >= 3 || w >= 6 || (k >= 1 && w % 2 === 1);  // mirrored pairs in later waves and stages
+    const wobble = (k >= 2 ? 0.015 + k * 0.006 : 0) + r * 0.025;
     for (let i = 0; i < 8; i++) {
       const mirror = paired ? i % 2 === 1 : w % 2 === 1;
-      const delay = (paired ? Math.floor(i / 2) : i) * gap;
-      queue.push({ at: at + delay, path, mirror, team: w % 3, gold: i === 7, wobble, dur });
+      const delay = (paired ? Math.floor(i / 2) : i) * wgap;
+      queue.push({ at: at + delay, path, mirror, team: w % 3, gold: i === 7, wobble, dur: wdur });
     }
-    at += dur * (paired ? 0.7 : 0.6) + 8 * gap * (paired ? 0.5 : 1);
+    at += wdur * (paired ? 0.7 : 0.6) + 8 * wgap * (paired ? 0.5 : 1);
   }
   queue.sort((a, b) => a.at - b.at);
   return { k, t: 0, queue, flyers: [], shots: [], total: queue.length, hits: 0, pts: 0,
