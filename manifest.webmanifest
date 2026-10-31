@@ -1,7 +1,7 @@
 {
   "name": "Aunty Ant Squish",
   "short_name": "Aunty Ant Squish",
-  "description": "Squish the ants before they eat the fruit salad.",
+  "description": "Squish the ants before they eat Grandma's fruit salad.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

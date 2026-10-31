@@ -146,7 +146,7 @@ body {
 
 </head>
 <body>
-<canvas id="field" aria-label="Ant field with a bowl of fruit salad. Tap ants to squish them."></canvas>
+<canvas id="field" aria-label="Ant field with a bowl of Grandma's fruit salad. Tap ants to squish them."></canvas>
 
 <header class="hud">
   <div class="chip"><span class="lbl">Score</span><span id="score" class="num">0</span></div>
@@ -161,7 +161,7 @@ body {
 
 <section id="panel" class="panel" aria-live="polite">
   <h1 id="title">Aunty Ant Squish</h1>
-  <p id="lede">Ants are marching on your fruit salad. Squish enough of them to clear each level before they carry it off, one bite at a time.</p>
+  <p id="lede">Ants are marching on Grandma's fruit salad. Squish enough of them to clear each level before they carry it off, one bite at a time.</p>
   <ul class="legend" id="legend">
     <li><canvas data-ant="black" width="104" height="68"></canvas><div><b>Black ant</b><small>Slow and steady</small></div><span class="pts">1</span></li>
     <li><canvas data-ant="fire" width="104" height="68"></canvas><div><b>Fire ant</b><small>Fast. Joins in level 2</small></div><span class="pts">3</span></li>
@@ -1163,7 +1163,7 @@ function endGame() {
   mode = "over";
   const isBest = score > best;
   if (isBest) { best = score; try { localStorage.setItem("antSquishBest", String(best)); } catch (e) {} }
-  ui.title.textContent = "They ate the fruit salad";
+  ui.title.textContent = "They ate Grandma's fruit salad";
   ui.lede.textContent = "You made it to level " + level + ". " + (isBest && score > 0 ? "New best score!" : "Want a rematch?");
   ui.legend.hidden = true; ui.results.hidden = false;
   ui.rScore.textContent = score; ui.rBest.textContent = best;

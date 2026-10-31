@@ -1,6 +1,6 @@
 # Aunty Ant Squish
 
-Squish the ants before they eat the fruit salad. Tap ants to squish them, chain squishes for a combo, and squish thieves to win their bite back.
+Squish the ants before they eat Grandma's fruit salad. Tap ants to squish them, chain squishes for a combo, and squish thieves to win their bite back.
 
 This is an installable web app: open it in a phone browser, then
 
