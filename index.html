@@ -265,9 +265,10 @@ let ants = [], splats = [], parts = [], floats = [], rings = [], flyers = [], qu
 let score = 0, crumbs = MAX_CRUMBS, kills = 0, elapsed = 0, spawnT = 0, trailT = 18;
 // Levels: squish `goal` ants to clear one. New ant kinds join as levels go up.
 let level = 1, levelKills = 0, levelT = 0, between = 0, banner = null;
-// Bonus round: once, after clearing BONUS_AFTER. Salad is safe, points double.
-const BONUS_AFTER = 4, BONUS_SECONDS = 15;
-let bonus = false, bonusDone = false, bonusT = 0, bonusKills = 0, bonusPts = 0;
+// Bonus stages: a Galaga-style shooting round after each of these levels,
+// a little harder each time. The salad is safe while it runs.
+const BONUS_LEVELS = [3, 6, 9, 12, 15];
+let bonus = false, bonusDone = 0, bonusKills = 0, bonusPts = 0, stage = null;
 function levelInfo(n) {
   return {
     goal: 12 + (n - 1) * 6,
@@ -344,6 +345,15 @@ function drawAnt(c, x, y, ang, L, col, phase, o = {}) {
   }
   c.fillStyle = "rgba(255,255,255,.22)";
   c.beginPath(); c.ellipse(-L * 0.35, -L * 0.07, L * 0.1, L * 0.045, -0.2, 0, TAU); c.fill();
+  if (o.wings) {
+    const flap = 0.55 + 0.45 * Math.abs(Math.sin(phase * 1.6));
+    c.lineWidth = Math.max(1, L * 0.03);
+    for (const s of [-1, 1]) {
+      c.fillStyle = "rgba(225,238,255,.6)"; c.strokeStyle = "rgba(70,85,110,.7)";
+      c.beginPath(); c.ellipse(-L * 0.08, s * L * 0.3 * flap, L * 0.34, L * 0.13 * flap + 1, s * -0.35, 0, TAU); c.fill(); c.stroke();
+      c.beginPath(); c.ellipse(-L * 0.2, s * L * 0.22 * flap, L * 0.22, L * 0.09 * flap + 1, s * -0.6, 0, TAU); c.fill(); c.stroke();
+    }
+  }
   if (o.carry) {
     const cx = hx + (cut ? fr * 0.65 : fr) + L * 0.12, cr = L * 0.13;
     c.fillStyle = "#fff6f2";
@@ -749,20 +759,152 @@ function levelClear() {
   banner = { title: "Level " + level + " cleared!", sub: "+" + bonus + " bonus · 2 bites back", t: 0, dur: 3 };
   sfx.combo(4);
 }
+/* ---------- bonus stage: Galaga-style flying ants ----------
+   Winged ants fly set paths (points in 0..1 of the play area) while a
+   bug-spray can at the bottom shoots them down. Nothing shoots back. */
+const FLY_PATHS = [
+  [[-0.1, 0.05], [0.2, 0.2], [0.45, 0.45], [0.6, 0.62], [0.78, 0.45], [0.6, 0.28], [0.42, 0.45], [0.6, 0.64], [0.9, 0.5], [1.15, 0.3]],
+  [[-0.1, 0.5], [0.25, 0.55], [0.5, 0.4], [0.5, 0.18], [0.3, 0.12], [0.18, 0.3], [0.35, 0.52], [0.7, 0.45], [1.15, 0.2]],
+  [[0.5, -0.08], [0.5, 0.2], [0.25, 0.35], [0.5, 0.5], [0.75, 0.65], [0.5, 0.8], [0.2, 0.7], [-0.15, 0.6]],
+  [[-0.1, 0.25], [0.3, 0.25], [0.55, 0.12], [0.78, 0.3], [0.55, 0.52], [0.3, 0.4], [0.5, 0.24], [0.8, 0.36], [1.15, 0.55]],
+];
+function flyPoint(pts, u, mirror) {
+  // Catmull-Rom curve through the path's points; u runs 0..1
+  const n = pts.length - 1, f = clamp(u, 0, 1) * n, i = Math.min(n - 1, Math.floor(f)), t = f - i;
+  const P = k => pts[clamp(k, 0, n)];
+  const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+  const cr = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+  const x = cr(p0[0], p1[0], p2[0], p3[0]), y = cr(p0[1], p1[1], p2[1], p3[1]);
+  return [mirror ? 1 - x : x, y];
+}
+const canY = () => H - 70 * S;
+function makeStage(k) {
+  const dur = Math.max(4.2, 7.2 - k * 0.7);     // seconds to fly a whole path
+  const gap = Math.max(0.16, 0.3 - k * 0.03);  // seconds between ants in a wave
+  const queue = [];
+  let at = 2.4;
+  for (let w = 0; w < 5; w++) {
+    const path = (w + k) % FLY_PATHS.length;
+    const paired = k >= 3 || (k >= 1 && w % 2 === 1);  // mirrored pairs in later stages
+    const wobble = k >= 2 ? 0.015 + k * 0.006 : 0;
+    for (let i = 0; i < 8; i++) {
+      const mirror = paired ? i % 2 === 1 : w % 2 === 1;
+      const delay = (paired ? Math.floor(i / 2) : i) * gap;
+      queue.push({ at: at + delay, path, mirror, team: w % 3, gold: i === 7, wobble, dur });
+    }
+    at += dur * (paired ? 0.7 : 0.6) + 8 * gap * (paired ? 0.5 : 1);
+  }
+  queue.sort((a, b) => a.at - b.at);
+  return { k, t: 0, queue, flyers: [], shots: [], total: queue.length, hits: 0, pts: 0,
+    can: W / 2, aim: W / 2, firing: false, fireT: 0, keyDir: 0 };
+}
 function startBonus() {
-  bonus = true; bonusDone = true; bonusT = BONUS_SECONDS; bonusKills = 0; bonusPts = 0;
-  spawnT = 0.3;
-  banner = { title: "BONUS ROUND!", sub: BONUS_SECONDS + " seconds · Double points · The salad is safe", t: 0, dur: 2.8 };
+  bonus = true; bonusDone = level;
+  ants = []; queue = [];
+  const k = Math.max(0, BONUS_LEVELS.indexOf(level));
+  stage = makeStage(k);
+  banner = { title: "BONUS STAGE " + (k + 1), sub: "Drag to aim · Hold to spray · Hit all " + stage.total + "!", t: 0, dur: 2.8 };
   sfx.combo(4);
   setHud();
 }
-function endBonus() {
-  for (const a of ants) for (let k = 0; k < 5; k++) parts.push({ x: a.x, y: a.y, vx: rnd(-80, 80), vy: rnd(-80, 80), life: 0.4, max: 0.4, r: rnd(1.5, 3), col: "rgba(120,85,45,.8)" });
-  ants = []; queue = [];
-  bonus = false; between = 3;
-  banner = { title: "Bonus round over!", sub: bonusKills + " squished · +" + bonusPts + " points", t: 0, dur: 3 };
-  sfx.combo(3);
+function stageHit(f) {
+  const st = stage;
+  st.hits++;
+  const gain = f.gold ? 50 : 10 + 5 * st.k;
+  score += gain; st.pts += gain;
+  const t = f.gold ? TYPES.gold : TYPES.black;
+  const r = (f.L * 0.75 + 6) * rnd(0.9, 1.15), pts = [], drops = [];
+  for (let k = 0; k < 14; k++) pts.push(rnd(0.55, 1.1));
+  for (let k = 0; k < 6; k++) { const ang = rnd(0, TAU), d = r * rnd(1.15, 1.8); drops.push([Math.cos(ang) * d, Math.sin(ang) * d, r * rnd(0.08, 0.2)]); }
+  splats.push({ x: f.x, y: f.y, r, pts, drops, ang: f.ang, L: f.L, t, team: f.team, age: 0, rot: rnd(0, TAU) });
+  if (splats.length > 90) splats.shift();
+  for (let k = 0; k < 12; k++) {
+    const ang = rnd(0, TAU), s = rnd(40, 160);
+    parts.push({ x: f.x, y: f.y, vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, life: 0.45, max: 0.45, r: rnd(1.2, 3), col: f.gold ? "#ffe27a" : "rgba(92,78,30,.9)" });
+  }
+  floats.push({ x: f.x, y: f.y - 16, text: "+" + gain, life: 0.9, col: f.gold ? "#a8790a" : "#2b1a10", size: f.gold ? 26 : 20 });
+  sfx.squish(false);
   setHud();
+}
+function updateStage(dt) {
+  const st = stage;
+  st.t += dt;
+  const top = 80, span = Math.max(200, H - 80 - 170);
+  while (st.queue.length && st.queue[0].at <= st.t) {
+    const q = st.queue.shift();
+    st.flyers.push({ ...q, born: st.t, x: -999, y: -999, ang: 0, phase: Math.random() * TAU, L: 30 * S });
+  }
+  for (let i = st.flyers.length - 1; i >= 0; i--) {
+    const f = st.flyers[i], u = (st.t - f.born) / f.dur;
+    if (u >= 1) { st.flyers.splice(i, 1); continue; }   // flew away
+    const [nx, ny] = flyPoint(FLY_PATHS[f.path], u, f.mirror);
+    const x = nx * W, y = top + (ny + Math.sin(st.t * 6 + f.born * 3) * f.wobble) * span;
+    if (f.x > -900) f.ang = Math.atan2(y - f.y, x - f.x);
+    f.x = x; f.y = y; f.phase += dt * 30;
+    if (f.gold && Math.random() < dt * 14) parts.push({ x: f.x + rnd(-12, 12) * S, y: f.y + rnd(-12, 12) * S, vx: 0, vy: -25, life: 0.5, max: 0.5, r: rnd(1, 2.4), col: "#fff1a8" });
+  }
+  if (st.keyDir) st.aim = clamp(st.aim + st.keyDir * 700 * S * dt, 20, W - 20);
+  st.can += clamp(st.aim - st.can, -900 * S * dt, 900 * S * dt);
+  st.fireT -= dt;
+  if (st.firing && st.fireT <= 0) {
+    st.shots.push({ x: st.can, y: canY() - 40 * S });
+    st.fireT = 0.17;
+    sfx.spray();
+  }
+  for (let i = st.shots.length - 1; i >= 0; i--) {
+    const s = st.shots[i];
+    s.y -= 760 * S * dt;
+    if (s.y < -20) { st.shots.splice(i, 1); continue; }
+    const j = st.flyers.findIndex(f => Math.hypot(f.x - s.x, f.y - s.y) < f.L * 0.8);
+    if (j >= 0) { const [f] = st.flyers.splice(j, 1); st.shots.splice(i, 1); stageHit(f); }
+  }
+  if (!st.queue.length && !st.flyers.length) endBonus();
+}
+function endBonus() {
+  const st = stage, perfect = st.hits === st.total;
+  const extra = perfect ? 500 * (st.k + 1) : 0;
+  const bites = perfect ? MAX_CRUMBS : Math.floor(st.hits / 10);
+  score += extra;
+  crumbs = Math.min(MAX_CRUMBS, crumbs + bites);
+  buildCookie();
+  banner = {
+    title: perfect ? "PERFECT!" : "Hit " + st.hits + " of " + st.total,
+    sub: "+" + (st.pts + extra) + " points · " + (perfect ? "Salad refilled!" : bites ? bites + (bites === 1 ? " bite" : " bites") + " back" : "Keep practicing!"),
+    t: 0, dur: 3,
+  };
+  bonus = false; stage = null; between = 3;
+  sfx.combo(perfect ? 4 : 3);
+  setHud();
+}
+function rr(c, x, y, w, h, r) {
+  c.beginPath();
+  if (c.roundRect) c.roundRect(x, y, w, h, r); else c.rect(x, y, w, h);
+}
+function drawCan(x, y) {
+  const w = 34 * S, h = 58 * S;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "rgba(40,20,5,.35)";
+  ctx.beginPath(); ctx.ellipse(4, h * 0.5, w * 0.62, 6 * S, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#2b1a10"; ctx.lineWidth = 2.5;
+  ctx.fillStyle = "#e8e2d6"; rr(ctx, -w * 0.32, -h / 2 - 10 * S, w * 0.64, 11 * S, 3 * S); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#2b1a10"; ctx.fillRect(-3 * S, -h / 2 - 17 * S, 6 * S, 8 * S);
+  ctx.fillStyle = "#d9452b"; rr(ctx, -w / 2, -h / 2, w, h, 6 * S); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#fff3d6"; ctx.fillRect(-w / 2 + 2, -h * 0.13, w - 4, h * 0.3);
+  ctx.fillStyle = "#2b1a10"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${10 * S}px "Lilita One", "Arial Rounded MT Bold", sans-serif`;
+  ctx.fillText("BUG", 0, h * 0.02);
+  ctx.fillStyle = "rgba(255,255,255,.3)"; ctx.fillRect(-w / 2 + 5 * S, -h / 2 + 4 * S, 4 * S, h - 8 * S);
+  ctx.restore();
+}
+function drawStage() {
+  const st = stage;
+  ctx.fillStyle = "rgba(25,12,4,.3)"; ctx.fillRect(0, 0, W, H);
+  for (const f of st.flyers) drawAnt(ctx, f.x, f.y, f.ang, f.L, f.gold ? TYPES.gold.color : TYPES.black.color, f.phase, { wings: true, team: f.team });
+  for (const s of st.shots) {
+    ctx.fillStyle = "rgba(170,225,255,.85)"; ctx.beginPath(); ctx.ellipse(s.x, s.y, 3.5 * S, 8 * S, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(s.x, s.y - 2 * S, 1.5 * S, 3.5 * S, 0, 0, TAU); ctx.fill();
+  }
+  drawCan(st.can, canY());
 }
 function startLevel(n) {
   level = n; levelKills = 0; levelT = 0; between = 0;
@@ -807,6 +949,7 @@ const sfx = {
   thud() { if (!ok()) return; tone(0.08, 110, 50, 0.25); },
   nibble() { if (!ok()) return; noise(0.04, 4000, 2000, 0.15); noise(0.04, 4000, 2000, 0.12); },
   combo(m) { if (!ok()) return; [0, 0.07, 0.14].forEach((d, i) => tone(0.12, 520 * (1 + m * 0.12) * (1 + i * 0.26), 520 * (1 + m * 0.12) * (1 + i * 0.26), 0.12, "triangle", d)); },
+  spray() { if (!ok()) return; noise(0.07, 6500, 2500, 0.06); },
   over() { if (!ok()) return; [0, 0.18, 0.36].forEach((d, i) => tone(0.3, 330 / (1 + i * 0.2), 300 / (1 + i * 0.2), 0.15, "triangle", d)); },
 };
 /* ---------- background music ----------
@@ -993,7 +1136,7 @@ function setHud() {
   ui.crumbs.textContent = crumbs;
   if (bonus) {
     ui.level.textContent = "Bonus";
-    ui.lvlProg.textContent = Math.max(0, Math.ceil(bonusT)) + "s left";
+    ui.lvlProg.textContent = stage ? stage.hits + "/" + stage.total : "";
   } else {
     ui.level.textContent = level;
     ui.lvlProg.textContent = Math.min(levelKills, levelInfo(level).goal) + "/" + levelInfo(level).goal;
@@ -1009,7 +1152,7 @@ function startGame() {
   buildCookie(); setHud();
   pendingScore = null; lastSavedId = null; ui.saveForm.hidden = true;
   ui.panel.hidden = true;
-  bonus = false; bonusDone = false;
+  bonus = false; bonusDone = 0; stage = null;
   startLevel(1);
   startMusic();
 }
@@ -1038,7 +1181,28 @@ function endGame() {
   setTimeout(() => (saving ? ui.saveName : ui.go).focus({ preventScroll: true }), 50);
 }
 ui.go.addEventListener("click", startGame);
-cv.addEventListener("pointerdown", e => { e.preventDefault(); ensureAudio(); stomp(e.clientX, e.clientY); });
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); ensureAudio();
+  if (bonus && stage) {
+    stage.firing = true; stage.aim = clamp(e.clientX, 20, W - 20);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  } else stomp(e.clientX, e.clientY);
+});
+cv.addEventListener("pointermove", e => { if (bonus && stage && stage.firing) stage.aim = clamp(e.clientX, 20, W - 20); });
+const stopSpray = () => { if (stage) stage.firing = false; };
+cv.addEventListener("pointerup", stopSpray);
+cv.addEventListener("pointercancel", stopSpray);
+addEventListener("keydown", e => {
+  if (!(bonus && stage)) return;
+  if (e.key === "ArrowLeft") stage.keyDir = -1;
+  else if (e.key === "ArrowRight") stage.keyDir = 1;
+  else if (e.key === " ") { stage.firing = true; e.preventDefault(); }
+});
+addEventListener("keyup", e => {
+  if (!stage) return;
+  if ((e.key === "ArrowLeft" && stage.keyDir < 0) || (e.key === "ArrowRight" && stage.keyDir > 0)) stage.keyDir = 0;
+  else if (e.key === " ") stage.firing = false;
+});
 
 /* ---------- loop ---------- */
 function update(dt) {
@@ -1047,19 +1211,12 @@ function update(dt) {
     elapsed += dt;
     between -= dt;
     if (between <= 0) {
-      if (level === BONUS_AFTER && !bonusDone) startBonus();
+      if (BONUS_LEVELS.includes(level) && bonusDone !== level) startBonus();
       else startLevel(level + 1);
     }
-  } else if (mode === "play" && bonus) {
+  } else if (mode === "play" && bonus && stage) {
     elapsed += dt;
-    const shown = Math.ceil(bonusT);
-    bonusT -= dt;
-    if (Math.ceil(bonusT) !== shown) setHud();
-    spawnT -= dt;
-    if (spawnT <= 0) { if (ants.length < 45) spawn(); spawnT = rnd(0.12, 0.3); }
-    for (const a of ants) if (a.t === TYPES.gold && Math.random() < dt * 14) parts.push({ x: a.x + rnd(-12, 12) * S, y: a.y + rnd(-12, 12) * S, vx: 0, vy: -25, life: 0.5, max: 0.5, r: rnd(1, 2.4), col: "#fff1a8" });
-    comboT = Math.max(0, comboT - dt);
-    if (bonusT <= 0) endBonus();
+    updateStage(dt);
   } else if (mode === "play") {
     elapsed += dt;
     levelT += dt;
@@ -1127,6 +1284,7 @@ function draw() {
     const x = f.x0 + (cookie.x - f.x0) * e, y = f.y0 + (cookie.y - f.y0) * e - Math.sin(f.t * Math.PI) * 40;
     ctx.fillStyle = "#fff6f2"; ctx.beginPath(); ctx.arc(x, y, 4 * S, 0, TAU); ctx.fill();
   }
+  if (bonus && stage) drawStage();
   for (const a of ants) drawAnt(ctx, a.x, a.y, a.ang, a.L, a.t.color, a.phase, { carry: a.carry, flash: a.flash, big: a.t.big, twin: a.t.twin, cracked: a.cracked, team: a.team });
   // health bar over tough ants that have been hit
   for (const a of ants) {
