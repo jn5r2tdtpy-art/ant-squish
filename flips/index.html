@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Flips</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Drum games for Flips: Flip Flip’s, Whack-Flips-kit, keep the beat, and a full rhythm game with nine grooves.">
+<meta name="description" content="Drum games for Flips: Flip Flip’s, Whack Flip’s kit, keep the beat, and a full rhythm game with nine grooves.">
 <meta name="theme-color" content="#15111c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -151,7 +151,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="lbl">Quick games</div>
     <div class="modes">
       <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Flip Flip’s</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
-      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack-Flips-kit</span><span class="mdesc">Bugs and tomatoes land on the drums. Smack them fast, but leave the bass player's drink alone.</span></button>
+      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack Flip’s kit</span><span class="mdesc">Bugs and tomatoes land on the drums. Smack them fast, but leave the bass player's drink alone.</span></button>
       <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Keep the beat</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
     </div>
     <div class="lbl">For a real workout</div>
@@ -1149,11 +1149,11 @@ GAMES.flip={
     if(phase==='play'&&G.st==='hold')txt('Hold to wind up',W/2,hy+80,16,C.muted,'body');
   }
 };
-/* ---------- Whack-Flips-kit ---------- */
+/* ---------- Whack Flip’s kit ---------- */
 const KIT=[{x:.17,y:.27,r:.13,s:'hat',c:C.brass,n:'Hi-hat',cym:1},{x:.45,y:.17,r:.12,s:'tom',c:C.teal,n:'Tom'},{x:.79,y:.25,r:.15,s:'crash',c:C.blue,n:'Crash',cym:1},
   {x:.27,y:.52,r:.14,s:'snare',c:C.red,n:'Snare'},{x:.73,y:.53,r:.15,s:'tom',c:C.teal,n:'Floor tom'},{x:.5,y:.79,r:.18,s:'kick',c:C.violet,n:'Kick'}];
 GAMES.whack={
-  name:'Whack-Flips-kit',
+  name:'Whack Flip’s kit',
   help:'Smack the bugs and tomatoes before they get away. Golden sticks are worth 50. Hit the bass player’s drink and you lose 30. 45 seconds.',
   init(){G={time:45,items:[],next:.5,flash:KIT.map(()=>0),combo:0}},
   geo(d){const s=Math.min(W,H*.85);return{x:d.x*W,y:d.y*H+10,r:d.r*s}},
