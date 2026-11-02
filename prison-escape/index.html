@@ -109,6 +109,7 @@ input[type=range]{width:100%;accent-color:var(--orange)}
 .mug{display:inline-block;position:relative;width:150px;height:150px;margin:6px auto 10px;border-radius:12px;overflow:hidden;
   background:repeating-linear-gradient(#cfd3d8 0 13px,#9aa0a8 13px 15px)}
 .mug img{position:absolute;left:15px;top:8px;width:120px;height:120px;border-radius:50%;object-fit:cover}
+.mug.cut img{border-radius:0;object-fit:contain;top:4px;width:120px;height:124px}
 .mug span{position:absolute;left:0;right:0;bottom:6px;margin:auto;width:110px;background:#111;color:#fff;font:700 11px/1.6 monospace;letter-spacing:.1em}
 .badge{display:inline-block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 </style>
@@ -346,11 +347,18 @@ function buildFace(){
   if (!custom.src) { custom.face = null; custom.faceURL = ''; return; }
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
   const g = c.getContext('2d'), img = custom.src, f = save.face || { zoom:1, ox:0, oy:0 };
-  const sc = S / Math.min(img.width, img.height) * f.zoom;
-  g.beginPath(); g.arc(S/2, S/2, S/2, 0, 7); g.clip();
-  g.fillStyle = '#e8b48a'; g.fillRect(0, 0, S, S);
+  // A cut-out (see-through background) keeps its own head shape; a normal photo is cropped to a circle.
+  custom.cutout = hasClearCorners(img);
+  const sc = S / (custom.cutout ? Math.max(img.width, img.height) : Math.min(img.width, img.height)) * f.zoom;
+  if (!custom.cutout) { g.beginPath(); g.arc(S/2, S/2, S/2, 0, 7); g.clip(); g.fillStyle = '#e8b48a'; g.fillRect(0, 0, S, S); }
   g.drawImage(img, S/2 - img.width*sc/2 + f.ox, S/2 - img.height*sc/2 + f.oy, img.width*sc, img.height*sc);
-  custom.face = c; custom.faceURL = c.toDataURL('image/jpeg', .85);
+  custom.face = c; custom.faceURL = custom.cutout ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', .85);
+}
+function hasClearCorners(img){
+  try {
+    const g = img.getContext('2d'), w = img.width, h = img.height;
+    return [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]].every(([x, y]) => g.getImageData(x, y, 1, 1).data[3] < 20);
+  } catch (e) { return false; }
 }
 function imageFromBlob(blob){
   return new Promise((res, rej) => { const u = URL.createObjectURL(blob), im = new Image(); im.onload = () => { URL.revokeObjectURL(u); res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(); }; im.src = u; });
@@ -364,7 +372,7 @@ async function setFacePhoto(blob){
   try {
     const src = shrink(await imageFromBlob(blob), 700);
     custom.src = src; save.face = { zoom:1, ox:0, oy:0 }; persist(); buildFace();
-    src.toBlob(b => { if (b) DB.set('faceSrc', b); }, 'image/jpeg', .9);
+    src.toBlob(b => { if (b) DB.set('faceSrc', b); }, custom.cutout ? 'image/png' : 'image/jpeg', .9);
   } catch (e) { toast('Couldn\'t open that picture.'); }
 }
 async function loadCustom(){
@@ -898,7 +906,11 @@ function render(now){
       ctx.fillStyle = '#2f6d8f'; rr(x + .08, y + .08, .84, .84, .1); ctx.fill();
       ctx.fillStyle = '#e9eef2'; ctx.beginPath(); ctx.ellipse(x + .5, y + .5, .32, .26, 0, 0, 7); ctx.fill();
       ctx.fillStyle = '#c6d0d8'; ctx.beginPath(); ctx.ellipse(x + .42, y + .44, .14, .1, .6, 0, 7); ctx.ellipse(x + .62, y + .58, .12, .08, -.4, 0, 7); ctx.fill();
-      if (occ && custom.face) {
+      if (occ && custom.face && custom.cutout) {
+        const D = .62, py = y + .42 + Math.sin(t * 2.5) * .03;
+        ctx.drawImage(custom.face, x + .5 - D / 2, py - D / 2, D, D);
+        ctx.fillStyle = 'rgba(233,238,242,.97)'; ctx.beginPath(); ctx.ellipse(x + .5, y + .74, .36, .14, 0, 0, 7); ctx.fill();
+      } else if (occ && custom.face) {
         const r = .27, py = y + .5 + Math.sin(t * 2.5) * .03;
         ctx.save(); ctx.beginPath(); ctx.arc(x + .5, py, r, 0, 7); ctx.clip();
         ctx.drawImage(custom.face, x + .5 - r, py - r, r * 2, r * 2); ctx.restore();
@@ -1123,12 +1135,19 @@ function drawPlayer(t){
     ctx.restore();
     // bobblehead: the face stays upright and bounces as you run
     const r = .3, bob = p.moving ? Math.abs(Math.sin(p.walk)) * .06 : 0, tilt = p.moving ? Math.sin(p.walk) * .12 : 0;
-    const hx = p.x + Math.cos(p.a) * .04, hy = p.y - .12 - bob;
+    const hx = p.x + Math.cos(p.a) * .04, hy = p.y - (custom.cutout ? .26 : .12) - bob;
     ctx.save(); ctx.translate(hx, hy); ctx.rotate(tilt);
-    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.arc(.03, .05, r, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.save(); ctx.clip();
-    ctx.drawImage(custom.face, -r, -r, r * 2, r * 2); ctx.restore();
-    ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 3 / TS; ctx.stroke();
+    if (custom.cutout) {
+      const D = .8;
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(.03, .08, D * .34, D * .42, 0, 0, 7); ctx.fill();
+      ctx.shadowColor = 'rgba(0,0,0,.75)'; ctx.shadowBlur = 3;
+      ctx.drawImage(custom.face, -D / 2, -D / 2, D, D);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.arc(.03, .05, r, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.save(); ctx.clip();
+      ctx.drawImage(custom.face, -r, -r, r * 2, r * 2); ctx.restore();
+      ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 3 / TS; ctx.stroke();
+    }
     ctx.restore();
   } else {
     // head
@@ -1221,7 +1240,7 @@ function busted(foundHiding){
   setTimeout(() => {
     if (mode !== 'caught') return;
     show(`<h2 class="bad">BUSTED!</h2>
-      ${custom.face ? `<div class="mug"><img src="${custom.faceURL}" alt="Mugshot"><span>INMATE #4127</span></div>` : ''}
+      ${custom.face ? `<div class="mug${custom.cutout ? ' cut' : ''}"><img src="${custom.faceURL}" alt="Mugshot"><span>INMATE #4127</span></div>` : ''}
       <p class="sub">${lines[(Math.random() * lines.length) | 0]}</p>
       <button class="btn" data-primary data-act="retry">Try again</button>
       <button class="btn ghost" data-act="title">Levels</button>`);
