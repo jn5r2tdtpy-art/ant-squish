@@ -157,7 +157,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="lbl">For a real workout</div>
     <div class="modes">
       <button class="mode" data-go="setlist"><span class="mi">♩</span><span class="mname">Play the set</span><span class="mdesc">Nine grooves on five pads, from straight rock to 6/8, with fills and a bass player who follows your kick.</span></button>
-      <button class="mode" data-go="trade"><span class="mi">4s</span><span class="mname">Trade fours</span><span class="mdesc">The machine plays a bar, you play it back by ear. Three misses and you're out.</span></button>
+      <button class="mode" data-go="trade"><span class="mi">4s</span><span class="mname">Trade fours</span><span class="mdesc">The machine plays a pattern, then waits while you copy it. Each time you get it right, it adds one more hit.</span></button>
       <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Gap click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift.</span></button>
     </div>
     <div class="row">
@@ -192,11 +192,11 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 <section class="screen" id="scr-trade" hidden>
   <div class="wrap">
     <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Trade fours</h2></div>
-    <p>A count-in bar, then the machine plays one bar. You answer in the next bar, by ear. It keeps going without a break, the way a real trade does. Pass two rounds and the bars get harder; pass four and the tempo goes up 4 BPM.</p>
+    <p>The machine plays a pattern on the pads. Then it waits while you play it back in the same order, so take your time. Get it right and it adds one more hit to the end. Three mistakes and the game is over.</p>
     <div class="setup">
-      <div class="field"><span class="lbl">Starting tempo</span><div class="stepper" id="tradeStep"></div></div>
+      <div class="field"><span class="lbl">Playback speed</span><div class="stepper" id="tradeStep"></div></div>
       <div class="field"><span class="lbl">Difficulty</span><div class="pills" id="tradePills"></div></div>
-      <p class="fine">On Pro the pads don't light up while the machine plays. Ears only.</p>
+      <p class="fine" id="tradeDiffNote"></p>
       <p class="fine" id="tradeBest"></p>
       <button class="primary" id="tradeBtn">Start trading</button>
     </div>
@@ -320,7 +320,7 @@ const DIFFS={
   session:{name:'Session',p:.032,g:.062,ok:.105,pass:.78},
   pro:{name:'Pro',p:.022,g:.045,ok:.085,pass:.85},
 };
-const settings=Object.assign({diff:'session',guide:false,click:false,offset:0,vol:.85,gapBars:2,tradeBpm:92,gapBpm:100,track:'lot',bpms:{}},store.get('settings',{}));
+const settings=Object.assign({diff:'session',guide:false,click:false,offset:0,vol:.85,gapBars:2,tradeBpm:72,gapBpm:100,track:'lot',bpms:{}},store.get('settings',{}));
 const saveSettings=()=>store.set('settings',settings);
 
 /* ---------- The set ---------- */
@@ -561,6 +561,7 @@ function endSession(){
   G.running=false;
 }
 function abortSession(){
+  if(typeof tradeDim==='function')tradeDim(false);
   if(G.bus){try{G.bus.disconnect()}catch(e){}}
   if(G.wake){try{G.wake.release()}catch(e){}}
   G={mode:'idle',running:false};
@@ -582,7 +583,6 @@ setInterval(()=>{
   if(!ac||!G.running||G.paused)return;
   const horizon=ac.currentTime+.18;
   if(G.music){const m=G.music;while(G.mi<m.length&&G.start+m[G.mi].t<horizon){playEv(m[G.mi],G.start+m[G.mi].t);G.mi++}}
-  if(G.mode==='trade')tradeSchedule(horizon-G.start);
 },25);
 
 const HIT={};
@@ -645,97 +645,62 @@ function finishGroove(){
   });
 }
 
-/* ---------- Mode: trade fours ---------- */
-function tradePattern(level,rng){
-  let S=level>=4?16:8;if(level>=7&&rng()<.35)S=12;
-  const lanes=level===1?['sn','kk']:level===2?['sn','kk','tm']:['hh','sn','kk','tm','cy'];
-  const ranges=[[3,4],[4,5],[5,6],[5,7],[7,9],[8,10],[8,11],[9,12],[10,13],[11,14]];
-  const [lo,hi]=ranges[Math.min(level,10)-1];
-  const n=Math.min(S-1,lo+Math.floor(rng()*(hi-lo+1)));
-  const pos=new Set();if(rng()<.75)pos.add(0);
-  if(level>=5&&S!==8){const st=1+Math.floor(rng()*(S-5));for(let k=0;k<3;k++)pos.add(st+k)}
-  let guard=0;while(pos.size<n&&guard++<200)pos.add(Math.floor(rng()*S));
-  const notes=[];
-  [...pos].sort((a,b)=>a-b).forEach(s=>{
-    const lane=lanes[Math.floor(rng()*lanes.length)];
-    notes.push({s,lane:LI[lane],v:lane==='cy'?(s===0?'c':'r'):'x'});
-    if(level>=3&&lane==='cy'&&rng()<.5)notes.push({s,lane:LI.kk,v:'x'});
-  });
-  return{S,notes};
-}
+/* ---------- Mode: trade fours (call and repeat) ---------- */
+const TRADE_LANES={casual:['sn','kk','tm'],session:['hh','sn','kk','tm','cy'],pro:['hh','sn','kk','tm','cy']};
+const TRADE_NOTE={casual:'Casual: 3 pads (snare, kick, tom) and the pads light up.',session:'Session: all 5 pads, and the pads light up.',pro:'Pro: all 5 pads, sound only. The pads stay dark while the machine plays.'};
+function tradeDim(on){padEls.forEach((el,i)=>{el.style.opacity=on&&!TRADE_LANES[settings.diff].includes(LANES[i].id)?'.25':''})}
 function startTrade(){
-  const bpm=settings.tradeBpm;
-  newSession({mode:'trade',bpm,diff:settings.diff,level:1,lives:3,score:0,passes:0,rounds:0,streak:0,bars:[],hits:[],review:null,offs:[],visq:[],
-    rng:rand(Date.now()%1e6),menu:'trade',again:startTrade,matchedAll:0,notesAll:0});
+  newSession({mode:'trade',bpm:settings.tradeBpm,diff:settings.diff,seq:[],pos:0,lives:3,score:0,rounds:0,phase:'ready',until:ac.currentTime+1.2,visq:[],
+    lanes:TRADE_LANES[settings.diff].map(id=>LI[id]),menu:'trade',again:startTrade,msg:''});
+  tradeDim(true);tradeAdd();
 }
-function tradeBar(i){
-  const prev=G.bars[i-1];
-  const spb=i===0||i%2===1?60/G.bpm:prev.spb;
-  const t=prev?prev.t+4*prev.spb:0;
-  const type=i===0?'count':i%2===1?'call':'resp';
-  const b={i,t,spb,type,judged:false};
-  if(type==='call')b.pat=tradePattern(G.level,G.rng);
-  if(type==='resp')b.pat=prev.pat;
-  if(b.pat)b.sd=4*spb/b.pat.S;
-  return b;
+function tradeAdd(){
+  const L=G.lanes;let n;do{n=L[Math.floor(Math.random()*L.length)]}while(G.seq.length>=2&&n===G.seq[G.seq.length-1]&&n===G.seq[G.seq.length-2]);
+  G.seq.push(n);
 }
-function tradeSchedule(hz){
-  if(G.over)return;
-  while(true){
-    const i=G.bars.length;const b=tradeBar(i);
-    if(b.t>hz)return;
-    G.bars.push(b);
-    const at=G.start+b.t;
-    for(let q=0;q<4;q++)click(at+q*b.spb,q===0,b.type==='count'?1:b.type==='call'?.45:.7,G.bus);
-    if(b.type==='call'){
-      b.pat.notes.forEach(n=>{drum(LANES[n.lane].id,at+n.s*b.sd,.9,n.v,G.bus);if(G.diff!=='pro')G.visq.push({t:b.t+n.s*b.sd,lane:n.lane})});
-      G.visq.sort((a,c)=>a.t-c.t);
+function tradeIv(){return 60/G.bpm}
+function tradePlay(){
+  G.phase='watch';G.pos=0;const iv=tradeIv(),t0=ac.currentTime+.15;
+  G.seq.forEach((lane,i)=>{const t=t0+i*iv;drum(LANES[lane].id,t,.95,LANES[lane].id==='cy'?'c':'x',G.bus);if(G.diff!=='pro')G.visq.push({t,lane})});
+  G.until=t0+(G.seq.length-1)*iv+Math.min(.6,iv);
+}
+HIT.trade=(lane)=>{
+  if(G.phase!=='input')return null;
+  const want=G.seq[G.pos];
+  if(lane===want){
+    G.pos++;
+    if(G.pos===G.seq.length){
+      G.rounds++;G.score+=G.seq.length*10;G.phase='good';G.msg=G.seq.length>=5&&G.seq.length%5===0?`${G.seq.length} in a row!`:'Nice!';
+      G.until=ac.currentTime+1.1;G.bpm=Math.min(200,G.bpm+2);
     }
-  }
-}
-function barAt(st){for(let k=G.bars.length-1;k>=0;k--){if(st>=G.bars[k].t-.12)return G.bars[k]}return null}
-HIT.trade=(lane,st)=>{
-  const b=barAt(st);if(!b||b.type!=='resp'||b.judged)return null;
-  if(st>b.t+4*b.spb-.06)return null;
-  G.hits.push({lane,st,bi:b.i});return null;
-};
-function judgeResp(b){
-  b.judged=true;
-  const W=DIFFS[G.diff],hits=G.hits.filter(h=>h.bi===b.i),used=new Set();let matched=0,pts=0;const offs=[];
-  const marks=b.pat.notes.map(n=>{
-    const nt=b.t+n.s*b.sd;let bi=-1,bd=1e9;
-    hits.forEach((h,k)=>{if(used.has(k)||h.lane!==n.lane)return;const d=Math.abs(h.st-nt);if(d<=W.ok*1.2&&d<bd){bd=d;bi=k}});
-    if(bi>=0){used.add(bi);matched++;const dt=hits[bi].st-nt;offs.push(dt*1000);pts+=bd<=W.p?100:bd<=W.g?70:40;return true}
-    return false;
-  });
-  const total=b.pat.notes.length,extras=hits.length-used.size,acc=matched/(total+extras),pass=acc>=W.pass;
-  G.offs.push(...offs);G.rounds++;G.matchedAll+=matched;G.notesAll+=total;
-  G.review={pat:b.pat,marks,hits:hits.map(h=>({lane:h.lane,pos:(h.st-b.t)/b.sd})),pass,matched,total,extras,mean:stats(offs).mean,at:performance.now()};
-  if(pass){
-    G.passes++;G.streak++;G.score+=pts*G.level+(extras===0&&matched===total?50*G.level:0);
-    if(G.passes%2===0)G.level=Math.min(10,G.level+1);
-    if(G.passes%4===0)G.bpm=Math.min(220,G.bpm+4);
   }else{
-    G.streak=0;G.lives--;
-    if(G.lives<=0){G.over=true;if(G.bus){try{G.bus.disconnect()}catch(e){}}setTimeout(finishTrade,900)}
+    G.lives--;G.phase='wrong';G.msg=G.lives>0?'Oops!':'Out of chances';G.wrongLane=want;
+    setTimeout(()=>{if(G.mode==='trade'&&G.running)flashLane(want)},250);
+    G.until=ac.currentTime+1.6;
   }
-}
+  return null;
+};
 function updateTrade(){
-  const jt=jtime(),vt=vtime();
-  for(const b of G.bars){if(b.type==='resp'&&!b.judged&&jt>b.t+4*b.spb-.04)judgeResp(b)}
-  while(G.visq.length&&G.visq[0].t<=vt){flashLane(G.visq.shift().lane)}
+  const now=ac.currentTime;
+  while(G.visq.length&&G.visq[0].t<=now-outLat()){flashLane(G.visq.shift().lane)}
+  if(now<G.until)return;
+  if(G.phase==='ready')tradePlay();
+  else if(G.phase==='watch'){G.phase='input';G.pos=0}
+  else if(G.phase==='good'){tradeAdd();tradePlay()}
+  else if(G.phase==='wrong'){if(G.lives<=0)finishTrade();else tradePlay()}
 }
 function finishTrade(){
   if(!G.running)return;
-  endSession();
-  const prev=store.get('best.trade.'+G.diff,null);const isBest=!prev||G.score>prev.score;
-  if(isBest)store.set('best.trade.'+G.diff,{score:G.score,rounds:G.passes,bpm:G.bpm,level:G.level});
-  const stars=G.passes>=16?3:G.passes>=8?2:G.passes>=3?1:0;
-  const s=stats(G.offs);
-  showResults({eyebrow:`Trade fours · ${DIFFS[G.diff].name}`,title:isBest?'New best':'Out of rounds',stars,
-    verdict:G.passes>=16?'Big ears':G.passes>=8?'You were listening':G.passes>=3?'Getting the hang of it':'Listen closer next time',
-    grid:[['Score',G.score.toLocaleString()],['Rounds passed',G.passes],['Reached level',G.level],['Final tempo',G.bpm+' BPM'],['Notes caught',`${G.matchedAll}/${G.notesAll}`],['Best before',prev?prev.score.toLocaleString():'–']],
-    offs:G.offs,range:DIFFS[G.diff].ok*1200,pocket:pocketWords(s),again:startTrade,menu:'trade'});
+  endSession();tradeDim(false);
+  const best=G.seq.length-1;
+  const prev=store.get('best.trade2.'+G.diff,null);const isBest=!prev||best>prev.len;
+  if(isBest)store.set('best.trade2.'+G.diff,{len:best,score:G.score});
+  const stars=best>=12?3:best>=8?2:best>=5?1:0;
+  showResults({eyebrow:`Trade fours · ${DIFFS[G.diff].name}`,title:isBest?'New best':'Game over',stars,
+    verdict:best>=15?'Elephant memory':best>=10?'Big ears':best>=6?'Nice listening':'Keep at it',
+    grid:[['Longest pattern',best+' hits'],['Score',G.score.toLocaleString()],['Final speed',G.bpm+' BPM'],['Best before',prev?prev.len+' hits':'–']],
+    offs:[],range:100,pocket:'Each pattern you copy adds one more hit. The speed goes up 2 BPM every time you get one right.',again:startTrade,menu:'trade'});
+  $('#resHist').parentElement.hidden=true;
 }
 
 /* ---------- Mode: gap click ---------- */
@@ -866,23 +831,18 @@ function drawIdle(){
   cx.globalAlpha=1;drawHighway(demo.notes,vt,demo.spb,false);
 }
 function drawTrade(){
-  const vt=vtime(),b=barAt(vt)||{type:'count',t:0,spb:60/G.bpm};
-  const beat=clamp(Math.floor((vt-b.t)/b.spb),0,3);
-  const phase=vt<0?'Ready':b.type==='count'?'Count in':b.type==='call'?'Listen':'Your turn';
-  const midY=Math.max(80,H*.22);
-  bigText(phase.toUpperCase(),midY,Math.min(72,W*.16),b.type==='resp'?'#e3b04b':'#efe8dc');
-  for(let k=0;k<4;k++){const x=W/2+(k-1.5)*34,on=k===beat&&vt>=0;cx.beginPath();cx.arc(x,midY+50,on?10:7,0,7);cx.fillStyle=on?(b.type==='resp'?'#e3b04b':'#efe8dc'):'rgba(239,232,220,.18)';cx.fill()}
-  monoText(`LEVEL ${G.level}  ·  ${G.bpm} BPM`,W/2,midY+82,12,'#a99cb8');
-  const R=G.review;if(!R)return;
-  // review grid
-  const top=midY+110,avail=H-top-24;if(avail<90)return;
-  const gw=Math.min(W-32,520),gx=(W-gw)/2,rowH=Math.min(22,(avail-34)/5),cw=gw/R.pat.S;
-  const ok=R.pass;monoText(`${ok?'PASS':'MISSED'} · ${R.matched}/${R.total} notes${R.extras?` · ${R.extras} extra`:''}${R.matched?` · avg ${fmtMs(R.mean/1000)}`:''}`,W/2,top,12,ok?'#7fd88f':'#ff6b6b');
-  const gy=top+16;
-  for(let s=0;s<R.pat.S;s++){const beatCol=(s*4/R.pat.S)%1===0;cx.fillStyle=beatCol?'rgba(239,232,220,.16)':'rgba(239,232,220,.05)';cx.fillRect(gx+s*cw,gy,1,rowH*5)}
-  R.pat.notes.forEach((n,k)=>{const x=gx+n.s*cw+2,y=gy+n.lane*rowH+2;cx.strokeStyle=LANES[n.lane].color;cx.lineWidth=2;rr(x,y,cw-4,rowH-4,4);cx.stroke();if(R.marks[k]){cx.globalAlpha=.25;cx.fillStyle=LANES[n.lane].color;cx.fill();cx.globalAlpha=1}});
-  R.hits.forEach(h=>{const x=gx+h.pos*cw+cw/2,y=gy+h.lane*rowH+rowH/2;cx.beginPath();cx.arc(x,y,Math.max(3,rowH*.2),0,7);cx.fillStyle='#efe8dc';cx.fill()});
-  monoText('Boxes: the call. Dots: what you played.',W/2,gy+rowH*5+14,11,'#a99cb8');
+  const midY=Math.max(90,H*.28);
+  const title={ready:'Get ready',watch:G.diff==='pro'?'Listen':'Watch',input:'Your turn',good:G.msg,wrong:G.msg}[G.phase]||'';
+  const col=G.phase==='input'?'#e3b04b':G.phase==='good'?'#7fd88f':G.phase==='wrong'?'#ff6b6b':'#efe8dc';
+  bigText(title.toUpperCase(),midY,Math.min(64,W*.13),col);
+  monoText(`Pattern: ${G.seq.length} hit${G.seq.length>1?'s':''}  ·  ${G.bpm} BPM`,W/2,midY+46,12,'#a99cb8');
+  // progress dots
+  const n=G.seq.length,gap=Math.min(26,(W-48)/Math.max(1,n)),r=Math.min(8,gap*.35),x0=W/2-(n-1)*gap/2,y=midY+86;
+  for(let i=0;i<n;i++){cx.beginPath();cx.arc(x0+i*gap,y,r,0,7);
+    const done=G.phase==='input'?i<G.pos:G.phase==='good';
+    cx.fillStyle=done?LANES[G.seq[i]].color:'rgba(239,232,220,.16)';cx.fill()}
+  if(G.phase==='input')monoText('Take your time',W/2,y+34,13,'#a99cb8');
+  if(G.phase==='wrong'&&G.wrongLane!=null)monoText(`It was the ${LANES[G.wrongLane].name.toLowerCase()}${G.lives>0?'. Here it is again.':''}`,W/2,y+34,13,'#efe8dc');
 }
 function drawGap(){
   const vt=vtime(),bar=4*G.spb,bi=Math.floor(vt/bar),ty=vt<0?'count':G.types[clamp(bi,0,G.types.length-1)];
@@ -910,7 +870,7 @@ function drawCal(){
 }
 function setHud(){
   const m=G.mode,set=(i,l)=>$('#l'+i).textContent=l;
-  if(m==='trade'){set(1,'Score');set(2,'Level');set(3,'Lives')}
+  if(m==='trade'){set(1,'Score');set(2,'Pattern');set(3,'Lives')}
   else if(m==='gap'){set(1,'Tempo');set(2,'Hits');set(3,'Last')}
   else if(m==='cal'){set(1,'Mode');set(2,'Taps');set(3,'Offset')}
   else{set(1,'Score');set(2,'Combo');set(3,'Accuracy')}
@@ -919,7 +879,7 @@ const hudCache={};
 function hud(i,v){v=String(v);if(hudCache[i]!==v){hudCache[i]=v;$('#v'+i).textContent=v}}
 function updateHud(){
   if(G.mode==='groove'){hud(1,G.score.toLocaleString());hud(2,G.combo+(mult()>1?` ×${mult()}`:''));const a=grooveAcc();hud(3,a==null?'–':(a*100).toFixed(1)+'%')}
-  else if(G.mode==='trade'){hud(1,G.score.toLocaleString());hud(2,G.level);hud(3,'●'.repeat(Math.max(0,G.lives))+'○'.repeat(3-Math.max(0,G.lives)))}
+  else if(G.mode==='trade'){hud(1,G.score.toLocaleString());hud(2,G.seq.length);hud(3,'●'.repeat(Math.max(0,G.lives))+'○'.repeat(3-Math.max(0,G.lives)))}
   else if(G.mode==='gap'){hud(1,G.bpm+' BPM');hud(2,G.pts.length);hud(3,G.last?Math.round(G.last.dt*1000)+' ms':'–')}
   else if(G.mode==='cal'){hud(1,'Calibrate');hud(2,G.taps.length);hud(3,settings.offset+' ms')}
   else{hud(1,'–');hud(2,'–');hud(3,'–')}
@@ -992,10 +952,11 @@ $('#optGuide').onchange=e=>{settings.guide=e.target.checked;saveSettings()};
 $('#optClick').onchange=e=>{settings.click=e.target.checked;saveSettings()};
 $('#playBtn').onclick=()=>startGroove(selTrack());
 function renderTrade(){
-  stepper($('#tradeStep'),()=>settings.tradeBpm,v=>{settings.tradeBpm=v;saveSettings()},50,200,'BPM');
-  pills($('#tradePills'),DIFF_OPTS,()=>settings.diff,v=>{settings.diff=v;saveSettings();renderTrade()});
-  const b=store.get('best.trade.'+settings.diff,null);
-  $('#tradeBest').textContent=b?`Best on ${DIFFS[settings.diff].name}: ${b.score.toLocaleString()} points, ${b.rounds} rounds, reached ${b.bpm} BPM.`:'No trades on this difficulty yet.';
+  stepper($('#tradeStep'),()=>settings.tradeBpm,v=>{settings.tradeBpm=v;saveSettings()},40,180,'BPM');
+  pills($('#tradePills'),Object.entries(DIFFS).map(([k,d])=>[k,d.name]),()=>settings.diff,v=>{settings.diff=v;saveSettings();renderTrade()});
+  $('#tradeDiffNote').textContent=TRADE_NOTE[settings.diff];
+  const b=store.get('best.trade2.'+settings.diff,null);
+  $('#tradeBest').textContent=b?`Best on ${DIFFS[settings.diff].name}: ${b.len} hits in a row.`:'No games on this difficulty yet.';
 }
 $('#tradeBtn').onclick=startTrade;
 function renderGap(){
@@ -1018,6 +979,7 @@ function showResults(o){
   $('#resGrid').innerHTML=o.grid.map(([k,v])=>`<div><span class="lbl">${k}</span><b>${v}</b></div>`).join('');
   $('#resPocket').textContent=o.pocket;
   $('#resAgain').onclick=()=>o.again();$('#resMenu').onclick=()=>{G={mode:'idle',running:false};show(o.menu)};
+  $('#resHist').parentElement.hidden=false;
   show('results');
   requestAnimationFrame(()=>drawHist($('#resHist'),o.offs,o.range));
 }
