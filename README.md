@@ -26,7 +26,7 @@ It works offline once it has been opened. High scores are saved on each device.
 
 ## Flips (drum games)
 
-`flips/index.html` is a set of drum games for a drummer named Flips. Everything, including the drum sounds and backing band, is synthesized in the browser, so it is one file with no assets. The menu lists:
+`flips/index.html` is a set of drum games (with its own home-screen icon and `manifest.webmanifest`, so it can be added to a phone's home screen as "Flips") for a drummer named Flips. Everything, including the drum sounds and backing band, is synthesized in the browser, so it is one file with no assets. The menu lists:
 
 **Quick games**
 
