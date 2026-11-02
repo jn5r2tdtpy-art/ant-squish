@@ -128,6 +128,12 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 .wrap>.lbl{margin-bottom:-8px}
 #pads[data-turn="machine"] .pad{filter:saturate(.5) brightness(.75)}
 #pads[data-turn="you"] .pad{box-shadow:inset 0 -6px 0 rgba(0,0,0,.35),0 0 0 2px var(--brass),0 0 18px color-mix(in srgb,var(--brass) 45%,transparent)}
+@media (orientation:landscape) and (max-height:520px){
+  #mini.kitwide{grid-template-rows:1fr}
+  #mini.kitwide .minibar{position:absolute;top:0;left:0;z-index:2;padding:calc(env(safe-area-inset-top,0px) + 8px) 0 0 max(12px,env(safe-area-inset-left,0px))}
+  #mini.kitwide .minibar h2{display:none}
+  #mini.kitwide .minibar .back{padding:6px 10px;font-size:13px;background:rgba(21,17,28,.8)}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -1110,6 +1116,7 @@ function open(g){
   audio();cur=g;phase='ready';best=mstore.get(g);G={};fx.length=0;
   document.getElementById('miniTitle').textContent=GAMES[g].name;
   document.getElementById('mini').hidden=false;window.miniOpen=true;resize();
+  document.getElementById('mini').classList.toggle('kitwide',g==='simon');resize();
   if(GAMES[g].onOpen)GAMES[g].onOpen();
   if(!running){running=true;last=performance.now();requestAnimationFrame(frame)}
 }
@@ -1393,11 +1400,14 @@ const HEADS=[ // drum heads on the back-view photo (837x478): x,y,rx,ry, name, c
   {x:661,y:368,rx:89,ry:72,n:'Big floor tom',c:'#ff9f43',f:118},
   {x:143,y:390,rx:47,ry:40,n:'Pad',c:'#e3b04b',s:'kick'},
 ];
-const VIEW={x:90,y:105,w:680,h:345};
+const VIEW={x:92,y:112,w:665,h:332};
 GAMES.simon={
   name:'Flip’s kit memory',
   help:'Flip’s kit lights up one drum. Tap the same drum. Then it lights up two, then three. Repeat the whole pattern each time. One wrong drum and the game is over. Best played with your phone turned sideways.',
-  view(){const s=Math.min(W/VIEW.w,(H-110)/VIEW.h);return{s,ox:W/2-(VIEW.x+VIEW.w/2)*s,oy:H*.56-(VIEW.y+VIEW.h/2)*s}},
+  view(){
+    if(W/H>1.4){const L=Math.min(170,W*.2),s=Math.min((W-L-12)/VIEW.w,(H-10)/VIEW.h);
+      return{s,wide:true,L,ox:L+(W-L)/2-(VIEW.x+VIEW.w/2)*s,oy:H/2-(VIEW.y+VIEW.h/2)*s}}
+    const s=Math.min(W/VIEW.w,(H-110)/VIEW.h);return{s,ox:W/2-(VIEW.x+VIEW.w/2)*s,oy:H*.56-(VIEW.y+VIEW.h/2)*s}},
   hitSound(i){const h=HEADS[i];if(h.s){snd(h.s);return}
     if(!ac)return;const t=ac.currentTime;tone('sine',h.f,h.f*.58,t,.5,.85);
     const s=ac.createBufferSource();s.buffer=noiseBuf;const fl=ac.createBiquadFilter();fl.type='bandpass';fl.frequency.value=h.f*4;s.connect(fl).connect(env(t,.25,.05));s.start(t);s.stop(t+.08)},
@@ -1418,7 +1428,7 @@ GAMES.simon={
     if(i!==G.seq[G.pos]){G.st='wrong';G.wrong=G.seq[G.pos];snd('bad');setTimeout(()=>over(`You remembered ${G.seq.length-1}`),1400);return}
     G.pos++;
     if(G.pos===G.seq.length){G.round=G.seq.length;score=G.seq.length;G.st='good';G.until=performance.now()+900;
-      pop(G.seq.length%5===0?`${G.seq.length} in a row!`:'Nice!',W/2,H*.2,C.good,30);if(G.seq.length%5===0)snd('crash')}
+      if(G.seq.length%5===0)pop(`${G.seq.length} in a row!`,W/2,H*.2,C.good,30);if(G.seq.length%5===0)snd('crash')}
   },
   update(){
     const now=performance.now();
@@ -1443,13 +1453,25 @@ GAMES.simon={
       else{cx.lineWidth=2;cx.strokeStyle=h.c;cx.globalAlpha=G.st==='input'?.8:.35;cx.stroke();cx.globalAlpha=1}
     });
     const len=G.seq?G.seq.length:1;
-    txt(`ROUND ${len}`,16,34,16,C.head,'display','left');
-    txt(String(score),W/2,38,42,C.head);
-    const msg={pause:'Get ready',watch:'Watch',input:'Your turn',good:'',wrong:'Oops!'}[G.st]||'';
-    const mcol=G.st==='input'?C.brass:G.st==='wrong'?C.bad:C.head,top=v.oy+VIEW.y*v.s;
-    if(msg){if(top-30>=80)txt(msg.toUpperCase(),W/2,top-30,30,mcol);else txt(msg.toUpperCase(),16,70,26,mcol,'display','left')}
-    if(G.st==='input'){const n=G.seq.length,gap=Math.min(22,(W-48)/n);for(let k=0;k<n;k++){cx.beginPath();cx.arc(W/2-(n-1)*gap/2+k*gap,Math.min(H-24,v.oy+(VIEW.y+VIEW.h)*v.s+26),Math.min(6,gap*.3),0,7);cx.fillStyle=k<G.pos?C.brass:'rgba(239,232,220,.2)';cx.fill()}}
-    if(G.st==='wrong')txt(`It was the ${HEADS[G.wrong].n.toLowerCase()}`,W/2,Math.min(H-24,v.oy+(VIEW.y+VIEW.h)*v.s+26),14,C.head,'mono');
+    const msg={pause:'Get ready',watch:'Watch',input:'Your turn',good:'Nice!',wrong:'Oops!'}[G.st]||'';
+    const mcol=G.st==='input'?C.brass:G.st==='wrong'?C.bad:G.st==='good'?C.good:C.head;
+    if(v.wide){
+      // sideways: everything in a column on the left so the kit can fill the screen
+      const y0=Math.max(70,H*.2);
+      cx.fillStyle='rgba(12,9,16,.55)';cx.fillRect(0,0,v.L,H);
+      txt(`ROUND ${len}`,16,y0,18,C.head,'display','left');
+      if(msg)txt(msg.toUpperCase(),16,y0+34,Math.min(30,v.L*.19),mcol,'display','left');
+      txt('SCORE',16,y0+72,10,C.muted,'mono','left');txt(String(score),16,y0+98,34,C.head,'display','left');
+      if(G.st==='input')txt(`${G.pos} of ${G.seq.length}`,16,y0+136,14,C.brass,'mono','left');
+      if(G.st==='wrong'){txt('It was the',16,y0+136,12,C.head,'mono','left');txt(HEADS[G.wrong].n.toLowerCase(),16,y0+154,12,C.head,'mono','left')}
+    }else{
+      txt(`ROUND ${len}`,16,34,16,C.head,'display','left');
+      txt(String(score),W/2,38,42,C.head);
+      const top=v.oy+VIEW.y*v.s;
+      if(msg&&G.st!=='good'){if(top-30>=80)txt(msg.toUpperCase(),W/2,top-30,30,mcol);else txt(msg.toUpperCase(),16,70,26,mcol,'display','left')}
+      if(G.st==='input'){const n=G.seq.length,gap=Math.min(22,(W-48)/n);for(let k=0;k<n;k++){cx.beginPath();cx.arc(W/2-(n-1)*gap/2+k*gap,Math.min(H-24,v.oy+(VIEW.y+VIEW.h)*v.s+26),Math.min(6,gap*.3),0,7);cx.fillStyle=k<G.pos?C.brass:'rgba(239,232,220,.2)';cx.fill()}}
+      if(G.st==='wrong')txt(`It was the ${HEADS[G.wrong].n.toLowerCase()}`,W/2,Math.min(H-24,v.oy+(VIEW.y+VIEW.h)*v.s+26),14,C.head,'mono');
+    }
   },
   drawIntro(){
     // zoom in on the front of the kit, then spin around to the drummer's side
