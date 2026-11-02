@@ -310,6 +310,15 @@ const SOUND_SLOTS = [
   { id:'hide',   name:'Hide',         desc:'Jump into a laundry bin' },
   { id:'win',    name:'Escaped!',     desc:'Reach the exit' },
 ];
+// Built-in voice clips from prison-escape/custom/. A sound not listed here uses custom/<id>.mp3 if it exists,
+// otherwise the game's own beep.
+const BUILT_IN_SOUNDS = {
+  win:   'right-on-buddy.mp3',
+  key:   'i-appreciate-you.mp3',
+  door:  'i-appreciate-you.mp3',
+  stash: 'i-appreciate-you.mp3',
+  hide:  'i-appreciate-you.mp3',
+};
 const custom = { face:null, faceURL:'', src:null, blobs:{}, buffers:{}, fileSounds:{}, playing:{} };
 const DB = {
   db:null,
@@ -386,10 +395,16 @@ async function loadCustom(){
   }
   if (custom.src && !save.face) save.face = { zoom:1, ox:0, oy:0 };
   buildFace();
+  const fetched = {};
   for (const s of SOUND_SLOTS) {
     const b = await DB.get('snd_' + s.id);
     if (b) custom.blobs[s.id] = b;
-    else { try { const r = await fetch(`custom/${s.id}.mp3`); if (r.ok) custom.fileSounds[s.id] = await r.blob(); } catch (e) {} }
+    const file = BUILT_IN_SOUNDS[s.id] || `${s.id}.mp3`;
+    if (!(file in fetched)) {
+      fetched[file] = null;
+      try { const r = await fetch('custom/' + file); if (r.ok) fetched[file] = await r.blob(); } catch (e) {}
+    }
+    if (fetched[file]) custom.fileSounds[s.id] = fetched[file];
   }
   decodePending();
   if (mode === 'title') titleScreen(); else if (mode === 'custom') renderCustomize();
@@ -1304,7 +1319,7 @@ function renderCustomize(){
       ${SOUND_SLOTS.map(s => {
         const mine = !!custom.blobs[s.id], file = !mine && !!custom.fileSounds[s.id], recording = rec && rec.id === s.id;
         return `<div class="snd">
-          <div class="nm">${s.name}<small class="${mine || file ? 'c' : ''}">${recording ? 'Recording… tap Stop' : mine ? 'Your sound' : file ? 'From custom folder' : s.desc}</small></div>
+          <div class="nm">${s.name}<small class="${mine || file ? 'c' : ''}">${recording ? 'Recording… tap Stop' : mine ? 'Your sound' : file ? 'Built-in voice clip' : s.desc}</small></div>
           <button class="sbtn" data-act="sndTest" data-id="${s.id}" aria-label="Play ${s.name}">▶</button>
           <button class="sbtn ${recording ? 'rec' : ''}" data-act="sndRec" data-id="${s.id}">${recording ? '■ Stop' : '🎤 Record'}</button>
           <button class="sbtn" data-act="sndFile" data-id="${s.id}" aria-label="Choose a sound file for ${s.name}">📁</button>

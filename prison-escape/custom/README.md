@@ -16,4 +16,6 @@ To build them into the game for everyone, put files in this folder with these ex
 | `hide.mp3` | You jump into a laundry bin |
 | `win.mp3` | You reach the exit |
 
+Right now the game ships with two voice clips: `right-on-buddy.mp3` plays when you escape, and `i-appreciate-you.mp3` plays for keycard, door unlock, contraband and hide. Which file goes with which sound is set in `BUILT_IN_SOUNDS` near the top of the game code in `prison-escape/index.html`; a sound not listed there uses the file name from the table above.
+
 Keep sounds short (under 4 seconds; longer ones get cut off). Any sound without a file uses the built-in beep. Anything a player sets in the Customize screen replaces these files on their device.
