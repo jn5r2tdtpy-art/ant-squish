@@ -1130,7 +1130,7 @@ function wrapTxt(t,x,y,maxW,size,color){cx.font=`400 ${size}px "Atkinson Hyperle
 function card(title,body,foot){
   cx.fillStyle='rgba(21,17,28,.86)';cx.fillRect(0,0,W,H);
   const mw=Math.min(W-40,400),ty=H*.24;
-  txt(title,W/2,ty,Math.min(60,W*.14),C.head);
+  let ts=Math.min(60,W*.14);cx.font=`900 ${ts}px "Big Shoulders Display",Impact,sans-serif`;const tw=cx.measureText(title).width;if(tw>W-32)ts*=(W-32)/tw;txt(title,W/2,ty,ts,C.head);
   const yy=wrapTxt(body,W/2,ty+58,mw,17,C.head);
   const pulse=.75+.25*Math.sin(performance.now()/260);
   cx.globalAlpha=pulse;txt(foot,W/2,yy+64,26,C.brass);cx.globalAlpha=1;
