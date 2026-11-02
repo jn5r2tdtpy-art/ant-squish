@@ -22,3 +22,4 @@ It works offline once it has been opened. High scores are saved on each device.
 - **Move:** WASD / arrow keys, or drag anywhere on a touch screen
 - **Run:** Shift, or hold the RUN button (fast, but noisy and tiring)
 - Each level gives up to 3 stars: escape, never get spotted, collect all contraband
+- **Customize:** put your own face on the runner and record your own sound effects from the title screen. To build a face or sounds into the game for everyone, see `prison-escape/custom/README.md`.
