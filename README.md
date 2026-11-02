@@ -31,7 +31,7 @@ It works offline once it has been opened. High scores are saved on each device.
 **Quick games**
 
 - **Flip Flip’s:** hold to wind up, release to toss a drumstick, tap to catch it tip up. More spins score more; 3 sticks per run.
-- **Whack Flip’s kit:** smack bugs, tomatoes and golden sticks that pop up on a drum kit; don't hit the bass player's drink. 45 seconds.
+- **Whack Flip’s kit:** bop the moles (and golden sticks) that pop out of a drum kit; don't hit the bass player's drink. 45 seconds.
 - **Flip’s kick drum:** tap the bass drum (every hit is a kick) as rings close in. Played in rounds: round 1 is practice at 70 BPM, then each round is 6 BPM faster with busier patterns and a tighter timing window. 5 misses per round in rounds 2–3, then 3.
 
 **For a real workout**

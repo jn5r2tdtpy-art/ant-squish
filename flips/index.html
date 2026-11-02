@@ -154,7 +154,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="lbl">Quick games</div>
     <div class="modes">
       <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Flip Flip’s</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
-      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack Flip’s kit</span><span class="mdesc">Bugs and tomatoes land on the drums. Smack them fast, but leave the bass player's drink alone.</span></button>
+      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack Flip’s kit</span><span class="mdesc">Moles pop out of the drums. Bop them fast, but leave the bass player's drink alone.</span></button>
       <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Flip’s kick drum</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
     </div>
     <div class="lbl">For a real workout</div>
@@ -1207,7 +1207,7 @@ const KIT=[{x:.17,y:.27,r:.13,s:'hat',c:C.brass,n:'Hi-hat',cym:1},{x:.45,y:.17,r
   {x:.27,y:.52,r:.14,s:'snare',c:C.red,n:'Snare'},{x:.73,y:.53,r:.15,s:'tom',c:C.teal,n:'Floor tom'},{x:.5,y:.79,r:.18,s:'kick',c:C.violet,n:'Kick'}];
 GAMES.whack={
   name:'Whack Flip’s kit',
-  help:'Smack the bugs and tomatoes before they get away. Golden sticks are worth 50. Hit the bass player’s drink and you lose 30. 45 seconds.',
+  help:'Moles are popping out of Flip\u2019s drums! Bop them before they duck back down. Moles in red headbands are quick and worth 15. Golden sticks are worth 50. Hit the bass player’s drink and you lose 30. 45 seconds.',
   init(){G={time:45,items:[],next:.5,flash:KIT.map(()=>0),combo:0}},
   geo(d){const s=Math.min(W,H*.85);return{x:d.x*W,y:d.y*H+10,r:d.r*s}},
   down(x,y){
@@ -1216,15 +1216,15 @@ GAMES.whack={
     const it=G.items.find(i=>i.d===k&&!i.hit);if(!it)return;
     it.hit=performance.now();const g=this.geo(KIT[k]);
     if(it.type==='drink'){score=Math.max(0,score-30);G.combo=0;snd('bad');pop('That was his drink! -30',g.x,g.y-g.r-10,C.bad,18)}
-    else{G.combo++;const mult=1+Math.floor(G.combo/6),pts={bug:10,tomato:15,gold:50}[it.type]*mult;score+=pts;if(it.type==='gold')snd('ding');
+    else{G.combo++;const mult=1+Math.floor(G.combo/6),pts={mole:10,fast:15,gold:50}[it.type]*mult;score+=pts;if(it.type==='gold')snd('ding');
       pop('+'+pts,g.x,g.y-g.r-10,it.type==='gold'?C.brass:C.head,22);if(G.combo%6===0)pop(`Combo x${mult}`,W/2,H*.4,C.brass,26)}
   },
   update(dt){
     G.time-=dt;if(G.time<=0){G.time=0;over('Time!');return}
     const speed=1+(45-G.time)/28;G.next-=dt*speed;
     if(G.next<=0){G.next=rnd(.4,.85);const free=KIT.map((_,i)=>i).filter(i=>!G.items.some(t=>t.d===i));
-      if(free.length){const r=Math.random(),type=r<.07?'gold':r<.22?'drink':r<.47?'tomato':'bug';
-        const life={gold:.8,drink:1.6,tomato:.95,bug:1.4}[type]/Math.sqrt(speed)*1000;
+      if(free.length){const r=Math.random(),type=r<.07?'gold':r<.22?'drink':r<.47?'fast':'mole';
+        const life={gold:.8,drink:1.6,fast:.95,mole:1.4}[type]/Math.sqrt(speed)*1000;
         G.items.push({d:free[Math.floor(Math.random()*free.length)],type,born:performance.now(),life})}}
     const now=performance.now();
     G.items=G.items.filter(i=>{if(i.hit)return now-i.hit<220;if(now-i.born<i.life)return true;if(i.type!=='drink'&&G.combo){G.combo=0}return false});
@@ -1243,10 +1243,22 @@ GAMES.whack={
       let s=g.r*.55*Math.min(1,age*7);if(it.hit)s*=Math.max(0,1-(now-it.hit)/220);if(s<=0)return;
       cx.save();cx.translate(g.x,g.y);
       if(!it.hit&&age>.7){cx.globalAlpha=.5+.5*Math.sin(now/40)}
-      if(it.type==='bug'){cx.rotate(Math.sin(now/90+it.born)*.25);cx.strokeStyle='#120e0a';cx.lineWidth=3;for(let k=-1;k<=1;k++){cx.beginPath();cx.moveTo(-s*.95,k*s*.35);cx.lineTo(s*.95,k*s*.35);cx.stroke()}
-        cx.fillStyle='#4b8a3c';cx.beginPath();cx.ellipse(0,0,s*.55,s*.78,0,0,7);cx.fill();cx.strokeStyle='#2c5a22';cx.beginPath();cx.moveTo(0,-s*.5);cx.lineTo(0,s*.75);cx.stroke();
-        cx.fillStyle='#2c5a22';cx.beginPath();cx.arc(0,-s*.72,s*.3,0,7);cx.fill();cx.fillStyle='#fff';cx.beginPath();cx.arc(-s*.12,-s*.78,s*.07,0,7);cx.arc(s*.12,-s*.78,s*.07,0,7);cx.fill()}
-      else if(it.type==='tomato'){cx.fillStyle='#e8402f';cx.beginPath();cx.arc(0,0,s*.78,0,7);cx.fill();cx.fillStyle='rgba(255,255,255,.35)';cx.beginPath();cx.arc(-s*.25,-s*.25,s*.15,0,7);cx.fill();cx.fillStyle='#3e9a3a';for(let k=0;k<5;k++){cx.save();cx.rotate(k*1.26);cx.beginPath();cx.ellipse(0,-s*.68,s*.09,s*.22,0,0,7);cx.fill();cx.restore()}}
+      if(it.type==='mole'||it.type==='fast'){
+        // a mole popping out of a hole in the drumhead; the fast one wears a red drummer's headband
+        const rise=it.hit?0:(1-Math.min(1,age*5))*s*1.2,hy=s*.55,o=rise;
+        cx.fillStyle='#0c0910';cx.beginPath();cx.ellipse(0,hy,s*.85,s*.28,0,0,7);cx.fill();
+        cx.save();cx.beginPath();cx.rect(-s*1.5,-s*2,s*3,hy+s*2);cx.clip();
+        cx.fillStyle='#7a5235';cx.beginPath();cx.ellipse(0,s*.15+o,s*.66,s*.85,0,0,7);cx.fill();
+        cx.fillStyle='#c99a74';cx.beginPath();cx.ellipse(0,s*.12+o,s*.36,s*.3,0,0,7);cx.fill();
+        cx.fillStyle='#ff8fa3';cx.beginPath();cx.ellipse(0,-s*.02+o,s*.14,s*.1,0,0,7);cx.fill();
+        cx.fillStyle='#fff';cx.fillRect(-s*.07,s*.14+o,s*.06,s*.1);cx.fillRect(s*.01,s*.14+o,s*.06,s*.1);
+        cx.strokeStyle='rgba(30,20,14,.7)';cx.lineWidth=1.5;for(const d of [-1,1])for(const k of [-.06,.06]){cx.beginPath();cx.moveTo(d*s*.18,s*.04+o);cx.lineTo(d*s*.55,s*(.0+k*2)+o);cx.stroke()}
+        if(it.hit){cx.strokeStyle='#120e0a';cx.lineWidth=2.5;for(const d of [-1,1]){const ex=d*s*.24,ey=-s*.3+o,q=s*.07;cx.beginPath();cx.moveTo(ex-q,ey-q);cx.lineTo(ex+q,ey+q);cx.moveTo(ex+q,ey-q);cx.lineTo(ex-q,ey+q);cx.stroke()}}
+        else{cx.fillStyle='#120e0a';for(const d of [-1,1]){cx.beginPath();cx.arc(d*s*.24,-s*.3+o,s*.08,0,7);cx.fill()}cx.fillStyle='#fff';for(const d of [-1,1]){cx.beginPath();cx.arc(d*s*.24+s*.025,-s*.32+o,s*.025,0,7);cx.fill()}}
+        if(it.type==='fast'){cx.fillStyle='#ff5a6e';cx.fillRect(-s*.6,-s*.6+o,s*1.2,s*.16);cx.beginPath();cx.moveTo(s*.55,-s*.55+o);cx.lineTo(s*.85,-s*.7+o);cx.lineTo(s*.8,-s*.45+o);cx.closePath();cx.fill()}
+        cx.restore();
+        cx.strokeStyle='#2a1d14';cx.lineWidth=Math.max(3,s*.12);cx.beginPath();cx.ellipse(0,hy,s*.85,s*.28,0,0,Math.PI);cx.stroke();
+      }
       else if(it.type==='gold'){cx.rotate(-.6+Math.sin(now/120)*.1);cx.shadowColor=C.brass;cx.shadowBlur=18;cx.fillStyle=C.brass;rr(-s*.12,-s,s*.24,s*2,s*.12);cx.fill();cx.beginPath();cx.ellipse(0,-s,s*.17,s*.27,0,0,7);cx.fill();cx.shadowBlur=0}
       else{cx.fillStyle='rgba(217,164,65,.95)';cx.beginPath();cx.moveTo(-s*.5,-s*.6);cx.lineTo(s*.5,-s*.6);cx.lineTo(s*.4,s*.85);cx.lineTo(-s*.4,s*.85);cx.closePath();cx.fill();
         cx.fillStyle='#fff8e8';cx.fillRect(-s*.52,-s*.85,s*1.04,s*.3);cx.fillStyle='rgba(255,255,255,.4)';cx.fillRect(-s*.3,-s*.4,s*.1,s*1.1);
