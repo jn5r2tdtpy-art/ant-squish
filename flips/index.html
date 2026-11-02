@@ -161,7 +161,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="modes">
       <button class="mode" data-go="setlist"><span class="mi">♩</span><span class="mname">Play the set</span><span class="mdesc">Nine grooves on five pads, from straight rock to 6/8, with fills and a bass player who follows your kick.</span></button>
       <button class="mode" data-go="trade"><span class="mi">⇄</span><span class="mname">Follow Flip</span><span class="mdesc">Flip plays a bar, then waits while you play it back. The bars get harder as you go. Three misses and you're out.</span></button>
-      <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Gap click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift.</span></button>
+      <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Flip’s click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift.</span></button>
     </div>
     <div class="row">
       <button class="ghostbtn" data-go="settings">Settings and latency</button>
@@ -208,7 +208,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <section class="screen" id="scr-gap" hidden>
   <div class="wrap">
-    <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Gap click</h2></div>
+    <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Flip’s click</h2></div>
     <p>Two bars of click, then silence. Keep playing through the gap on any pad: quarters, eighths or a whole groove. Every hit is measured against the grid the click would have played, and at the end you see whether you rushed or dragged.</p>
     <div class="setup">
       <div class="field"><span class="lbl">Tempo</span><div class="stepper" id="gapStep"></div></div>
@@ -773,7 +773,7 @@ function finishGap(){
   const key='best.gap.'+G.gap,prev=store.get(key,null);const isBest=rms!=null&&off.length>=8&&(!prev||rms<prev.rms);
   if(isBest)store.set(key,{rms,bpm:G.bpm});
   const drift=Math.abs(dBpm)<.3?'Your tempo held steady in the gaps.':dBpm>0?`In the gaps you sped up by about ${dBpm.toFixed(1)} BPM.`:`In the gaps you slowed down by about ${(-dBpm).toFixed(1)} BPM.`;
-  showResults({eyebrow:`Gap click · ${G.bpm} BPM · ${G.gap} bar${G.gap>1?'s':''} of silence`,title:isBest?'New best':'Time check',stars,
+  showResults({eyebrow:`Flip’s click · ${G.bpm} BPM · ${G.gap} bar${G.gap>1?'s':''} of silence`,title:isBest?'New best':'Time check',stars,
     verdict:rms==null?'Play through the gaps next time':rms<=10?'Human metronome':rms<=15?'Rock solid':rms<=25?'Good internal clock':rms<=40?'Some drift':'The band would notice',
     grid:[['Hits in gaps',off.length],['Gap average',off.length?`${Math.round(sg.mean)} ms`:'–'],['Gap spread',off.length?`±${Math.round(sg.sd)} ms`:'–'],
       ['With click avg',on.length?`${Math.round(so.mean)} ms`:'–'],['With click spread',on.length?`±${Math.round(so.sd)} ms`:'–'],['Tempo drift',`${dBpm>=0?'+':''}${dBpm.toFixed(1)} BPM`]],
