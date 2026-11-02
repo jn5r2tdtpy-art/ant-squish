@@ -31,7 +31,7 @@ It works offline once it has been opened. High scores are saved on each device.
 **Quick games**
 
 - **Stick flips:** hold to wind up, release to toss a drumstick, tap to catch it tip up. More spins score more; 3 sticks per run.
-- **Whack-the-kit:** smack bugs, tomatoes and golden sticks that pop up on a drum kit; don't hit the bass player's drink. 45 seconds.
+- **Whack-Flips-kit:** smack bugs, tomatoes and golden sticks that pop up on a drum kit; don't hit the bass player's drink. 45 seconds.
 - **Keep the beat:** tap one big drum as rings close in. Speeds up as you go; 3 misses ends it.
 
 **For a real workout**
