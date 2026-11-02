@@ -428,13 +428,21 @@ function bq(type,f,Q){const b=ac.createBiquadFilter();b.type=type;b.frequency.va
 function eg(t,peak,a,d){const g=ac.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d);return g}
 function nz(t,dur){const s=ac.createBufferSource();s.buffer=noiseBuf;s.start(t,Math.random()*Math.max(0,1.9-dur));s.stop(t+dur+.02);return s}
 function osc(type,f,t,dur){const o=ac.createOscillator();o.type=type;o.frequency.setValueAtTime(f,t);o.start(t);o.stop(t+dur+.02);return o}
+let _ks=null;function kickShaper(){const w=ac.createWaveShaper();if(!_ks){_ks=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511.5-1;_ks[i]=Math.tanh(2.2*x)/Math.tanh(2.2)}}w.curve=_ks;return w}
 const METAL=[205.3,304.4,369.6,522.7,540,800];
 function drum(id,t,vel=1,v,dest=master){
   if(!ac)return;t=Math.max(t,ac.currentTime);
   const out=ac.createGain();out.gain.value=vel;out.connect(dest);
   if(id==='kk'){
-    const o=osc('sine',150,t,.5);o.frequency.exponentialRampToValueAtTime(45,t+.12);o.connect(eg(t,1,.002,.42)).connect(out);
-    nz(t,.03).connect(bq('lowpass',3500)).connect(eg(t,.4,.001,.02)).connect(out);
+    // body: fast pitch drop, soft-clipped so it still thumps on phone speakers
+    const sh=kickShaper(),ko=ac.createGain();ko.gain.value=.62;ko.connect(out);sh.connect(ko);
+    const o=osc('sine',240,t,.5);o.frequency.exponentialRampToValueAtTime(58,t+.05);o.frequency.exponentialRampToValueAtTime(44,t+.3);
+    o.connect(eg(t,1.25,.001,.4)).connect(sh);
+    // knock: short mid punch
+    const k=osc('sine',120,t,.14);k.frequency.exponentialRampToValueAtTime(80,t+.1);k.connect(eg(t,.32,.001,.12)).connect(out);
+    // beater click
+    nz(t,.03).connect(bq('bandpass',3200,.9)).connect(eg(t,.45,.001,.022)).connect(out);
+    const c=osc('triangle',1400,t,.02);c.frequency.exponentialRampToValueAtTime(300,t+.015);c.connect(eg(t,.2,.001,.014)).connect(out);
   }else if(id==='sn'){
     if(v==='k'){
       osc('triangle',1750,t,.06).connect(eg(t,.3,.001,.04)).connect(out);
