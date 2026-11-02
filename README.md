@@ -23,3 +23,13 @@ It works offline once it has been opened. High scores are saved on each device.
 - **Run:** Shift, or hold the RUN button (fast, but noisy and tiring)
 - Each level gives up to 3 stars: escape, never get spotted, collect all contraband
 - **Customize:** put your own face on the runner and record your own sound effects from the title screen. To build a face or sounds into the game for everyone, see `prison-escape/custom/README.md`.
+
+## Deep Pocket (drummer rhythm game)
+
+`deep-pocket/index.html` is a rhythm game made for drummers. Everything, including the drum sounds and backing band, is synthesized in the browser, so it is one file with no assets.
+
+- **Play the set:** nine grooves (rock, disco, 16th funk with ghost notes, half-time shuffle, bossa, linear funk, drum and bass, 6/8 bell pattern, double-kick metal). Notes fall down five lanes; hit the pads as they cross the line. Fills on every fourth bar, crash on the one, and the bass follows the kick pattern. Adjustable tempo and three timing windows (Pro is ±22 ms for a Perfect).
+- **Trade fours:** the machine plays a bar, you play it back by ear in the next bar. It gets harder and faster until you miss three.
+- **Gap click:** the click drops out for 1, 2 or 4 bars. Keep time and the game reports your offset and tempo drift in BPM.
+- Every hit shows how many ms early or late it was, and each result screen shows your average offset (rushing or laying back) and spread.
+- **Controls:** tap the pads, or keys D (hi-hat), F (snare), Space (kick), J (tom), K (cymbal). Settings has a latency calibration for Bluetooth speakers and slow screens.
