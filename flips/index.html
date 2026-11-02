@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Flips</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Drum games for Flips: Flip Flip’s, Whack Flip’s kit, keep the beat, and a full rhythm game with nine grooves.">
+<meta name="description" content="Drum games for Flips: Flip Flip’s, Whack Flip’s kit, Flip’s kick drum, and a full rhythm game with nine grooves.">
 <meta name="theme-color" content="#15111c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -152,7 +152,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="modes">
       <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Flip Flip’s</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
       <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack Flip’s kit</span><span class="mdesc">Bugs and tomatoes land on the drums. Smack them fast, but leave the bass player's drink alone.</span></button>
-      <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Keep the beat</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
+      <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Flip’s kick drum</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
     </div>
     <div class="lbl">For a real workout</div>
     <div class="modes">
@@ -1204,9 +1204,9 @@ GAMES.whack={
     if(G.combo>=3)txt(`COMBO ${G.combo}`,16,36,13,C.brass,'mono','left');
   }
 };
-/* ---------- Keep the beat ---------- */
+/* ---------- Flip’s kick drum ---------- */
 GAMES.beat={
-  name:'Keep the beat',
+  name:'Flip’s kick drum',
   help:'Rings shrink toward the drum. Tap the moment each one reaches the rim. Gold rings are on the beat, teal ones are in between. It speeds up as you go. Miss 3 and it’s over.',
   R(){return Math.min(W,H)*.23},
   init(){audio();G={bpm:80,lives:3,streak:0,notes:[],genTo:0,bar:0,t0:ac.currentTime+.8,flash:0,ripple:[]}},
