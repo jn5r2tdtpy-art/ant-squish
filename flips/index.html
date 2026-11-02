@@ -1215,32 +1215,53 @@ GAMES.whack={
 /* ---------- Flip’s kick drum ---------- */
 GAMES.beat={
   name:'Flip’s kick drum',
-  help:'Rings shrink toward the bass drum. Tap the moment each one reaches the rim. Gold rings are on the beat, teal ones are in between. It speeds up as you go. Miss 3 and it’s over.',
+  help:'Tap the bass drum when each ring reaches the rim. The rim lights up gold when it’s time. Round 1 is practice, so misses don’t count. Each round after that is a little faster. You can miss 5 per round in rounds 2 and 3, then 3 per round.',
   R(){return Math.min(W*.36,H*.25)},
-  init(){audio();G={bpm:80,lives:3,streak:0,notes:[],genTo:0,bar:0,t0:ac.currentTime+.8,flash:0,ripple:[]}},
+  ROUND_BARS:4,
+  allowed(r){return r<=3?5:3},
+  rules(r){return{bpm:Math.min(150,70+(r-1)*6),good:Math.max(.085,.17-(r-1)*.015),perfect:Math.max(.035,.07-(r-1)*.006)}},
+  pattern(r){
+    const easy=[[0,2]],quarters=[[0,1,2,3]],mid=[[0,1,2,3],[0,1,2,3,3.5],[0,2,3,3.5]],
+      eighths=[[0,1,1.5,2,3,3.5],[0,.5,1,2,3],[0,1,2,2.5,3]],hard=[[0,.5,1,2,2.5,3],[0,.5,1.5,2,2.5,3.5],[0,1,1.5,2.5,3,3.5]],harder=[[0,.75,1.5,2,2.75,3.5],[0,.5,.75,2,2.5,3.5]];
+    const pool=r===1?easy:r===2?quarters:r===3?mid:r===4?eighths:r===5?hard:hard.concat(harder);
+    return pool[Math.floor(Math.random()*pool.length)];
+  },
+  init(){audio();G={round:1,genRound:1,roundBar:0,curRound:1,misses:0,streak:0,notes:[],marks:[],genTo:0,bar:0,t0:ac.currentTime+.8,flash:0,ripple:[]};G.bpm=this.rules(1).bpm},
   now(){return ac.currentTime-G.t0-outLat()-settings.offset/1000},
   gen(){
     while(G.genTo<this.now()+3){
-      const spb=60/G.bpm,bt=G.genTo,lvl=Math.floor(G.bar/4);
-      const pats=[[0,1,2,3],[0,1,2,3,3.5],[0,1,1.5,2,3,3.5],[0,.5,1,2,2.5,3],[0,.5,1.5,2,2.5,3.5],[0,.75,1.5,2,2.75,3.5]];
-      let p=G.bar<3?pats[0]:pats[Math.min(pats.length-1,Math.floor(Math.random()*Math.min(pats.length,lvl+2)))];
-      if(G.bar>0)p.forEach((b,i)=>G.notes.push({t:bt+b*spb,off:b%1!==0,k:b%1?'snare':i===0?'kick':'tom'}));
+      const rl=this.rules(G.genRound),spb=60/rl.bpm,bt=G.genTo;
+      if(G.bar===0){G.marks.push({t:bt,end:bt+4*spb,round:1,text:'ROUND 1 · PRACTICE'})}
+      else if(G.roundBar>=this.ROUND_BARS){
+        G.genRound++;G.roundBar=0;const nr=this.rules(G.genRound);
+        const nspb=60/nr.bpm;G.marks.push({t:bt,end:bt+4*nspb,round:G.genRound,text:`ROUND ${G.genRound}`,cleared:G.genRound-1});
+        for(let q=0;q<4;q++)snd('hat',G.t0+bt+q*nspb,q===0?.7:.45);
+        G.genTo+=4*nspb;G.bar++;continue;
+      }else{
+        this.pattern(G.genRound).forEach(b=>G.notes.push({t:bt+b*spb,off:b%1!==0,good:rl.good,perfect:rl.perfect,lead:Math.max(1.1,spb*2),round:G.genRound}));
+        G.roundBar++;
+      }
       for(let q=0;q<4;q++)snd('hat',G.t0+bt+q*spb,q===0?.7:.45);
-      G.genTo+=4*spb;G.bar++;if(G.bar%4===0&&G.bar>0)G.bpm=Math.min(170,G.bpm+6);
+      G.genTo+=4*spb;G.bar++;
     }
   },
   down(x,y,ts){
     const lag=Math.min(.2,Math.max(0,(performance.now()-ts)/1000)),t=this.now()-lag;
     let best=null,bd=1;G.notes.forEach(n=>{if(n.done)return;const d=Math.abs(n.t-t);if(d<bd){bd=d;best=n}});
     G.flash=1;
-    if(best&&bd<=.12){best.done=1;snd('kick',0,best.off?.8:1);const perfect=bd<=.045;G.streak++;const mult=1+Math.floor(G.streak/10);score+=(perfect?20:10)*mult;
+    if(best&&bd<=best.good){best.done=1;snd('kick',0,best.off?.8:1);const perfect=bd<=best.perfect;G.streak++;const mult=1+Math.floor(G.streak/10);score+=(perfect?20:10)*mult;
       G.ripple.push({t:performance.now(),c:perfect?C.brass:C.head});
-      pop(perfect?'PERFECT':'GOOD',W/2,H*.52-this.R()-40,perfect?C.brass:C.head,24);if(G.streak%10===0)pop(`${G.streak} in a row! x${mult+0}`,W/2,H*.52+this.R()+40,C.brass,20)}
+      pop(perfect?'PERFECT':'GOOD',W/2,H*.52-this.R()-40,perfect?C.brass:C.head,24);if(G.streak%10===0)pop(`${G.streak} in a row! x${mult}`,W/2,H*.52+this.R()+40,C.brass,20)}
     else snd('kick',0,.45);
   },
   update(dt){
     this.gen();const t=this.now();
-    for(const n of G.notes){if(!n.done&&t-n.t>.12){n.done=2;G.lives--;G.streak=0;snd('bad');pop('MISSED',W/2,H*.52-this.R()-40,C.bad,24);if(G.lives<=0){over('Lost the beat');break}}}
+    for(const m of G.marks){if(!m.seen&&t>=m.t){m.seen=true;G.curRound=m.round;G.misses=0;G.bpm=this.rules(m.round).bpm;
+      if(m.cleared){const bonus=50*m.cleared;score+=bonus;snd('crash');pop(`Round ${m.cleared} cleared! +${bonus}`,W/2,H*.52+this.R()+40,C.brass,22)}}}
+    for(const n of G.notes){if(!n.done&&t-n.t>n.good){n.done=2;G.streak=0;
+      if(n.round===1){pop('Missed (practice)',W/2,H*.52-this.R()-40,C.muted,22);continue}
+      G.misses++;snd('bad');pop('MISSED',W/2,H*.52-this.R()-40,C.bad,24);
+      if(G.misses>=this.allowed(n.round)){over(`Made it to round ${n.round}`);break}}}
     G.notes=G.notes.filter(n=>n.t>t-1);G.flash=Math.max(0,G.flash-dt*6);
   },
   draw(){
@@ -1267,15 +1288,17 @@ GAMES.beat={
     cx.beginPath();cx.arc(sx+hr*.62,y0+hr*.5,hr*.13,0,7);cx.fillStyle='#120e18';cx.fill();cx.lineWidth=2;cx.strokeStyle='#8f899c';cx.stroke();
     (G.ripple||[]).forEach(r=>{const a=(now-r.t)/400;if(a>1)return;cx.globalAlpha=1-a;cx.strokeStyle=r.c;cx.lineWidth=4;cx.beginPath();cx.arc(x0,y0,R*(1+a*.4),0,7);cx.stroke();cx.globalAlpha=1});
     if(G.ripple)G.ripple=G.ripple.filter(r=>now-r.t<400);
-    if(ac&&G.notes){const t=this.now(),spb=60/G.bpm,lead=spb*2;
-      G.notes.forEach(n=>{if(n.done)return;const ahead=n.t-t;if(ahead>lead||ahead<-.12)return;const rr2=R*(1+Math.max(0,ahead)/lead*1.5);
+    if(ac&&G.notes){const t=this.now();
+      if(G.notes.some(n=>!n.done&&Math.abs(n.t-t)<=n.good)){cx.lineWidth=10;cx.strokeStyle=C.brass;cx.globalAlpha=.85;cx.beginPath();cx.arc(x0,y0,R+3,0,7);cx.stroke();cx.globalAlpha=1}
+      G.notes.forEach(n=>{if(n.done)return;const lead=n.lead,ahead=n.t-t;if(ahead>lead||ahead<-n.good)return;const rr2=R*(1+Math.max(0,ahead)/lead*1.5);
         cx.beginPath();cx.arc(x0,y0,rr2,0,7);cx.lineWidth=n.off?4:7;cx.strokeStyle=n.off?C.teal:C.brass;cx.globalAlpha=Math.min(1,Math.max(.15,1-ahead/lead+.2));cx.stroke();cx.globalAlpha=1})}
     txt(String(score),W/2,38,42,C.head);
-    const lives=Math.max(0,G.lives==null?3:G.lives);
-    txt(`${G.bpm||80} BPM`,16,38,14,C.muted,'mono','left');
-    for(let i=0;i<3;i++){cx.beginPath();cx.arc(W-24-i*20,38,6,0,7);cx.fillStyle=i<lives?C.red:C.line;cx.fill()}
+    const rnd=G.curRound||1;
+    txt(`ROUND ${rnd}`,16,32,16,C.head,'display','left');txt(`${G.bpm||70} BPM`,16,52,12,C.muted,'mono','left');
+    if(rnd===1)txt('PRACTICE',W-16,38,13,C.muted,'mono','right');
+    else{const al=this.allowed(rnd),left=al-(G.misses||0);for(let i=0;i<al;i++){cx.beginPath();cx.arc(W-24-i*20,38,6,0,7);cx.fillStyle=i<left?C.red:C.line;cx.fill()}}
     if(G.streak>=5)txt(`STREAK ${G.streak}`,W/2,74,13,C.brass,'mono');
-    if(phase==='play'&&ac&&G.t0&&this.now()<4*60/G.bpm)txt('GET READY',W/2,y0-R-40,24,C.head);
+    if(phase==='play'&&ac&&G.marks){const t=this.now();const m=G.marks.find(m=>t>=m.t-.2&&t<m.end);if(m)txt(m.text,W/2,y0-R-40,26,C.head)}
   }
 };
 
