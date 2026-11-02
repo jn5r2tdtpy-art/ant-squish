@@ -807,6 +807,16 @@ function resize(){
   laneGeo=padEls.map(p=>{const pr=p.getBoundingClientRect();return{x:pr.left-r.left,w:pr.width}});
 }
 new ResizeObserver(resize).observe(cv);addEventListener('resize',resize);
+// Tapping the screen above a pad counts as hitting that pad (bigger targets, and a fallback if the pads row is covered)
+function laneAtX(x){let best=0,bd=1e9;laneGeo.forEach((g,i)=>{const d=x<g.x?g.x-x:x>g.x+g.w?x-g.x-g.w:0;if(d<bd){bd=d;best=i}});return best}
+let cvLast={t:0,src:''};
+function cvFire(src,x,ts){
+  if(!G.running||G.paused||!laneGeo.length)return;
+  const now=performance.now();if(cvLast.src&&cvLast.src!==src&&now-cvLast.t<150)return;cvLast={t:now,src};
+  hit(laneAtX(x),ts);
+}
+cv.addEventListener('touchstart',e=>{if(!G.running)return;e.preventDefault();const r=cv.getBoundingClientRect();for(const t of e.changedTouches)cvFire('touch',t.clientX-r.left,performance.now())},{passive:false});
+cv.addEventListener('pointerdown',e=>{if(!G.running)return;e.preventDefault();const r=cv.getBoundingClientRect();cvFire(e.pointerType==='touch'?'ptouch':'mouse',e.clientX-r.left,e.timeStamp)});
 
 function rr(x,y,w,h,r){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.rect(x,y,w,h)}
 function drawHighway(notes,vt,spb,showMiss){
@@ -872,6 +882,7 @@ function drawIdle(){
 }
 function drawTrade(){
   const vt=vtime(),midY=Math.max(80,H*.2);
+  if(G.phase==='wait'||G.phase==='play'){laneGeo.forEach((g,i)=>{cx.fillStyle=LANES[i].color;cx.globalAlpha=.07+flash[i]*.25;cx.fillRect(g.x,0,g.w,H);cx.globalAlpha=1})}
   let title='',col='#efe8dc',beat=-1;
   if(G.phase==='count'||G.phase==='call'){
     const inCall=vt>=G.callT;title=inCall?(G.diff==='pro'?'Listen':'Watch and listen'):'Count in';
@@ -885,7 +896,7 @@ function drawTrade(){
   if(G.phase==='review'&&G.review&&!G.review.pass&&G.lives>0)monoText('Here comes the same bar again',W/2,midY+48,13,'#efe8dc');
   if(G.phase==='play'){const n=G.pat.notes.length;for(let k=0;k<n;k++){const gap=Math.min(26,(W-48)/n),x=W/2-(n-1)*gap/2+k*gap;cx.beginPath();cx.arc(x,midY+48,Math.min(7,gap*.3),0,7);cx.fillStyle=k<G.hits.length?LANES[G.hits[k].lane].color:'rgba(239,232,220,.18)';cx.fill()}}
   if(G.nudge&&performance.now()-G.nudge<1200&&(G.phase==='count'||G.phase==='call'))monoText('Wait for your turn…',W/2,midY+112,14,'#ff6b6b');
-  if(G.phase==='wait')monoText('Tap the pads now',W/2,midY+112,15,'#e3b04b');
+  if(G.phase==='wait')monoText('Tap the pads, or anywhere above them',W/2,midY+112,14,'#e3b04b');
   monoText(`LEVEL ${G.level}  ·  ${G.bpm} BPM`,W/2,midY+80,12,'#a99cb8');
   const R=G.review;if(!R)return;
   const top=midY+108,avail=H-top-24;if(avail<90)return;
