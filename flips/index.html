@@ -1207,8 +1207,8 @@ GAMES.whack={
 /* ---------- Flip’s kick drum ---------- */
 GAMES.beat={
   name:'Flip’s kick drum',
-  help:'Rings shrink toward the drum. Tap the moment each one reaches the rim. Gold rings are on the beat, teal ones are in between. It speeds up as you go. Miss 3 and it’s over.',
-  R(){return Math.min(W,H)*.23},
+  help:'Rings shrink toward the bass drum. Tap the moment each one reaches the rim. Gold rings are on the beat, teal ones are in between. It speeds up as you go. Miss 3 and it’s over.',
+  R(){return Math.min(W*.36,H*.25)},
   init(){audio();G={bpm:80,lives:3,streak:0,notes:[],genTo:0,bar:0,t0:ac.currentTime+.8,flash:0,ripple:[]}},
   now(){return ac.currentTime-G.t0-outLat()-settings.offset/1000},
   gen(){
@@ -1225,10 +1225,10 @@ GAMES.beat={
     const lag=Math.min(.2,Math.max(0,(performance.now()-ts)/1000)),t=this.now()-lag;
     let best=null,bd=1;G.notes.forEach(n=>{if(n.done)return;const d=Math.abs(n.t-t);if(d<bd){bd=d;best=n}});
     G.flash=1;
-    if(best&&bd<=.12){best.done=1;snd(best.k);const perfect=bd<=.045;G.streak++;const mult=1+Math.floor(G.streak/10);score+=(perfect?20:10)*mult;
+    if(best&&bd<=.12){best.done=1;snd('kick',0,best.off?.8:1);const perfect=bd<=.045;G.streak++;const mult=1+Math.floor(G.streak/10);score+=(perfect?20:10)*mult;
       G.ripple.push({t:performance.now(),c:perfect?C.brass:C.head});
       pop(perfect?'PERFECT':'GOOD',W/2,H*.52-this.R()-40,perfect?C.brass:C.head,24);if(G.streak%10===0)pop(`${G.streak} in a row! x${mult+0}`,W/2,H*.52+this.R()+40,C.brass,20)}
-    else snd('snare',0,.4);
+    else snd('kick',0,.45);
   },
   update(dt){
     this.gen();const t=this.now();
@@ -1237,12 +1237,26 @@ GAMES.beat={
   },
   draw(){
     const R=this.R(),x0=W/2,y0=H*.52,now=performance.now();
-    // shell
-    cx.fillStyle='#120e18';cx.beginPath();cx.ellipse(x0,y0+R*.22,R*1.04,R,0,0,7);cx.fill();
-    cx.beginPath();cx.arc(x0,y0,R,0,7);cx.fillStyle='#2a2233';cx.fill();cx.lineWidth=8;cx.strokeStyle=C.red;cx.stroke();
-    for(let k=0;k<10;k++){const a=k/10*Math.PI*2;cx.fillStyle='#c9c2d4';cx.beginPath();cx.arc(x0+Math.cos(a)*R,y0+Math.sin(a)*R,4,0,7);cx.fill()}
-    cx.beginPath();cx.arc(x0,y0,R*.88,0,7);cx.fillStyle=`rgba(239,232,220,${.13+(G.flash||0)*.3})`;cx.fill();
-    txt('FLIPS',x0,y0,R*.42,'rgba(21,17,28,.5)');
+    // bass drum, front view
+    const th=G.flash||0,sx=x0+(Math.random()-.5)*th*4;
+    cx.lineCap='round';cx.strokeStyle='#b9b4c4';cx.lineWidth=Math.max(5,R*.06);
+    for(const d of [-1,1]){cx.beginPath();cx.moveTo(sx+d*R*.72,y0+R*.6);cx.lineTo(sx+d*R*1.22,y0+R*1.18);cx.stroke();
+      cx.fillStyle='#2a2233';cx.beginPath();cx.arc(sx+d*R*1.22,y0+R*1.18,R*.06,0,7);cx.fill()}
+    cx.lineCap='butt';
+    cx.fillStyle='rgba(0,0,0,.35)';cx.beginPath();cx.ellipse(sx,y0+R*1.04,R*.9,R*.12,0,0,7);cx.fill();
+    const shell=cx.createRadialGradient(sx-R*.3,y0-R*.3,R*.2,sx,y0,R*1.05);shell.addColorStop(0,'#a3283a');shell.addColorStop(1,'#4d0f1b');
+    cx.beginPath();cx.arc(sx,y0,R,0,7);cx.fillStyle=shell;cx.fill();
+    cx.lineWidth=3;cx.strokeStyle='#d8d3e0';cx.beginPath();cx.arc(sx,y0,R*.985,0,7);cx.stroke();
+    for(let k=0;k<10;k++){const a=k/10*Math.PI*2+Math.PI/10;cx.save();cx.translate(sx+Math.cos(a)*R*.94,y0+Math.sin(a)*R*.94);cx.rotate(a);
+      cx.fillStyle='#d8d3e0';cx.fillRect(-R*.07,-R*.025,R*.14,R*.05);cx.fillStyle='#8f899c';cx.fillRect(R*.03,-R*.035,R*.04,R*.07);cx.restore()}
+    const hr=R*.86*(1-th*.025);
+    const head=cx.createRadialGradient(sx-hr*.3,y0-hr*.35,hr*.1,sx,y0,hr);head.addColorStop(0,'#fffaf0');head.addColorStop(1,'#d9d0c0');
+    cx.beginPath();cx.arc(sx,y0,hr,0,7);cx.fillStyle=head;cx.fill();
+    if(th){cx.fillStyle=`rgba(227,176,75,${th*.25})`;cx.fill()}
+    cx.lineWidth=2;cx.strokeStyle='#8f899c';cx.stroke();
+    cx.beginPath();cx.arc(sx,y0,hr*.56,0,7);cx.fillStyle='#15111c';cx.fill();cx.lineWidth=3;cx.strokeStyle=C.brass;cx.stroke();
+    txt('FLIPS',sx,y0+2,hr*.36,C.brass);
+    cx.beginPath();cx.arc(sx+hr*.62,y0+hr*.5,hr*.13,0,7);cx.fillStyle='#120e18';cx.fill();cx.lineWidth=2;cx.strokeStyle='#8f899c';cx.stroke();
     (G.ripple||[]).forEach(r=>{const a=(now-r.t)/400;if(a>1)return;cx.globalAlpha=1-a;cx.strokeStyle=r.c;cx.lineWidth=4;cx.beginPath();cx.arc(x0,y0,R*(1+a*.4),0,7);cx.stroke();cx.globalAlpha=1});
     if(G.ripple)G.ripple=G.ripple.filter(r=>now-r.t<400);
     if(ac&&G.notes){const t=this.now(),spb=60/G.bpm,lead=spb*2;
