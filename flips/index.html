@@ -1116,7 +1116,11 @@ function open(g){
 function close(){document.getElementById('mini').hidden=true;window.miniOpen=false;running=false;phase='ready';G={}}
 document.querySelectorAll('[data-mini]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.mini)));
 document.getElementById('miniBack').onclick=close;
-function down(x,y,ts,id){audio();if(phase==='intro'){GAMES[cur].skipIntro();return}if(phase!=='play'){if(phase==='over'&&performance.now()-overAt<700)return;start();return}GAMES[cur].down(x,y,ts,id)}
+// Flip's kit memory is wide, so on an upright phone it is drawn a quarter turn round: turn the phone sideways to play
+function sideways(){return cur==='simon'&&H>W*1.1}
+function rotIn(fn){if(!sideways())return fn(false);const W0=W,H0=H;W=H0;H=W0;try{return fn(W0)}finally{W=W0;H=H0}}
+function down(x,y,ts,id){if(sideways()){const W0=W;return rotIn(()=>downInner(y,W0-x,ts,id))}return downInner(x,y,ts,id)}
+function downInner(x,y,ts,id){audio();if(phase==='intro'){GAMES[cur].skipIntro();return}if(phase!=='play'){if(phase==='over'&&performance.now()-overAt<700)return;start();return}GAMES[cur].down(x,y,ts,id)}
 function up(id){if(phase==='play'&&GAMES[cur].up)GAMES[cur].up(id)}
 cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect();down(e.clientX-r.left,e.clientY-r.top,e.timeStamp,'p'+e.pointerId)});
 addEventListener('pointerup',e=>{if(window.miniOpen)up('p'+e.pointerId)});addEventListener('pointercancel',e=>{if(window.miniOpen)up('p'+e.pointerId)});
@@ -1392,7 +1396,7 @@ const HEADS=[ // drum heads on the back-view photo (837x478): x,y,rx,ry, name, c
 const VIEW={x:90,y:105,w:680,h:345};
 GAMES.simon={
   name:'Flip’s kit memory',
-  help:'Flip’s kit lights up one drum. Tap the same drum. Then it lights up two, then three. Repeat the whole pattern each time. One wrong drum and the game is over.',
+  help:'Flip’s kit lights up one drum. Tap the same drum. Then it lights up two, then three. Repeat the whole pattern each time. One wrong drum and the game is over. Best played with your phone turned sideways.',
   view(){const s=Math.min(W/VIEW.w,(H-110)/VIEW.h);return{s,ox:W/2-(VIEW.x+VIEW.w/2)*s,oy:H*.56-(VIEW.y+VIEW.h/2)*s}},
   hitSound(i){const h=HEADS[i];if(h.s){snd(h.s);return}
     if(!ac)return;const t=ac.currentTime;tone('sine',h.f,h.f*.58,t,.5,.85);
@@ -1442,7 +1446,8 @@ GAMES.simon={
     txt(`ROUND ${len}`,16,34,16,C.head,'display','left');
     txt(String(score),W/2,38,42,C.head);
     const msg={pause:'Get ready',watch:'Watch',input:'Your turn',good:'',wrong:'Oops!'}[G.st]||'';
-    if(msg)txt(msg.toUpperCase(),W/2,Math.max(96,v.oy+VIEW.y*v.s-30),30,G.st==='input'?C.brass:G.st==='wrong'?C.bad:C.head);
+    const mcol=G.st==='input'?C.brass:G.st==='wrong'?C.bad:C.head,top=v.oy+VIEW.y*v.s;
+    if(msg){if(top-30>=80)txt(msg.toUpperCase(),W/2,top-30,30,mcol);else txt(msg.toUpperCase(),16,70,26,mcol,'display','left')}
     if(G.st==='input'){const n=G.seq.length,gap=Math.min(22,(W-48)/n);for(let k=0;k<n;k++){cx.beginPath();cx.arc(W/2-(n-1)*gap/2+k*gap,Math.min(H-24,v.oy+(VIEW.y+VIEW.h)*v.s+26),Math.min(6,gap*.3),0,7);cx.fillStyle=k<G.pos?C.brass:'rgba(239,232,220,.2)';cx.fill()}}
     if(G.st==='wrong')txt(`It was the ${HEADS[G.wrong].n.toLowerCase()}`,W/2,Math.min(H-24,v.oy+(VIEW.y+VIEW.h)*v.s+26),14,C.head,'mono');
   },
@@ -1477,9 +1482,10 @@ function frame(now){
   if(!running)return;
   const dt=Math.min(.05,(now-last)/1000);last=now;
   cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W,H+40);
-  if(W>0&&H>0){
+  if(W>0&&H>0)rotIn(W0=>{
+    if(W0){cx.translate(W0,0);cx.rotate(Math.PI/2)}
     const g=GAMES[cur];
-    if(phase==='intro'){g.drawIntro();requestAnimationFrame(frame);return}
+    if(phase==='intro'){g.drawIntro();return}
     if(phase==='play')g.update(dt);
     if(phase==='ready'&&cur==='flip'&&!G.hands)G={hands:[g.newHand()],sticks:3,streak:0,level:1,catches:0,owner:{}};
     g.draw();
@@ -1487,7 +1493,7 @@ function frame(now){
     while(fx.length&&t-fx[0].t>1000)fx.shift();
     if(phase==='ready')card(g.name.toUpperCase(),g.help,'Tap to start');
     if(phase==='over')card(overMsg.toUpperCase(),G.newBest?`New best: ${score}!`:`You scored ${score}.`,'Tap to play again');
-  }
+  });
   requestAnimationFrame(frame);
 }
 })();
