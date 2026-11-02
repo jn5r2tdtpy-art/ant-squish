@@ -70,11 +70,27 @@ body {
 /* music / sound / install buttons stack in the top-right corner */
 .hud { padding-right: calc(max(16px, env(safe-area-inset-right, 0px)) + 96px); }
 .toggles {
-  position: fixed; z-index: 2;
+  position: fixed; z-index: 4;
   top: calc(env(safe-area-inset-top, 0px) + 12px);
   right: max(16px, env(safe-area-inset-right, 0px));
   display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
 }
+.pause {
+  position: fixed; inset: 0; z-index: 3;
+  background: rgba(43, 26, 16, .45);
+  display: flex; align-items: center; justify-content: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.pause-card {
+  width: min(340px, 100%); box-sizing: border-box; text-align: center;
+  background: var(--cream); border: 3px solid var(--ink); border-radius: 18px;
+  box-shadow: 6px 6px 0 var(--ink); padding: 22px;
+  display: grid; gap: 12px;
+}
+.pause-card h2 { margin: 0; font: 400 44px/1 var(--display); color: var(--tomato); -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; }
+.pause-card p { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 600; }
+#pauseBtn { background: #fbe0d6; }
 .toggles .chip { min-height: 32px; padding: 4px 10px; font-size: 12px; box-shadow: 2px 2px 0 var(--ink); }
 .prog { font-size: 12px; font-weight: 900; color: var(--muted); font-variant-numeric: tabular-nums; }
 .board-list .lv { font-size: 11px; font-weight: 900; color: var(--muted); letter-spacing: .04em; }
@@ -155,8 +171,17 @@ body {
 </header>
 <div class="toggles">
   <button id="install" class="chip btn" type="button" hidden>Install app</button>
+  <button id="pauseBtn" class="chip btn" type="button" aria-pressed="false" hidden>Pause</button>
   <button id="musicBtn" class="chip btn" type="button" aria-pressed="true">Music on</button>
   <button id="mute" class="chip btn" type="button" aria-pressed="false">Sound on</button>
+</div>
+
+<div id="pauseOverlay" class="pause" hidden>
+  <div class="pause-card" role="dialog" aria-labelledby="pauseTitle">
+    <h2 id="pauseTitle">Paused</h2>
+    <p>Nothing changes while the game is paused. Take your time.</p>
+    <button id="resumeBtn" class="go" type="button">Resume</button>
+  </div>
 </div>
 
 <section id="panel" class="panel" aria-live="polite">
@@ -247,6 +272,7 @@ const ctx = cv.getContext("2d");
 const $ = id => document.getElementById(id);
 const ui = { score: $("score"), crumbs: $("crumbs"), bar: $("bar"), panel: $("panel"), title: $("title"), lede: $("lede"),
   legend: $("legend"), results: $("results"), go: $("go"), hint: $("hint"), mute: $("mute"), musicBtn: $("musicBtn"),
+  pauseBtn: $("pauseBtn"), pauseOverlay: $("pauseOverlay"), resumeBtn: $("resumeBtn"),
   rScore: $("rScore"), rBest: $("rBest"), rKills: $("rKills"), rLevel: $("rLevel"),
   level: $("level"), lvlProg: $("lvlProg"), faceMsg: $("faceMsg"),
   boardTitle: $("boardTitle"), boardList: $("boardList"), boardNote: $("boardNote"),
@@ -1076,7 +1102,7 @@ function setMusicLabel() { ui.musicBtn.textContent = music.on ? "Music on" : "Mu
 ui.musicBtn.addEventListener("click", () => {
   music.on = !music.on; setMusicLabel(); ensureAudio();
   try { localStorage.setItem("antSquishMusic", music.on ? "1" : "0"); } catch (e) {}
-  if (music.on && mode === "play") startMusic(); else stopMusic();
+  if (music.on && mode === "play" && !paused) startMusic(); else stopMusic();
 });
 function setMuteLabel() { ui.mute.textContent = muted ? "Sound off" : "Sound on"; ui.mute.setAttribute("aria-pressed", String(muted)); }
 ui.mute.addEventListener("click", () => {
@@ -1202,12 +1228,14 @@ function startGame() {
   buildCookie(); setHud();
   pendingScore = null; lastSavedId = null; ui.saveForm.hidden = true;
   ui.panel.hidden = true;
+  paused = false; ui.pauseBtn.hidden = false;
   bonus = false; bonusDone = 0; stage = null;
   startLevel(1);
   startMusic();
 }
 function endGame() {
   mode = "over";
+  ui.pauseBtn.hidden = true;
   const isBest = score > best;
   if (isBest) { best = score; try { localStorage.setItem("antSquishBest", String(best)); } catch (e) {} }
   ui.title.textContent = "They ate Grandma's fruit salad";
@@ -1233,6 +1261,7 @@ function endGame() {
 ui.go.addEventListener("click", startGame);
 cv.addEventListener("pointerdown", e => {
   e.preventDefault(); ensureAudio();
+  if (paused) return;
   if (bonus && stage) {
     stage.firing = true; stage.aim = clamp(e.clientX, 20, W - 20);
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
@@ -1243,7 +1272,7 @@ const stopSpray = () => { if (stage) stage.firing = false; };
 cv.addEventListener("pointerup", stopSpray);
 cv.addEventListener("pointercancel", stopSpray);
 addEventListener("keydown", e => {
-  if (!(bonus && stage)) return;
+  if (!(bonus && stage) || paused) return;
   if (e.key === "ArrowLeft") stage.keyDir = -1;
   else if (e.key === "ArrowRight") stage.keyDir = 1;
   else if (e.key === " ") { stage.firing = true; e.preventDefault(); }
@@ -1252,6 +1281,31 @@ addEventListener("keyup", e => {
   if (!stage) return;
   if ((e.key === "ArrowLeft" && stage.keyDir < 0) || (e.key === "ArrowRight" && stage.keyDir > 0)) stage.keyDir = 0;
   else if (e.key === " ") stage.firing = false;
+});
+
+/* ---------- pause ----------
+   Freezes the whole game (ants, timers, banners, bonus stages, music)
+   and resumes exactly where it left off. */
+let paused = false;
+function setPaused(on) {
+  if (on === paused || (on && mode !== "play")) return;
+  paused = on;
+  ui.pauseOverlay.hidden = !on;
+  ui.pauseBtn.textContent = on ? "Resume" : "Pause";
+  ui.pauseBtn.setAttribute("aria-pressed", String(on));
+  if (on) {
+    shake = 0;
+    if (stage) { stage.firing = false; stage.keyDir = 0; }
+    stopMusic();
+    setTimeout(() => ui.resumeBtn.focus({ preventScroll: true }), 30);
+  } else startMusic();
+}
+ui.pauseBtn.addEventListener("click", () => setPaused(!paused));
+ui.resumeBtn.addEventListener("click", () => setPaused(false));
+// switching apps or locking the phone pauses the game automatically
+document.addEventListener("visibilitychange", () => { if (document.hidden && mode === "play") setPaused(true); });
+addEventListener("keydown", e => {
+  if ((e.key === "p" || e.key === "P" || e.key === "Escape") && mode === "play") { e.preventDefault(); setPaused(!paused); }
 });
 
 /* ---------- loop ---------- */
@@ -1383,7 +1437,8 @@ function draw() {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  update(dt); draw();
+  if (!paused) update(dt);
+  draw();
   requestAnimationFrame(frame);
 }
 
