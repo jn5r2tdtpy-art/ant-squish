@@ -21,7 +21,8 @@
   color-scheme:dark;
 }
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);overflow:hidden;
-  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;
+  overscroll-behavior:none}
 [hidden]{display:none!important}
 #game{position:fixed;inset:0;width:100%;height:100%;display:block}
 button{font-family:var(--body);cursor:pointer}
@@ -49,7 +50,7 @@ button{font-family:var(--body);cursor:pointer}
 .status.alarm{background:var(--red);color:#fff;animation:blink .5s steps(2) infinite}
 .status.hidden{background:#2f6d4a;color:#d9ffe6}
 @keyframes blink{50%{opacity:.55}}
-@media (max-width:640px){.status{top:calc(env(safe-area-inset-top,0px) + 104px)}.toast{bottom:calc(env(safe-area-inset-bottom,0px) + 136px)}}
+@media (max-width:640px){.status{top:calc(env(safe-area-inset-top,0px) + 104px)}body .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 136px)}}
 .sprint{position:fixed;z-index:3;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 28px);
   width:92px;height:92px;border-radius:50%;border:3px solid rgba(255,255,255,.35);background:rgba(255,138,31,.35);color:#fff;
   font-family:var(--display);font-size:20px;letter-spacing:.05em;touch-action:none}
@@ -412,6 +413,7 @@ function loadLevel(i){
     else if (c === '$') { items.push({ kind:'stash', x:x+.5, y:y+.5, t:Math.random()*6 }); L.stashTotal++; grid[y][x] = '.'; }
     else if ('><^vw'.includes(c)) { guards.push(makeGuard(x, y, c)); grid[y][x] = '.'; }
     else if (c === 'c') { cams.push(makeCam(x, y)); grid[y][x] = '.'; }
+    else if (c === 'E' && !L.exit) L.exit = [x + .5, y + .5];
   }
   for (const g of guards) if (g.kind === 'wander') g.region = regionAround(g.hx, g.hy, 7);
   camX = player.x; camY = player.y; alarmT = 0; flash = 0; shake = 0;
@@ -528,23 +530,49 @@ window.addEventListener('keydown', e => {
   }
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; sprintHeld = false; if (mode === 'play') pauseGame(); });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'play') { sprintHeld = false; pauseGame(); } });
 
+// Mouse drives the joystick through pointer events. Fingers use touch events with
+// preventDefault, so phone browsers (iPhone Safari especially) can't turn a drag
+// into a page scroll and cancel the touch halfway through a move.
 cvs.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') return;
   audioOn();
-  if (e.pointerType !== 'mouse') setTouchUI();
   if (mode !== 'play' || joy.id !== null) return;
-  joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; joy.active = true;
+  joy.id = 'p' + e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; joy.active = true;
   cvs.setPointerCapture(e.pointerId);
 });
-cvs.addEventListener('pointermove', e => { if (e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
-const endJoy = e => { if (e.pointerId === joy.id) { joy.id = null; joy.active = false; } };
+cvs.addEventListener('pointermove', e => { if ('p' + e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
+const endJoy = e => { if ('p' + e.pointerId === joy.id) { joy.id = null; joy.active = false; } };
 cvs.addEventListener('pointerup', endJoy); cvs.addEventListener('pointercancel', endJoy);
 
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault(); audioOn(); setTouchUI();
+  if (mode !== 'play' || joy.id !== null) return;
+  const t = e.changedTouches[0];
+  joy.id = 't' + t.identifier; joy.ox = joy.x = t.clientX; joy.oy = joy.y = t.clientY; joy.active = true;
+}, { passive:false });
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) if ('t' + t.identifier === joy.id) { joy.x = t.clientX; joy.y = t.clientY; }
+}, { passive:false });
+const endTouchJoy = e => { for (const t of e.changedTouches) if ('t' + t.identifier === joy.id) { joy.id = null; joy.active = false; } };
+cvs.addEventListener('touchend', endTouchJoy); cvs.addEventListener('touchcancel', endTouchJoy);
+
 const sprintBtn = $('sprintBtn');
-sprintBtn.addEventListener('pointerdown', e => { e.preventDefault(); audioOn(); sprintHeld = true; sprintBtn.classList.add('on'); sprintBtn.setPointerCapture(e.pointerId); });
-const endSprint = () => { sprintHeld = false; sprintBtn.classList.remove('on'); };
-sprintBtn.addEventListener('pointerup', endSprint); sprintBtn.addEventListener('pointercancel', endSprint);
+let sprintTouch = null;
+const sprintOn = () => { audioOn(); sprintHeld = true; sprintBtn.classList.add('on'); };
+const endSprint = () => { sprintHeld = false; sprintTouch = null; sprintBtn.classList.remove('on'); };
+sprintBtn.addEventListener('touchstart', e => { e.preventDefault(); setTouchUI(); sprintTouch = e.changedTouches[0].identifier; sprintOn(); }, { passive:false });
+sprintBtn.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+const endSprintTouch = e => { for (const t of e.changedTouches) if (t.identifier === sprintTouch) endSprint(); };
+sprintBtn.addEventListener('touchend', endSprintTouch); sprintBtn.addEventListener('touchcancel', endSprintTouch);
+sprintBtn.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; e.preventDefault(); sprintOn(); sprintBtn.setPointerCapture(e.pointerId); });
+sprintBtn.addEventListener('pointerup', e => { if (e.pointerType !== 'touch') endSprint(); });
+sprintBtn.addEventListener('pointercancel', e => { if (e.pointerType !== 'touch') endSprint(); });
+// Stop the page itself from rubber-banding or scrolling during play (menus can still scroll).
+document.addEventListener('touchmove', e => { if (!(e.target.closest && e.target.closest('.overlay'))) e.preventDefault(); }, { passive:false });
 window.addEventListener('touchstart', setTouchUI, { passive:true, once:true });
 function setTouchUI(){ if (!touchUI) { touchUI = true; syncHud(); } }
 
@@ -978,6 +1006,7 @@ function render(now){
   for (const g of guards) drawGuard(g, t);
   // player
   drawPlayer(t);
+  drawGuide(t);
 
   // sparks
   for (const f of fx) if (f.kind === 'spark') { const k = f.t / f.life; ctx.globalAlpha = 1 - k; ctx.fillStyle = f.col; ctx.fillRect(f.x - .04, f.y - .04, .08, .08); }
@@ -1057,6 +1086,24 @@ function drawGuard(g, t){
   ctx.fillStyle = '#16213d'; ctx.beginPath(); ctx.arc(-.02, 0, .15, Math.PI * .5, Math.PI * 1.5); ctx.lineTo(.02, -.15); ctx.arc(.02, 0, .15, -Math.PI * .5, Math.PI * .5); ctx.fill();
   ctx.fillStyle = '#0e1528'; ctx.beginPath(); ctx.ellipse(.15, 0, .07, .13, 0, -Math.PI * .5, Math.PI * .5); ctx.fill();
   ctx.restore();
+}
+// Small arrow beside the prisoner pointing at the next goal: the nearest keycard, then the exit.
+function drawGuide(t){
+  if (mode !== 'play' || player.hidden) return;
+  let tgt = null, col = '#3ddc84', best = 1e9;
+  for (const it of items) if (it.kind === 'key') {
+    const d = Math.hypot(it.x - player.x, it.y - player.y);
+    if (d < best) { best = d; tgt = [it.x, it.y]; col = KEYCOL[it.color]; }
+  }
+  if (!tgt) tgt = L.exit;
+  if (!tgt) return;
+  const dx = tgt[0] - player.x, dy = tgt[1] - player.y;
+  if (Math.hypot(dx, dy) < 1.2) return;
+  const a = Math.atan2(dy, dx), r = .72 + Math.sin(t * 5) * .07;
+  ctx.save(); ctx.translate(player.x + Math.cos(a) * r, player.y + Math.sin(a) * r); ctx.rotate(a);
+  ctx.globalAlpha = .9; ctx.fillStyle = col; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2 / TS;
+  ctx.beginPath(); ctx.moveTo(.26, 0); ctx.lineTo(-.12, -.2); ctx.lineTo(-.03, 0); ctx.lineTo(-.12, .2); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore(); ctx.globalAlpha = 1;
 }
 function drawPlayer(t){
   if (player.hidden) return;
