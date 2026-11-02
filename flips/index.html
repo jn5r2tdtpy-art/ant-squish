@@ -195,11 +195,11 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 <section class="screen" id="scr-trade" hidden>
   <div class="wrap">
     <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Flip says</h2></div>
-    <p>A count-in, then Flip plays one bar. Then he waits for you. Play the bar back whenever you're ready; your first hit starts your turn, and it waits until you've played every hit. Get the right pads in the right order to pass; an even rhythm earns bonus points. Pass and you get a new bar. Miss and you hear the same bar again. Pass two bars and they get harder; pass four and the tempo goes up 4 BPM. Three misses and you're out.</p>
+    <p>A count-in, then Flip plays one bar. Then he waits for you. Play the bar back whenever you're ready; your first hit starts your turn, and it waits until you've played every hit. Get the right pads in the right order to pass; an even rhythm earns bonus points. Pass and you get a new bar. Miss and you hear the same bar again. As Flip plays, each hit shows up on screen so you can see what to copy. Pass three bars and they get harder; pass six and the tempo goes up 3 BPM. Three misses and you're out.</p>
     <div class="setup">
       <div class="field"><span class="lbl">Starting tempo</span><div class="stepper" id="tradeStep"></div></div>
       <div class="field"><span class="lbl">Difficulty</span><div class="pills" id="tradePills"></div></div>
-      <p class="fine">On Pro the pads don't light up while Flip plays. Ears only.</p>
+      <p class="fine">On Pro the pads don't light up and the hits aren't shown while Flip plays. Ears only.</p>
       <p class="fine" id="tradeBest"></p>
       <button class="primary" id="tradeBtn">Start Flip says</button>
     </div>
@@ -323,7 +323,7 @@ const DIFFS={
   session:{name:'Session',p:.032,g:.062,ok:.105,pass:.78},
   pro:{name:'Pro',p:.022,g:.045,ok:.085,pass:.85},
 };
-const settings=Object.assign({diff:'session',guide:false,click:false,offset:0,vol:.85,gapBars:2,tradeBpm:88,gapBpm:100,track:'lot',bpms:{}},store.get('settings',{}));
+const settings=Object.assign({diff:'session',guide:false,click:false,offset:0,vol:.85,gapBars:2,tradeBpm:88,saysBpm:70,gapBpm:100,track:'lot',bpms:{}},store.get('settings',{}));
 const saveSettings=()=>store.set('settings',settings);
 
 /* ---------- The set ---------- */
@@ -671,7 +671,7 @@ function tradePattern(level,rng){
   return{S,notes};
 }
 function startTrade(){
-  newSession({mode:'trade',bpm:settings.tradeBpm,diff:settings.diff,level:1,lives:3,score:0,passes:0,streak:0,offs:[],visq:[],
+  newSession({mode:'trade',bpm:settings.saysBpm,diff:settings.diff,level:1,lives:3,score:0,passes:0,streak:0,offs:[],visq:[],
     rng:rand(Date.now()%1e6),menu:'trade',again:startTrade,matchedAll:0,notesAll:0,review:null,phase:'count',hits:[]});
   G.pat=tradePattern(G.level,G.rng);tradeRound(.3);
 }
@@ -714,8 +714,8 @@ function judgeTrade(){
   if(pass){
     const feel=!offs.length?0:spread<=25?50:spread<=50?25:0;
     G.passes++;G.streak++;G.score+=(matched*50+feel)*G.level+(extras===0&&matched===total?50*G.level:0);
-    if(G.passes%2===0)G.level=Math.min(10,G.level+1);
-    if(G.passes%4===0)G.bpm=Math.min(220,G.bpm+4);
+    if(G.passes%3===0)G.level=Math.min(10,G.level+1);
+    if(G.passes%6===0)G.bpm=Math.min(220,G.bpm+3);
     G.pat=tradePattern(G.level,G.rng);G.msg='Nice!';
   }else{G.streak=0;G.lives--;G.msg=G.lives>0?'Not quite':'Out of chances'}
   G.phase='review';G.endAt=0;G.until=ac.currentTime+2.6;
@@ -895,10 +895,31 @@ function drawTrade(){
   if(G.phase==='wait')monoText('Start whenever you\'re ready',W/2,midY+48,13,'#a99cb8');
   if(G.phase==='review'&&G.review&&!G.review.pass&&G.lives>0)monoText('Here comes the same bar again',W/2,midY+48,13,'#efe8dc');
   if(G.phase==='play'){const n=G.pat.notes.length;for(let k=0;k<n;k++){const gap=Math.min(26,(W-48)/n),x=W/2-(n-1)*gap/2+k*gap;cx.beginPath();cx.arc(x,midY+48,Math.min(7,gap*.3),0,7);cx.fillStyle=k<G.hits.length?LANES[G.hits[k].lane].color:'rgba(239,232,220,.18)';cx.fill()}}
-  if(G.nudge&&performance.now()-G.nudge<1200&&(G.phase==='count'||G.phase==='call'))monoText('Wait for your turn…',W/2,midY+112,14,'#ff6b6b');
-  if(G.phase==='wait')monoText('Tap the pads, or anywhere above them',W/2,midY+112,14,'#e3b04b');
+  // Flip's bar, shown as colored chips on a timeline as he plays it (stays up on your turn, except on Pro)
+  let hintY=midY+112;
+  const showBar=G.pat&&G.diff!=='pro'&&(G.phase==='call'||G.phase==='wait'||G.phase==='play');
+  if(showBar){
+    const S=G.pat.S,gw=Math.min(W-32,520),gx=(W-gw)/2,cw=gw/S,y0=midY+112;
+    const notes=G.pat.notes.slice().sort((a,b)=>a.s-b.s||a.lane-b.lane),stack={};
+    const maxStack=Math.max(...Object.values(notes.reduce((m,n)=>(m[n.s]=(m[n.s]||0)+1,m),{})));
+    cx.fillStyle='rgba(239,232,220,.10)';cx.fillRect(gx,y0+13,gw,2);
+    for(let b=0;b<4;b++){cx.fillStyle='rgba(239,232,220,.28)';cx.fillRect(gx+b*gw/4,y0+4,2,20)}
+    const ABBR={hh:'HH',sn:'SN',kk:'KICK',tm:'TOM',cy:'CYM'};
+    notes.forEach((n,k)=>{
+      if(G.phase==='call'&&vt<G.callT+n.s*G.sd-.02)return;
+      const st=stack[n.s]=(stack[n.s]||0);stack[n.s]++;
+      const w=Math.min(cw*.92,58),h=26,x=gx+n.s*cw+Math.max(0,(cw-w)/2),y=y0+st*30;
+      const done=(G.phase==='play'||G.phase==='wait')&&k<G.hits.length,next=(G.phase==='play'||G.phase==='wait')&&k===G.hits.length;
+      cx.globalAlpha=done?.3:1;cx.fillStyle=LANES[n.lane].color;rr(x,y,w,h,7);cx.fill();
+      if(next){cx.lineWidth=3;cx.strokeStyle='#efe8dc';rr(x-3,y-3,w+6,h+6,9);cx.stroke()}
+      cx.fillStyle='#15111c';cx.textAlign='center';cx.textBaseline='middle';cx.font=`700 ${w<40?9:11}px "JetBrains Mono",monospace`;cx.fillText(ABBR[LANES[n.lane].id],x+w/2,y+h/2+1);cx.globalAlpha=1;
+    });
+    hintY=y0+maxStack*30+22;
+  }
+  if(G.nudge&&performance.now()-G.nudge<1200&&(G.phase==='count'||G.phase==='call'))monoText('Wait for your turn…',W/2,hintY,14,'#ff6b6b');
+  if(G.phase==='wait')monoText('Tap the pads, or anywhere above them',W/2,hintY,14,'#e3b04b');
   monoText(`LEVEL ${G.level}  ·  ${G.bpm} BPM`,W/2,midY+80,12,'#a99cb8');
-  const R=G.review;if(!R)return;
+  const R=G.review;if(!R||G.phase!=='review')return;
   const top=midY+108,avail=H-top-24;if(avail<90)return;
   const gw=Math.min(W-32,520),gx=(W-gw)/2,rowH=Math.min(22,(avail-34)/5),cw=gw/R.pat.S;
   monoText(`${R.pass?'PASS':'MISSED'} · ${R.matched}/${R.total} right${R.extras?` · ${R.extras} extra`:''}${R.timed?` · timing ±${Math.round(R.spread)} ms · you played ${R.playedBpm} BPM`:''}`,W/2,top,11,R.pass?'#7fd88f':'#ff6b6b');
@@ -1016,7 +1037,7 @@ $('#optGuide').onchange=e=>{settings.guide=e.target.checked;saveSettings()};
 $('#optClick').onchange=e=>{settings.click=e.target.checked;saveSettings()};
 $('#playBtn').onclick=()=>startGroove(selTrack());
 function renderTrade(){
-  stepper($('#tradeStep'),()=>settings.tradeBpm,v=>{settings.tradeBpm=v;saveSettings()},50,200,'BPM');
+  stepper($('#tradeStep'),()=>settings.saysBpm,v=>{settings.saysBpm=v;saveSettings()},50,200,'BPM');
   pills($('#tradePills'),DIFF_OPTS,()=>settings.diff,v=>{settings.diff=v;saveSettings();renderTrade()});
   const b=store.get('best.trade.'+settings.diff,null);
   $('#tradeBest').textContent=b?`Best on ${DIFFS[settings.diff].name}: ${b.score.toLocaleString()} points, ${b.rounds} bars, reached ${b.bpm} BPM.`:'No games on this difficulty yet.';
