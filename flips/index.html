@@ -160,7 +160,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="lbl">For a real workout</div>
     <div class="modes">
       <button class="mode" data-go="setlist"><span class="mi">♩</span><span class="mname">Play the set</span><span class="mdesc">Nine grooves on five pads, from straight rock to 6/8, with fills and a bass player who follows your kick.</span></button>
-      <button class="mode" data-go="trade"><span class="mi">4s</span><span class="mname">Trade fours</span><span class="mdesc">The machine plays a bar, then waits while you play it back. The bars get harder as you go. Three misses and you're out.</span></button>
+      <button class="mode" data-go="trade"><span class="mi">⇄</span><span class="mname">Flip says</span><span class="mdesc">Flip plays a bar, then waits while you play it back. The bars get harder as you go. Three misses and you're out.</span></button>
       <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Gap click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift.</span></button>
     </div>
     <div class="row">
@@ -194,14 +194,14 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <section class="screen" id="scr-trade" hidden>
   <div class="wrap">
-    <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Trade fours</h2></div>
-    <p>A count-in, then the machine plays one bar. Then it waits for you. Play the bar back whenever you're ready; your first hit starts your turn, and it waits until you've played every hit. Get the right pads in the right order to pass; an even rhythm earns bonus points. Pass and you get a new bar. Miss and you hear the same bar again. Pass two bars and they get harder; pass four and the tempo goes up 4 BPM. Three misses and you're out.</p>
+    <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Flip says</h2></div>
+    <p>A count-in, then Flip plays one bar. Then he waits for you. Play the bar back whenever you're ready; your first hit starts your turn, and it waits until you've played every hit. Get the right pads in the right order to pass; an even rhythm earns bonus points. Pass and you get a new bar. Miss and you hear the same bar again. Pass two bars and they get harder; pass four and the tempo goes up 4 BPM. Three misses and you're out.</p>
     <div class="setup">
       <div class="field"><span class="lbl">Starting tempo</span><div class="stepper" id="tradeStep"></div></div>
       <div class="field"><span class="lbl">Difficulty</span><div class="pills" id="tradePills"></div></div>
-      <p class="fine">On Pro the pads don't light up while the machine plays. Ears only.</p>
+      <p class="fine">On Pro the pads don't light up while Flip plays. Ears only.</p>
       <p class="fine" id="tradeBest"></p>
-      <button class="primary" id="tradeBtn">Start trading</button>
+      <button class="primary" id="tradeBtn">Start Flip says</button>
     </div>
   </div>
 </section>
@@ -737,7 +737,7 @@ function finishTrade(){
   if(isBest)store.set('best.trade.'+G.diff,{score:G.score,rounds:G.passes,bpm:G.bpm,level:G.level});
   const stars=G.passes>=16?3:G.passes>=8?2:G.passes>=3?1:0;
   const s=stats(G.offs);
-  showResults({eyebrow:`Trade fours · ${DIFFS[G.diff].name}`,title:isBest?'New best':'Out of chances',stars,
+  showResults({eyebrow:`Flip says · ${DIFFS[G.diff].name}`,title:isBest?'New best':'Out of chances',stars,
     verdict:G.passes>=16?'Big ears':G.passes>=8?'You were listening':G.passes>=3?'Getting the hang of it':'Listen closer next time',
     grid:[['Score',G.score.toLocaleString()],['Bars passed',G.passes],['Reached level',G.level],['Final tempo',G.bpm+' BPM'],['Notes caught',`${G.matchedAll}/${G.notesAll}`],['Best before',prev?prev.score.toLocaleString():'–']],
     offs:G.offs,range:DIFFS[G.diff].ok*1200,pocket:pocketWords(s),again:startTrade,menu:'trade'});
@@ -906,7 +906,7 @@ function drawTrade(){
   for(let s=0;s<R.pat.S;s++){const beatCol=(s*4/R.pat.S)%1===0;cx.fillStyle=beatCol?'rgba(239,232,220,.16)':'rgba(239,232,220,.05)';cx.fillRect(gx+s*cw,gy,1,rowH*5)}
   R.pat.notes.forEach((n,k)=>{const x=gx+n.s*cw+2,y=gy+n.lane*rowH+2;cx.strokeStyle=LANES[n.lane].color;cx.lineWidth=2;rr(x,y,cw-4,rowH-4,4);cx.stroke();if(R.marks[k]){cx.globalAlpha=.25;cx.fillStyle=LANES[n.lane].color;cx.fill();cx.globalAlpha=1}});
   R.hits.forEach(h=>{const x=gx+h.pos*cw+cw/2,y=gy+h.lane*rowH+rowH/2;if(x<gx-4||x>gx+gw+4)return;cx.beginPath();cx.arc(x,y,Math.max(3,rowH*.2),0,7);cx.fillStyle='#efe8dc';cx.fill()});
-  monoText('Boxes: the machine\'s bar. Dots: what you played.',W/2,gy+rowH*5+14,11,'#a99cb8');
+  monoText('Boxes: what Flip played. Dots: what you played.',W/2,gy+rowH*5+14,11,'#a99cb8');
 }
 function drawGap(){
   const vt=vtime(),bar=4*G.spb,bi=Math.floor(vt/bar),ty=vt<0?'count':G.types[clamp(bi,0,G.types.length-1)];
@@ -1019,7 +1019,7 @@ function renderTrade(){
   stepper($('#tradeStep'),()=>settings.tradeBpm,v=>{settings.tradeBpm=v;saveSettings()},50,200,'BPM');
   pills($('#tradePills'),DIFF_OPTS,()=>settings.diff,v=>{settings.diff=v;saveSettings();renderTrade()});
   const b=store.get('best.trade.'+settings.diff,null);
-  $('#tradeBest').textContent=b?`Best on ${DIFFS[settings.diff].name}: ${b.score.toLocaleString()} points, ${b.rounds} bars, reached ${b.bpm} BPM.`:'No trades on this difficulty yet.';
+  $('#tradeBest').textContent=b?`Best on ${DIFFS[settings.diff].name}: ${b.score.toLocaleString()} points, ${b.rounds} bars, reached ${b.bpm} BPM.`:'No games on this difficulty yet.';
 }
 $('#tradeBtn').onclick=startTrade;
 function renderGap(){
