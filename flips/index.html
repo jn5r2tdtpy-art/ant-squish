@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Flips</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Drum games for Flips: Flips Flips, Whack-Flips-kit, keep the beat, and a full rhythm game with nine grooves.">
+<meta name="description" content="Drum games for Flips: Flip Flip’s, Whack-Flips-kit, keep the beat, and a full rhythm game with nine grooves.">
 <meta name="theme-color" content="#15111c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -150,7 +150,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     </header>
     <div class="lbl">Quick games</div>
     <div class="modes">
-      <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Flips Flips</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
+      <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Flip Flip’s</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
       <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack-Flips-kit</span><span class="mdesc">Bugs and tomatoes land on the drums. Smack them fast, but leave the bass player's drink alone.</span></button>
       <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Keep the beat</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
     </div>
@@ -1086,9 +1086,9 @@ function rr(x,y,w,h,r){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.re
 function stars(x,y){for(let i=0;i<40;i++){const sx=(i*97.3)%W,sy=(i*53.7)%(H*.6);cx.fillStyle=`rgba(239,232,220,${.05+((i*7)%5)/40})`;cx.fillRect(sx,sy,2,2)}}
 
 const GAMES={};
-/* ---------- Flips Flips ---------- */
+/* ---------- Flip Flip’s ---------- */
 GAMES.flip={
-  name:'Flips Flips',
+  name:'Flip Flip’s',
   help:'Hold to wind up, let go to toss. Tap to catch when the stick comes back to the hand. The hand glows green when it’s safe to grab. More spins = more points.',
   init(){G={st:'hold',charge:0,y:0,vy:0,a:0,spin:0,sticks:3,streak:0,trail:[]}},
   hand(){return H*.76},
