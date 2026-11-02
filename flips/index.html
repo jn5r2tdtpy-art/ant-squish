@@ -160,7 +160,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="lbl">For a real workout</div>
     <div class="modes">
       <button class="mode" data-go="setlist"><span class="mi">♩</span><span class="mname">Play the set</span><span class="mdesc">Nine grooves on five pads, from straight rock to 6/8, with fills and a bass player who follows your kick.</span></button>
-      <button class="mode" data-go="trade"><span class="mi">⇄</span><span class="mname">Flip says</span><span class="mdesc">Flip plays a bar, then waits while you play it back. The bars get harder as you go. Three misses and you're out.</span></button>
+      <button class="mode" data-go="trade"><span class="mi">⇄</span><span class="mname">Follow Flip</span><span class="mdesc">Flip plays a bar, then waits while you play it back. The bars get harder as you go. Three misses and you're out.</span></button>
       <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Gap click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift.</span></button>
     </div>
     <div class="row">
@@ -194,14 +194,14 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <section class="screen" id="scr-trade" hidden>
   <div class="wrap">
-    <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Flip says</h2></div>
+    <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Follow Flip</h2></div>
     <p>A count-in, then Flip plays one bar. Then he waits for you. Play the bar back whenever you're ready; your first hit starts your turn, and it waits until you've played every hit. Get the right pads in the right order to pass; an even rhythm earns bonus points. Pass and you get a new bar. Miss and you hear the same bar again. As Flip plays, each hit shows up on screen so you can see what to copy. Pass three bars and they get harder; pass six and the tempo goes up 3 BPM. Three misses and you're out.</p>
     <div class="setup">
       <div class="field"><span class="lbl">Starting tempo</span><div class="stepper" id="tradeStep"></div></div>
       <div class="field"><span class="lbl">Difficulty</span><div class="pills" id="tradePills"></div></div>
       <p class="fine">On Pro the pads don't light up and the hits aren't shown while Flip plays. Ears only.</p>
       <p class="fine" id="tradeBest"></p>
-      <button class="primary" id="tradeBtn">Start Flip says</button>
+      <button class="primary" id="tradeBtn">Start Follow Flip</button>
     </div>
   </div>
 </section>
@@ -737,7 +737,7 @@ function finishTrade(){
   if(isBest)store.set('best.trade.'+G.diff,{score:G.score,rounds:G.passes,bpm:G.bpm,level:G.level});
   const stars=G.passes>=16?3:G.passes>=8?2:G.passes>=3?1:0;
   const s=stats(G.offs);
-  showResults({eyebrow:`Flip says · ${DIFFS[G.diff].name}`,title:isBest?'New best':'Out of chances',stars,
+  showResults({eyebrow:`Follow Flip · ${DIFFS[G.diff].name}`,title:isBest?'New best':'Out of chances',stars,
     verdict:G.passes>=16?'Big ears':G.passes>=8?'You were listening':G.passes>=3?'Getting the hang of it':'Listen closer next time',
     grid:[['Score',G.score.toLocaleString()],['Bars passed',G.passes],['Reached level',G.level],['Final tempo',G.bpm+' BPM'],['Notes caught',`${G.matchedAll}/${G.notesAll}`],['Best before',prev?prev.score.toLocaleString():'–']],
     offs:G.offs,range:DIFFS[G.diff].ok*1200,pocket:pocketWords(s),again:startTrade,menu:'trade'});
