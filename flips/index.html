@@ -192,7 +192,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 <section class="screen" id="scr-trade" hidden>
   <div class="wrap">
     <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>Trade fours</h2></div>
-    <p>A count-in, then the machine plays one bar. Then it waits for you. Play the bar back whenever you're ready; your first hit starts your turn. Pass and you get a new bar. Miss and you hear the same bar again. Pass two bars and they get harder; pass four and the tempo goes up 4 BPM. Three misses and you're out.</p>
+    <p>A count-in, then the machine plays one bar. Then it waits for you. Play the bar back whenever you're ready; your first hit starts your turn, and it waits until you've played every hit. Get the right pads in the right order to pass; an even rhythm earns bonus points. Pass and you get a new bar. Miss and you hear the same bar again. Pass two bars and they get harder; pass four and the tempo goes up 4 BPM. Three misses and you're out.</p>
     <div class="setup">
       <div class="field"><span class="lbl">Starting tempo</span><div class="stepper" id="tradeStep"></div></div>
       <div class="field"><span class="lbl">Difficulty</span><div class="pills" id="tradePills"></div></div>
@@ -669,47 +669,54 @@ function startTrade(){
 }
 function tradeRound(lead){
   const spb=60/G.bpm,T=ac.currentTime-G.start+lead;
-  G.spb=spb;G.sd=4*spb/G.pat.S;G.roundT=T;G.callT=T+4*spb;G.callEnd=G.callT+4*spb;G.phase='count';G.hits=[];G.anchor=null;
+  G.spb=spb;G.sd=4*spb/G.pat.S;G.roundT=T;G.callT=T+4*spb;G.callEnd=G.callT+4*spb;G.phase='count';G.hits=[];G.endAt=0;
   for(let q=0;q<4;q++)click(G.start+T+q*spb,q===0,1,G.bus);
   for(let q=0;q<4;q++)click(G.start+G.callT+q*spb,q===0,.35,G.bus);
   G.pat.notes.forEach(n=>{const t=G.callT+n.s*G.sd;drum(LANES[n.lane].id,G.start+t,.9,n.v,G.bus);if(G.diff!=='pro')G.visq.push({t,lane:n.lane})});
   G.visq.sort((a,c)=>a.t-c.t);
 }
 HIT.trade=(lane,st)=>{
-  if(G.phase==='wait'){
-    const first=G.pat.notes[0];G.anchor=st-first.s*G.sd;
-    const last=G.pat.notes[G.pat.notes.length-1];G.respEnd=G.anchor+last.s*G.sd+DIFFS[G.diff].ok*1.4+.05;
-    G.phase='play';
-  }
-  if(G.phase==='play'&&st<=G.respEnd)G.hits.push({lane,st});
+  if(G.phase!=='wait'&&G.phase!=='play')return null;
+  if(G.phase==='wait')G.phase='play';
+  G.hits.push({lane,st});G.lastHitAt=ac.currentTime;
+  if(G.hits.length>=G.pat.notes.length&&!G.endAt)G.endAt=ac.currentTime+.4;
   return null;
 };
 function judgeTrade(){
-  const W=DIFFS[G.diff],hits=G.hits,used=new Set();let matched=0,pts=0;const offs=[];
-  const marks=G.pat.notes.map(n=>{
-    const nt=G.anchor+n.s*G.sd;let bi=-1,bd=1e9;
-    hits.forEach((h,k)=>{if(used.has(k)||h.lane!==n.lane)return;const d=Math.abs(h.st-nt);if(d<=W.ok*1.4&&d<bd){bd=d;bi=k}});
-    if(bi>=0){used.add(bi);matched++;offs.push((hits[bi].st-nt)*1000);pts+=bd<=W.p?100:bd<=W.g?70:40;return true}
-    return false;
-  });
-  const total=G.pat.notes.length,extras=hits.length-used.size,acc=matched/(total+extras),pass=acc>=W.pass;
+  const W=DIFFS[G.diff],hits=G.hits,notes=G.pat.notes;
+  const order=notes.map((n,i)=>i).sort((a,b)=>notes[a].s-notes[b].s||notes[a].lane-notes[b].lane);
+  const marks=notes.map(()=>false),pairs=[];let hi=0,matched=0;
+  for(let k=0;k<order.length;){
+    let e=k;while(e<order.length&&notes[order[e]].s===notes[order[k]].s)e++;
+    const grp=order.slice(k,e),hs=hits.slice(hi,hi+grp.length).map(h=>({h,used:false}));hi+=grp.length;
+    grp.forEach(i=>{const m=hs.find(x=>!x.used&&x.h.lane===notes[i].lane);if(m){m.used=true;marks[i]=true;matched++;pairs.push({s:notes[i].s,st:m.h.st})}});
+    k=e;
+  }
+  const total=notes.length,extras=Math.max(0,hits.length-total),acc=matched/(total+extras),pass=acc>=W.pass;
+  // fit the player's own tempo, then measure how even the rhythm was
+  let a=hits.length?hits[0].st-notes[order[0]].s*G.sd:0,b=G.sd,offs=[];
+  if(pairs.length>=2){const ms=pairs.reduce((q,p)=>q+p.s,0)/pairs.length,mt=pairs.reduce((q,p)=>q+p.st,0)/pairs.length;let nu=0,de=0;pairs.forEach(p=>{nu+=(p.s-ms)*(p.st-mt);de+=(p.s-ms)**2});
+    if(de>0&&nu>0){b=nu/de;a=mt-b*ms}offs=pairs.map(p=>(p.st-(a+b*p.s))*1000)}
+  const playedBpm=Math.round(G.bpm*G.sd/b);
+  const spread=offs.length?stats(offs).sd:0;
   G.offs.push(...offs);G.matchedAll+=matched;G.notesAll+=total;
-  G.review={pat:G.pat,marks,hits:hits.map(h=>({lane:h.lane,pos:(h.st-G.anchor)/G.sd})),pass,matched,total,extras,mean:stats(offs).mean};
+  G.review={pat:G.pat,marks,hits:hits.map(h=>({lane:h.lane,pos:(h.st-a)/b})),pass,matched,total,extras,spread,playedBpm,timed:offs.length>=2};
   if(pass){
-    G.passes++;G.streak++;G.score+=pts*G.level+(extras===0&&matched===total?50*G.level:0);
+    const feel=!offs.length?0:spread<=25?50:spread<=50?25:0;
+    G.passes++;G.streak++;G.score+=(matched*50+feel)*G.level+(extras===0&&matched===total?50*G.level:0);
     if(G.passes%2===0)G.level=Math.min(10,G.level+1);
     if(G.passes%4===0)G.bpm=Math.min(220,G.bpm+4);
     G.pat=tradePattern(G.level,G.rng);G.msg='Nice!';
   }else{G.streak=0;G.lives--;G.msg=G.lives>0?'Not quite':'Out of chances'}
-  G.phase='review';G.until=ac.currentTime+2.2;
+  G.phase='review';G.endAt=0;G.until=ac.currentTime+2.6;
 }
 function updateTrade(){
-  const jt=jtime(),vt=vtime();
+  const jt=jtime(),vt=vtime(),now=ac.currentTime;
   while(G.visq.length&&G.visq[0].t<=vt){flashLane(G.visq.shift().lane)}
   if((G.phase==='count'||G.phase==='call')&&jt>=G.callT-.05)G.phase='call';
   if(G.phase==='call'&&jt>=G.callEnd-.25)G.phase='wait';
-  if(G.phase==='play'&&jt>G.respEnd)judgeTrade();
-  if(G.phase==='review'&&ac.currentTime>=G.until){if(G.lives<=0)finishTrade();else tradeRound(.2)}
+  if(G.phase==='play'&&((G.endAt&&now>=G.endAt)||now-G.lastHitAt>2.5))judgeTrade();
+  if(G.phase==='review'&&now>=G.until){if(G.lives<=0)finishTrade();else tradeRound(.2)}
 }
 function finishTrade(){
   if(!G.running)return;
@@ -864,12 +871,12 @@ function drawTrade(){
   if(beat>=0)for(let k=0;k<4;k++){const x=W/2+(k-1.5)*34,on=k===beat;cx.beginPath();cx.arc(x,midY+48,on?10:7,0,7);cx.fillStyle=on?'#efe8dc':'rgba(239,232,220,.18)';cx.fill()}
   if(G.phase==='wait')monoText('Start whenever you\'re ready',W/2,midY+48,13,'#a99cb8');
   if(G.phase==='review'&&G.review&&!G.review.pass&&G.lives>0)monoText('Here comes the same bar again',W/2,midY+48,13,'#efe8dc');
-  if(G.phase==='play')monoText(`${G.hits.length} hit${G.hits.length===1?'':'s'}`,W/2,midY+48,13,'#a99cb8');
+  if(G.phase==='play'){const n=G.pat.notes.length;for(let k=0;k<n;k++){const gap=Math.min(26,(W-48)/n),x=W/2-(n-1)*gap/2+k*gap;cx.beginPath();cx.arc(x,midY+48,Math.min(7,gap*.3),0,7);cx.fillStyle=k<G.hits.length?'#e3b04b':'rgba(239,232,220,.18)';cx.fill()}}
   monoText(`LEVEL ${G.level}  ·  ${G.bpm} BPM`,W/2,midY+80,12,'#a99cb8');
   const R=G.review;if(!R)return;
   const top=midY+108,avail=H-top-24;if(avail<90)return;
   const gw=Math.min(W-32,520),gx=(W-gw)/2,rowH=Math.min(22,(avail-34)/5),cw=gw/R.pat.S;
-  monoText(`${R.pass?'PASS':'MISSED'} · ${R.matched}/${R.total} notes${R.extras?` · ${R.extras} extra`:''}${R.matched?` · avg ${fmtMs(R.mean/1000)}`:''}`,W/2,top,12,R.pass?'#7fd88f':'#ff6b6b');
+  monoText(`${R.pass?'PASS':'MISSED'} · ${R.matched}/${R.total} right${R.extras?` · ${R.extras} extra`:''}${R.timed?` · timing ±${Math.round(R.spread)} ms · you played ${R.playedBpm} BPM`:''}`,W/2,top,11,R.pass?'#7fd88f':'#ff6b6b');
   const gy=top+16;
   for(let s=0;s<R.pat.S;s++){const beatCol=(s*4/R.pat.S)%1===0;cx.fillStyle=beatCol?'rgba(239,232,220,.16)':'rgba(239,232,220,.05)';cx.fillRect(gx+s*cw,gy,1,rowH*5)}
   R.pat.notes.forEach((n,k)=>{const x=gx+n.s*cw+2,y=gy+n.lane*rowH+2;cx.strokeStyle=LANES[n.lane].color;cx.lineWidth=2;rr(x,y,cw-4,rowH-4,4);cx.stroke();if(R.marks[k]){cx.globalAlpha=.25;cx.fillStyle=LANES[n.lane].color;cx.fill();cx.globalAlpha=1}});
