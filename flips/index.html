@@ -125,6 +125,8 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 .minibar h2{font-size:26px}
 #mcv{width:100%;height:100%;display:block;min-height:0;padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
 .wrap>.lbl{margin-bottom:-8px}
+#pads[data-turn="machine"] .pad{filter:saturate(.5) brightness(.75)}
+#pads[data-turn="you"] .pad{box-shadow:inset 0 -6px 0 rgba(0,0,0,.35),0 0 0 2px var(--brass),0 0 18px color-mix(in srgb,var(--brass) 45%,transparent)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -556,11 +558,13 @@ function newSession(o){
   try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>G.wake=w).catch(()=>{})}catch(e){}
 }
 function endSession(){
+  $('#pads').dataset.turn='';
   if(G.bus){const b=G.bus;setTimeout(()=>{try{b.disconnect()}catch(e){}},2500)}
   if(G.wake){try{G.wake.release()}catch(e){}}
   G.running=false;
 }
 function abortSession(){
+  $('#pads').dataset.turn='';
   if(G.bus){try{G.bus.disconnect()}catch(e){}}
   if(G.wake){try{G.wake.release()}catch(e){}}
   G={mode:'idle',running:false};
@@ -669,13 +673,15 @@ function startTrade(){
 }
 function tradeRound(lead){
   const spb=60/G.bpm,T=ac.currentTime-G.start+lead;
-  G.spb=spb;G.sd=4*spb/G.pat.S;G.roundT=T;G.callT=T+4*spb;G.callEnd=G.callT+4*spb;G.phase='count';G.hits=[];G.endAt=0;
+  G.spb=spb;G.sd=4*spb/G.pat.S;G.roundT=T;G.callT=T+4*spb;
+  const lastS=Math.max(...G.pat.notes.map(n=>n.s));G.callEnd=G.callT+lastS*G.sd+Math.min(.45,Math.max(.3,G.sd*1.5));G.phase='count';G.hits=[];G.endAt=0;
   for(let q=0;q<4;q++)click(G.start+T+q*spb,q===0,1,G.bus);
-  for(let q=0;q<4;q++)click(G.start+G.callT+q*spb,q===0,.35,G.bus);
+  for(let q=0;q<4;q++)if(q*spb<=lastS*G.sd+.01)click(G.start+G.callT+q*spb,q===0,.35,G.bus);
   G.pat.notes.forEach(n=>{const t=G.callT+n.s*G.sd;drum(LANES[n.lane].id,G.start+t,.9,n.v,G.bus);if(G.diff!=='pro')G.visq.push({t,lane:n.lane})});
   G.visq.sort((a,c)=>a.t-c.t);
 }
 HIT.trade=(lane,st)=>{
+  if(G.phase==='count'||G.phase==='call'){G.nudge=performance.now();return null}
   if(G.phase!=='wait'&&G.phase!=='play')return null;
   if(G.phase==='wait')G.phase='play';
   G.hits.push({lane,st});G.lastHitAt=ac.currentTime;
@@ -710,13 +716,15 @@ function judgeTrade(){
   }else{G.streak=0;G.lives--;G.msg=G.lives>0?'Not quite':'Out of chances'}
   G.phase='review';G.endAt=0;G.until=ac.currentTime+2.6;
 }
+function tradePads(state){if(G.padState===state)return;G.padState=state;$('#pads').dataset.turn=state||''}
 function updateTrade(){
   const jt=jtime(),vt=vtime(),now=ac.currentTime;
   while(G.visq.length&&G.visq[0].t<=vt){flashLane(G.visq.shift().lane)}
   if((G.phase==='count'||G.phase==='call')&&jt>=G.callT-.05)G.phase='call';
-  if(G.phase==='call'&&jt>=G.callEnd-.25)G.phase='wait';
+  if(G.phase==='call'&&jt>=G.callEnd)G.phase='wait';
   if(G.phase==='play'&&((G.endAt&&now>=G.endAt)||now-G.lastHitAt>2.5))judgeTrade();
   if(G.phase==='review'&&now>=G.until){if(G.lives<=0)finishTrade();else tradeRound(.2)}
+  tradePads(G.phase==='count'||G.phase==='call'?'machine':G.phase==='wait'||G.phase==='play'?'you':'')
 }
 function finishTrade(){
   if(!G.running)return;
@@ -871,7 +879,9 @@ function drawTrade(){
   if(beat>=0)for(let k=0;k<4;k++){const x=W/2+(k-1.5)*34,on=k===beat;cx.beginPath();cx.arc(x,midY+48,on?10:7,0,7);cx.fillStyle=on?'#efe8dc':'rgba(239,232,220,.18)';cx.fill()}
   if(G.phase==='wait')monoText('Start whenever you\'re ready',W/2,midY+48,13,'#a99cb8');
   if(G.phase==='review'&&G.review&&!G.review.pass&&G.lives>0)monoText('Here comes the same bar again',W/2,midY+48,13,'#efe8dc');
-  if(G.phase==='play'){const n=G.pat.notes.length;for(let k=0;k<n;k++){const gap=Math.min(26,(W-48)/n),x=W/2-(n-1)*gap/2+k*gap;cx.beginPath();cx.arc(x,midY+48,Math.min(7,gap*.3),0,7);cx.fillStyle=k<G.hits.length?'#e3b04b':'rgba(239,232,220,.18)';cx.fill()}}
+  if(G.phase==='play'){const n=G.pat.notes.length;for(let k=0;k<n;k++){const gap=Math.min(26,(W-48)/n),x=W/2-(n-1)*gap/2+k*gap;cx.beginPath();cx.arc(x,midY+48,Math.min(7,gap*.3),0,7);cx.fillStyle=k<G.hits.length?LANES[G.hits[k].lane].color:'rgba(239,232,220,.18)';cx.fill()}}
+  if(G.nudge&&performance.now()-G.nudge<1200&&(G.phase==='count'||G.phase==='call'))monoText('Wait for your turn…',W/2,midY+112,14,'#ff6b6b');
+  if(G.phase==='wait')monoText('Tap the pads now',W/2,midY+112,15,'#e3b04b');
   monoText(`LEVEL ${G.level}  ·  ${G.bpm} BPM`,W/2,midY+80,12,'#a99cb8');
   const R=G.review;if(!R)return;
   const top=midY+108,avail=H-top-24;if(avail<90)return;
