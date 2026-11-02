@@ -35,7 +35,8 @@ html,body{margin:0;height:100%;background:var(--stage);color:var(--head);font-fa
 button{font-family:var(--body);cursor:pointer;color:var(--head)}
 button:focus-visible,input:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 
-#stage{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+body{position:relative}
+#stage{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr auto}
 .hud{display:flex;gap:8px;align-items:center;
   padding:calc(env(safe-area-inset-top,0px) + 8px) max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px))}
 .chip{display:flex;flex-direction:column;justify-content:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 10px;min-width:58px}
@@ -46,7 +47,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--brass);outline-
 #cv{width:100%;height:100%;display:block;min-height:0}
 
 #pads{display:grid;grid-template-columns:1fr 1fr 1.25fr 1fr 1fr;gap:8px;
-  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 12px) max(16px,env(safe-area-inset-left,0px))}
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
 .pad{--c:#fff;height:clamp(86px,19vh,150px);border-radius:16px;border:2px solid color-mix(in srgb,var(--c) 55%,transparent);
   background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--c) 30%,#2a2233) 0,#1b1523 72%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:none;padding:0;
@@ -120,7 +121,7 @@ table.win td,table.win th{border-bottom:1px solid var(--line);padding:6px 4px;te
 table.win td{font-family:var(--mono);font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--brass)}
 .calres{font-family:var(--mono);font-size:14px;color:var(--brass)}
-#mini{position:fixed;inset:0;z-index:30;background:var(--stage);display:grid;grid-template-rows:auto 1fr;touch-action:none}
+#mini{position:absolute;inset:0;z-index:30;background:var(--stage);display:grid;grid-template-rows:auto 1fr;touch-action:none}
 .minibar{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px))}
 .minibar h2{font-size:26px}
 #mcv{width:100%;height:100%;display:block;min-height:0;padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
