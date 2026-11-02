@@ -24,7 +24,7 @@ It works offline once it has been opened. High scores are saved on each device.
 - Each level gives up to 3 stars: escape, never get spotted, collect all contraband
 - **Customize:** put your own face on the runner and record your own sound effects from the title screen. To build a face or sounds into the game for everyone, see `prison-escape/custom/README.md`.
 
-## Flips (drummer rhythm game)
+## Flips (drum games)
 
 `flips/index.html` is a set of drum games for a drummer named Flips. Everything, including the drum sounds and backing band, is synthesized in the browser, so it is one file with no assets. The menu lists:
 
