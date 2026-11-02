@@ -154,7 +154,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="lbl">Quick games</div>
     <div class="modes">
       <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Flip Flip’s</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
-      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack Flip’s kit</span><span class="mdesc">Moles pop out of the drums. Bop them fast, but leave the bass player's drink alone.</span></button>
+      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack Flip’s kit</span><span class="mdesc">Moles pop out of the drums. Bop them fast, but leave my drink alone.</span></button>
       <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Flip’s kick drum</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
     </div>
     <div class="lbl">For a real workout</div>
@@ -1207,7 +1207,7 @@ const KIT=[{x:.17,y:.27,r:.13,s:'hat',c:C.brass,n:'Hi-hat',cym:1},{x:.45,y:.17,r
   {x:.27,y:.52,r:.14,s:'snare',c:C.red,n:'Snare'},{x:.73,y:.53,r:.15,s:'tom',c:C.teal,n:'Floor tom'},{x:.5,y:.79,r:.18,s:'kick',c:C.violet,n:'Kick'}];
 GAMES.whack={
   name:'Whack Flip’s kit',
-  help:'Moles are popping out of Flip\u2019s drums! Bop them before they duck back down. Moles in red headbands are quick and worth 15. Golden sticks are worth 50. Hit the bass player’s drink and you lose 30. 45 seconds.',
+  help:'Moles are popping out of Flip\u2019s drums! Bop them before they duck back down. Moles in red headbands are quick and worth 15. Golden sticks are worth 50. Hit my drink and you lose 30. 45 seconds.',
   init(){G={time:45,items:[],next:.5,flash:KIT.map(()=>0),combo:0}},
   geo(d){const s=Math.min(W,H*.85);return{x:d.x*W,y:d.y*H+10,r:d.r*s}},
   down(x,y){
@@ -1215,7 +1215,7 @@ GAMES.whack={
     if(k<0)return;snd(KIT[k].s);G.flash[k]=1;
     const it=G.items.find(i=>i.d===k&&!i.hit);if(!it)return;
     it.hit=performance.now();const g=this.geo(KIT[k]);
-    if(it.type==='drink'){score=Math.max(0,score-30);G.combo=0;snd('bad');pop('That was his drink! -30',g.x,g.y-g.r-10,C.bad,18)}
+    if(it.type==='drink'){score=Math.max(0,score-30);G.combo=0;snd('bad');pop('Hey! That’s my drink! -30',g.x,g.y-g.r-10,C.bad,18)}
     else{G.combo++;const mult=1+Math.floor(G.combo/6),pts={mole:10,fast:15,gold:50}[it.type]*mult;score+=pts;if(it.type==='gold')snd('ding');
       pop('+'+pts,g.x,g.y-g.r-10,it.type==='gold'?C.brass:C.head,22);if(G.combo%6===0)pop(`Combo x${mult}`,W/2,H*.4,C.brass,26)}
   },
