@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Flips</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="A rhythm game for drummers. Play nine grooves on touch pads, trade fours by ear, and keep time when the click drops out. Every hit is timed to the millisecond.">
+<meta name="description" content="Drum games for Flips: stick flips, whack-the-kit, keep the beat, and a full rhythm game with nine grooves.">
 <meta name="theme-color" content="#15111c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -63,7 +63,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--brass);outline-
 .wrap{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
 .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--brass);font-weight:700}
 h1{font-family:var(--display);font-weight:900;font-size:clamp(76px,22vw,132px);line-height:.82;margin:6px 0 10px;letter-spacing:-.01em;text-transform:uppercase}
-h1 .dp2{color:transparent;-webkit-text-stroke:2px var(--brass)}
+h1 .dp2{color:var(--brass)}
 h2{font-family:var(--display);font-weight:800;font-size:34px;margin:0;text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
 h3{font-family:var(--display);font-weight:800;font-size:22px;margin:0;text-transform:uppercase;letter-spacing:.03em}
 p{line-height:1.5;margin:0;max-width:62ch}
@@ -120,6 +120,11 @@ table.win td,table.win th{border-bottom:1px solid var(--line);padding:6px 4px;te
 table.win td{font-family:var(--mono);font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--brass)}
 .calres{font-family:var(--mono);font-size:14px;color:var(--brass)}
+#mini{position:fixed;inset:0;z-index:30;background:var(--stage);display:grid;grid-template-rows:auto 1fr;touch-action:none}
+.minibar{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px))}
+.minibar h2{font-size:26px}
+#mcv{width:100%;height:100%;display:block;min-height:0;padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
+.wrap>.lbl{margin-bottom:-8px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -139,21 +144,35 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 <section class="screen" id="scr-title">
   <div class="wrap">
     <header>
-      <div class="eyebrow">A rhythm game for working drummers</div>
+      <div class="eyebrow">Drum games</div>
       <h1>Flips<span class="dp2">.</span></h1>
-      <p class="tag">Play the part on the pads. Every hit is timed to the millisecond, so you find out if you rush the fills.</p>
+      <p class="tag">Pick a game. The quick ones take about a minute. The full set is for a real workout.</p>
     </header>
+    <div class="lbl">Quick games</div>
     <div class="modes">
-      <button class="mode" data-go="setlist"><span class="mi">♩</span><span class="mname">Play the set</span><span class="mdesc">Nine grooves from straight rock to 6/8, with ghost notes, fills and a bass player who locks to your kick.</span></button>
-      <button class="mode" data-go="trade"><span class="mi">4s</span><span class="mname">Trade fours</span><span class="mdesc">The machine plays a bar, you play it back by ear. The bars get harder and the tempo creeps up. Three misses and you're out.</span></button>
-      <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Gap click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift, in ms and BPM.</span></button>
+      <button class="mode" data-mini="flip"><span class="mi">↻</span><span class="mname">Stick flips</span><span class="mdesc">Toss the drumstick, let it spin, and catch it tip up. More spins score more. Drop three and you're done.</span></button>
+      <button class="mode" data-mini="whack"><span class="mi">✕</span><span class="mname">Whack-the-kit</span><span class="mdesc">Bugs and tomatoes land on the drums. Smack them fast, but leave the bass player's drink alone.</span></button>
+      <button class="mode" data-mini="beat"><span class="mi">◎</span><span class="mname">Keep the beat</span><span class="mdesc">One big drum. Tap as each ring closes in. It keeps getting faster.</span></button>
+    </div>
+    <div class="lbl">For a real workout</div>
+    <div class="modes">
+      <button class="mode" data-go="setlist"><span class="mi">♩</span><span class="mname">Play the set</span><span class="mdesc">Nine grooves on five pads, from straight rock to 6/8, with fills and a bass player who follows your kick.</span></button>
+      <button class="mode" data-go="trade"><span class="mi">4s</span><span class="mname">Trade fours</span><span class="mdesc">The machine plays a bar, you play it back by ear. Three misses and you're out.</span></button>
+      <button class="mode" data-go="gap"><span class="mi">0:00</span><span class="mname">Gap click</span><span class="mdesc">The click drops out for a few bars. Keep time on your own and see how far you drift.</span></button>
     </div>
     <div class="row">
       <button class="ghostbtn" data-go="settings">Settings and latency</button>
-      <button class="ghostbtn" data-go="howto">How to play</button>
+      <button class="ghostbtn" data-go="howto">How to play the set</button>
     </div>
-    <p class="fine">Keyboard: <b>D</b> hi-hat · <b>F</b> snare · <b>Space</b> kick · <b>J</b> tom · <b>K</b> cymbal · <b>Esc</b> pause</p>
   </div>
+</section>
+
+<section id="mini" hidden>
+  <div class="minibar">
+    <button class="back" id="miniBack">‹ Menu</button>
+    <h2 id="miniTitle"></h2>
+  </div>
+  <canvas id="mcv"></canvas>
 </section>
 
 <section class="screen" id="scr-setlist" hidden>
@@ -507,6 +526,7 @@ function hit(lane,ts){
   drum(LANES[lane].id,ac.currentTime,vel,v);
 }
 addEventListener('keydown',e=>{
+  if(window.miniOpen)return;
   if(e.target&&e.target.tagName==='INPUT'&&e.target.type!=='checkbox')return;
   if(e.code==='Escape'||e.code==='KeyP'){if(G.running){e.preventDefault();G.paused?resume():pause()}return}
   const lane=KEYMAP[e.code];
@@ -1009,6 +1029,253 @@ function drawHist(c,offs,range){
 }
 
 resize();show('title');requestAnimationFrame(frame);
+/* ================= Quick games ================= */
+(function(){
+const cv=document.getElementById('mcv'),cx=cv.getContext('2d');let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(2,devicePixelRatio||1);const r=cv.getBoundingClientRect();W=r.width;H=r.height-((parseFloat(getComputedStyle(cv).paddingBottom))||0);cv.width=r.width*DPR;cv.height=r.height*DPR}
+new ResizeObserver(resize).observe(cv);
+const C={head:'#efe8dc',muted:'#a99cb8',brass:'#e3b04b',panel:'#211a2b',line:'#3a2f47',red:'#ff5a6e',teal:'#3fd2b8',violet:'#a184ff',blue:'#62b9ff',good:'#7fd88f',bad:'#ff6b6b'};
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const mstore={get(k){try{return +localStorage.getItem('flips.mini.'+k)||0}catch(e){return 0}},set(k,v){try{localStorage.setItem('flips.mini.'+k,v)}catch(e){}}};
+
+function env(t,p,d){const g=ac.createGain();g.gain.setValueAtTime(p,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);g.connect(master);return g}
+function tone(type,f,f2,t,d,p){const o=ac.createOscillator();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d*.5);o.connect(env(t,p,d));o.start(t);o.stop(t+d+.02)}
+function snd(k,t,vel=1){if(!ac)return;t=Math.max(t||0,ac.currentTime);
+  if(k==='kick')drum('kk',t,vel);else if(k==='snare')drum('sn',t,vel);else if(k==='hat')drum('hh',t,vel);else if(k==='tom')drum('tm',t,vel);
+  else if(k==='crash')drum('cy',t,vel,'c');else if(k==='bell')drum('cy',t,vel,'b');
+  else if(k==='whoosh'){const s=ac.createBufferSource();s.buffer=noiseBuf;const f=ac.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(800,t);f.frequency.exponentialRampToValueAtTime(3000,t+.25);s.connect(f).connect(env(t,.25,.3));s.start(t);s.stop(t+.35)}
+  else if(k==='bad'){tone('square',160,80,t,.3,.1)}
+  else if(k==='ding'){tone('sine',1320,0,t,.4,.25);tone('sine',1980,0,t,.3,.12)}
+  else if(k==='end'){[0,.12,.24].forEach((d,i)=>drum(i<2?'tm':'cy',t+d,1,'c'))}}
+
+let cur=null,phase='ready',score=0,best=0,overMsg='',G={},overAt=0,running=false;
+const fx=[];function pop(text,x,y,color,size=20){fx.push({text,x,y,color,size,t:performance.now()})}
+function start(){phase='play';score=0;fx.length=0;GAMES[cur].init()}
+function over(msg){if(phase!=='play')return;phase='over';overMsg=msg;overAt=performance.now();snd('end');if(score>best){best=score;mstore.set(cur,best);G.newBest=true}}
+function open(g){
+  audio();cur=g;phase='ready';best=mstore.get(g);G={};fx.length=0;
+  document.getElementById('miniTitle').textContent=GAMES[g].name;
+  document.getElementById('mini').hidden=false;window.miniOpen=true;resize();
+  if(!running){running=true;last=performance.now();requestAnimationFrame(frame)}
+}
+function close(){document.getElementById('mini').hidden=true;window.miniOpen=false;running=false;phase='ready';G={}}
+document.querySelectorAll('[data-mini]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.mini)));
+document.getElementById('miniBack').onclick=close;
+function down(x,y,ts){audio();if(phase!=='play'){if(phase==='over'&&performance.now()-overAt<700)return;start();return}GAMES[cur].down(x,y,ts)}
+function up(){if(phase==='play'&&GAMES[cur].up)GAMES[cur].up()}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect();down(e.clientX-r.left,e.clientY-r.top,e.timeStamp)});
+addEventListener('pointerup',()=>{if(window.miniOpen)up()});addEventListener('pointercancel',()=>{if(window.miniOpen)up()});
+addEventListener('keydown',e=>{if(!window.miniOpen)return;if(e.code==='Escape'){close();return}if(e.code!=='Space'&&e.code!=='Enter')return;e.preventDefault();if(e.repeat)return;down(W/2,H/2,e.timeStamp)});
+addEventListener('keyup',e=>{if(!window.miniOpen)return;if(e.code==='Space'||e.code==='Enter'){e.preventDefault();up()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&window.miniOpen&&phase==='play'){phase='ready';G={}}});
+
+function txt(t,x,y,size,color,font='display',align='center'){cx.fillStyle=color;cx.textAlign=align;cx.textBaseline='middle';
+  cx.font=font==='display'?`900 ${size}px "Big Shoulders Display",Impact,sans-serif`:font==='mono'?`700 ${size}px "JetBrains Mono",monospace`:`700 ${size}px "Atkinson Hyperlegible",system-ui,sans-serif`;cx.fillText(t,x,y)}
+function wrapTxt(t,x,y,maxW,size,color){cx.font=`400 ${size}px "Atkinson Hyperlegible",system-ui,sans-serif`;const words=t.split(' ');let line='',yy=y;cx.fillStyle=color;cx.textAlign='center';cx.textBaseline='middle';
+  for(const w of words){const tst=line?line+' '+w:w;if(cx.measureText(tst).width>maxW&&line){cx.fillText(line,x,yy);line=w;yy+=size*1.45}else line=tst}cx.fillText(line,x,yy);return yy}
+function card(title,body,foot){
+  cx.fillStyle='rgba(21,17,28,.86)';cx.fillRect(0,0,W,H);
+  const mw=Math.min(W-40,400),ty=H*.24;
+  txt(title,W/2,ty,Math.min(60,W*.14),C.head);
+  const yy=wrapTxt(body,W/2,ty+58,mw,17,C.head);
+  const pulse=.75+.25*Math.sin(performance.now()/260);
+  cx.globalAlpha=pulse;txt(foot,W/2,yy+64,26,C.brass);cx.globalAlpha=1;
+  if(best)txt(`Best: ${best}`,W/2,yy+100,14,C.muted,'mono');
+}
+function rr(x,y,w,h,r){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.rect(x,y,w,h)}
+function stars(x,y){for(let i=0;i<40;i++){const sx=(i*97.3)%W,sy=(i*53.7)%(H*.6);cx.fillStyle=`rgba(239,232,220,${.05+((i*7)%5)/40})`;cx.fillRect(sx,sy,2,2)}}
+
+const GAMES={};
+/* ---------- Stick flips ---------- */
+GAMES.flip={
+  name:'Stick flips',
+  help:'Hold to wind up, let go to toss. Tap to catch when the stick comes back to the hand. The hand glows green when it’s safe to grab. More spins = more points.',
+  init(){G={st:'hold',charge:0,y:0,vy:0,a:0,spin:0,sticks:3,streak:0,trail:[]}},
+  hand(){return H*.76},
+  catchable(){
+    if(G.st!=='air'||G.vy<=0)return false;
+    const ang=((G.a%(Math.PI*2))+Math.PI*2)%(Math.PI*2),off=Math.min(ang,Math.PI*2-ang);
+    return Math.abs(G.y-this.hand())<H*.1&&off<.8;
+  },
+  down(){if(G.st==='hold'){G.st='charge';G.charge=0}else if(G.st==='air')this.grab()},
+  up(){if(G.st!=='charge')return;const p=Math.max(.12,G.charge);G.st='air';G.y=this.hand();G.vy=-H*(1.0+p*.78);G.spin=Math.PI*2*(1.15+p*.55);G.a=0;G.trail=[];snd('whoosh')},
+  grab(){
+    const ang=((G.a%(Math.PI*2))+Math.PI*2)%(Math.PI*2),off=Math.min(ang,Math.PI*2-ang);
+    if(this.catchable()){
+      const flips=Math.max(1,Math.round(G.a/(Math.PI*2))),clean=off<.3,mult=1+Math.floor(G.streak/3);
+      const pts=flips*(clean?20:10)*mult;score+=pts;G.streak++;
+      pop(`${flips} flip${flips>1?'s':''}${clean?'  CLEAN':''}`,W/2,this.hand()-110,clean?C.brass:C.head,26);
+      pop(`+${pts}${mult>1?`  (x${mult} streak)`:''}`,W/2,this.hand()-80,C.muted,15);
+      snd(clean?'crash':'snare');G.st='hold';G.a=0;G.catchFlash=performance.now();
+    }else this.drop(G.vy<=0?'Too early':Math.abs(G.y-this.hand())>=H*.1?'Too early':'Wrong end up');
+  },
+  drop(why){G.sticks--;G.streak=0;snd('bad');pop(`${why}! Stick dropped`,W/2,this.hand()-100,C.bad,20);
+    if(G.sticks<=0){G.st='fall';G.fallT=performance.now();setTimeout(()=>over('Out of sticks'),800)}else{G.st='fall';G.fallT=performance.now()}},
+  update(dt){
+    if(G.st==='charge')G.charge=Math.min(1,G.charge+dt*.85);
+    if(G.st==='air'){G.vy+=H*2.2*dt;G.y+=G.vy*dt;G.a+=G.spin*dt;G.trail.push({y:G.y,a:G.a});if(G.trail.length>6)G.trail.shift();if(G.y>this.hand()+H*.13)this.drop('Missed it')}
+    if(G.st==='fall'){G.y+=H*1.6*dt;G.a+=7*dt;if(performance.now()-G.fallT>800&&G.sticks>0){G.st='hold';G.a=0}}
+    if(G.st==='hold'||G.st==='charge'){G.y=this.hand();G.a=G.st==='charge'?-G.charge*.6:0}
+  },
+  stick(y,a,alpha){
+    const L=Math.min(150,H*.2);cx.save();cx.globalAlpha=alpha;cx.translate(W/2,y);cx.rotate(a);
+    cx.fillStyle='#e8c690';rr(-5,-L*.75,10,L,5);cx.fill();
+    cx.fillStyle='#f3d9a8';cx.beginPath();cx.ellipse(0,-L*.76,6.5,10,0,0,7);cx.fill();
+    cx.fillStyle='#8a5a3a';cx.fillRect(-5,L*.02,10,L*.2);cx.restore();cx.globalAlpha=1;
+  },
+  draw(){
+    const hy=this.hand(),hx=W/2;stars();
+    // stage lights
+    const gr=cx.createRadialGradient(hx,hy,10,hx,hy,H*.6);gr.addColorStop(0,'rgba(227,176,75,.10)');gr.addColorStop(1,'transparent');cx.fillStyle=gr;cx.fillRect(0,0,W,H);
+    // catch zone
+    const ok=this.catchable();
+    cx.fillStyle=ok?'rgba(127,216,143,.13)':'rgba(239,232,220,.04)';cx.fillRect(0,hy-H*.1,W,H*.2);
+    // arm + hand
+    cx.fillStyle='#2b2236';rr(hx-30,hy+20,60,H,14);cx.fill();
+    cx.fillStyle='#c98e6b';rr(hx-34,hy-4,68,46,18);cx.fill();
+    cx.fillStyle='#b07656';rr(hx-38,hy+8,24,28,10);cx.fill();
+    if(ok){cx.strokeStyle=C.good;cx.lineWidth=4;rr(hx-40,hy-10,80,58,22);cx.stroke()}
+    const cf=G.catchFlash?(performance.now()-G.catchFlash)/300:1;if(cf<1){cx.strokeStyle=C.brass;cx.globalAlpha=1-cf;cx.lineWidth=3;cx.beginPath();cx.arc(hx,hy,40+cf*60,0,7);cx.stroke();cx.globalAlpha=1}
+    // stick
+    if(G.st==='air')(G.trail||[]).forEach((t,i)=>this.stick(t.y,t.a,.06*(i+1)));
+    if(G.st!=='fall'||G.sticks>0||performance.now()-G.fallT<800)this.stick(G.st?G.y:hy,G.a||0,1);
+    // charge meter
+    if(G.st==='charge'){const w=Math.min(240,W-64),y=hy+66;cx.fillStyle=C.panel;rr(W/2-w/2,y,w,14,7);cx.fill();cx.fillStyle=C.brass;rr(W/2-w/2,y,w*G.charge,14,7);cx.fill();txt('HIGHER = MORE SPINS',W/2,y+28,11,C.muted,'mono')}
+    // hud
+    txt(String(score),W/2,40,46,C.head);
+    const sticks=Math.max(0,G.sticks==null?3:G.sticks);
+    for(let i=0;i<3;i++){cx.save();cx.translate(W/2-24+i*24,82);cx.rotate(.5);cx.fillStyle=i<sticks?'#e8c690':C.line;rr(-3,-14,6,28,3);cx.fill();cx.restore()}
+    if(G.streak>=3)txt(`STREAK ${G.streak}`,W/2,110,13,C.brass,'mono');
+    if(phase==='play'&&G.st==='hold')txt('Hold to wind up',W/2,hy+80,16,C.muted,'body');
+  }
+};
+/* ---------- Whack-the-kit ---------- */
+const KIT=[{x:.17,y:.27,r:.13,s:'hat',c:C.brass,n:'Hi-hat',cym:1},{x:.45,y:.17,r:.12,s:'tom',c:C.teal,n:'Tom'},{x:.79,y:.25,r:.15,s:'crash',c:C.blue,n:'Crash',cym:1},
+  {x:.27,y:.52,r:.14,s:'snare',c:C.red,n:'Snare'},{x:.73,y:.53,r:.15,s:'tom',c:C.teal,n:'Floor tom'},{x:.5,y:.79,r:.18,s:'kick',c:C.violet,n:'Kick'}];
+GAMES.whack={
+  name:'Whack-the-kit',
+  help:'Smack the bugs and tomatoes before they get away. Golden sticks are worth 50. Hit the bass player’s drink and you lose 30. 45 seconds.',
+  init(){G={time:45,items:[],next:.5,flash:KIT.map(()=>0),combo:0}},
+  geo(d){const s=Math.min(W,H*.85);return{x:d.x*W,y:d.y*H+10,r:d.r*s}},
+  down(x,y){
+    let k=-1,bd=1e9;KIT.forEach((d,i)=>{const g=this.geo(d),dd=Math.hypot(x-g.x,y-g.y);if(dd<g.r*1.2&&dd<bd){bd=dd;k=i}});
+    if(k<0)return;snd(KIT[k].s);G.flash[k]=1;
+    const it=G.items.find(i=>i.d===k&&!i.hit);if(!it)return;
+    it.hit=performance.now();const g=this.geo(KIT[k]);
+    if(it.type==='drink'){score=Math.max(0,score-30);G.combo=0;snd('bad');pop('That was his drink! -30',g.x,g.y-g.r-10,C.bad,18)}
+    else{G.combo++;const mult=1+Math.floor(G.combo/6),pts={bug:10,tomato:15,gold:50}[it.type]*mult;score+=pts;if(it.type==='gold')snd('ding');
+      pop('+'+pts,g.x,g.y-g.r-10,it.type==='gold'?C.brass:C.head,22);if(G.combo%6===0)pop(`Combo x${mult}`,W/2,H*.4,C.brass,26)}
+  },
+  update(dt){
+    G.time-=dt;if(G.time<=0){G.time=0;over('Time!');return}
+    const speed=1+(45-G.time)/28;G.next-=dt*speed;
+    if(G.next<=0){G.next=rnd(.4,.85);const free=KIT.map((_,i)=>i).filter(i=>!G.items.some(t=>t.d===i));
+      if(free.length){const r=Math.random(),type=r<.07?'gold':r<.22?'drink':r<.47?'tomato':'bug';
+        const life={gold:.8,drink:1.6,tomato:.95,bug:1.4}[type]/Math.sqrt(speed)*1000;
+        G.items.push({d:free[Math.floor(Math.random()*free.length)],type,born:performance.now(),life})}}
+    const now=performance.now();
+    G.items=G.items.filter(i=>{if(i.hit)return now-i.hit<220;if(now-i.born<i.life)return true;if(i.type!=='drink'&&G.combo){G.combo=0}return false});
+    G.flash=G.flash.map(f=>Math.max(0,f-dt*5));
+  },
+  draw(){
+    const now=performance.now();
+    KIT.forEach((d,i)=>{const g=this.geo(d),f=G.flash?G.flash[i]:0;
+      if(!d.cym){cx.fillStyle='#120e18';cx.beginPath();cx.ellipse(g.x,g.y+g.r*.18,g.r,g.r*.95,0,0,7);cx.fill()}
+      cx.beginPath();cx.arc(g.x,g.y,g.r*(1-f*.04),0,7);cx.fillStyle=d.cym?'#4a3820':'#2a2233';cx.fill();
+      cx.lineWidth=5;cx.strokeStyle=d.c;cx.globalAlpha=.55+f*.45;cx.stroke();cx.globalAlpha=1;
+      if(d.cym){for(let k=1;k<4;k++){cx.beginPath();cx.arc(g.x,g.y,g.r*k/4,0,7);cx.strokeStyle='rgba(227,176,75,.25)';cx.lineWidth=1;cx.stroke()}}
+      else{cx.beginPath();cx.arc(g.x,g.y,g.r*.84,0,7);cx.fillStyle=`rgba(239,232,220,${.1+f*.25})`;cx.fill()}
+      txt(d.n.toUpperCase(),g.x,g.y+g.r+13,11,C.muted,'mono')});
+    (G.items||[]).forEach(it=>{const g=this.geo(KIT[it.d]);const age=(now-it.born)/it.life;
+      let s=g.r*.55*Math.min(1,age*7);if(it.hit)s*=Math.max(0,1-(now-it.hit)/220);if(s<=0)return;
+      cx.save();cx.translate(g.x,g.y);
+      if(!it.hit&&age>.7){cx.globalAlpha=.5+.5*Math.sin(now/40)}
+      if(it.type==='bug'){cx.rotate(Math.sin(now/90+it.born)*.25);cx.strokeStyle='#120e0a';cx.lineWidth=3;for(let k=-1;k<=1;k++){cx.beginPath();cx.moveTo(-s*.95,k*s*.35);cx.lineTo(s*.95,k*s*.35);cx.stroke()}
+        cx.fillStyle='#4b8a3c';cx.beginPath();cx.ellipse(0,0,s*.55,s*.78,0,0,7);cx.fill();cx.strokeStyle='#2c5a22';cx.beginPath();cx.moveTo(0,-s*.5);cx.lineTo(0,s*.75);cx.stroke();
+        cx.fillStyle='#2c5a22';cx.beginPath();cx.arc(0,-s*.72,s*.3,0,7);cx.fill();cx.fillStyle='#fff';cx.beginPath();cx.arc(-s*.12,-s*.78,s*.07,0,7);cx.arc(s*.12,-s*.78,s*.07,0,7);cx.fill()}
+      else if(it.type==='tomato'){cx.fillStyle='#e8402f';cx.beginPath();cx.arc(0,0,s*.78,0,7);cx.fill();cx.fillStyle='rgba(255,255,255,.35)';cx.beginPath();cx.arc(-s*.25,-s*.25,s*.15,0,7);cx.fill();cx.fillStyle='#3e9a3a';for(let k=0;k<5;k++){cx.save();cx.rotate(k*1.26);cx.beginPath();cx.ellipse(0,-s*.68,s*.09,s*.22,0,0,7);cx.fill();cx.restore()}}
+      else if(it.type==='gold'){cx.rotate(-.6+Math.sin(now/120)*.1);cx.shadowColor=C.brass;cx.shadowBlur=18;cx.fillStyle=C.brass;rr(-s*.12,-s,s*.24,s*2,s*.12);cx.fill();cx.beginPath();cx.ellipse(0,-s,s*.17,s*.27,0,0,7);cx.fill();cx.shadowBlur=0}
+      else{cx.fillStyle='rgba(217,164,65,.95)';cx.beginPath();cx.moveTo(-s*.5,-s*.6);cx.lineTo(s*.5,-s*.6);cx.lineTo(s*.4,s*.85);cx.lineTo(-s*.4,s*.85);cx.closePath();cx.fill();
+        cx.fillStyle='#fff8e8';cx.fillRect(-s*.52,-s*.85,s*1.04,s*.3);cx.fillStyle='rgba(255,255,255,.4)';cx.fillRect(-s*.3,-s*.4,s*.1,s*1.1);
+        txt('NO',0,s*.15,Math.max(10,s*.45),'#5a1a1a')}
+      cx.restore();cx.globalAlpha=1});
+    txt(String(score),W/2,36,42,C.head);
+    const t=G.time==null?45:G.time;txt(`${Math.ceil(t)}s`,W-16,36,22,t<10?C.bad:C.muted,'mono','right');
+    if(G.combo>=3)txt(`COMBO ${G.combo}`,16,36,13,C.brass,'mono','left');
+  }
+};
+/* ---------- Keep the beat ---------- */
+GAMES.beat={
+  name:'Keep the beat',
+  help:'Rings shrink toward the drum. Tap the moment each one reaches the rim. Gold rings are on the beat, teal ones are in between. It speeds up as you go. Miss 3 and it’s over.',
+  R(){return Math.min(W,H)*.23},
+  init(){audio();G={bpm:80,lives:3,streak:0,notes:[],genTo:0,bar:0,t0:ac.currentTime+.8,flash:0,ripple:[]}},
+  now(){return ac.currentTime-G.t0-outLat()-settings.offset/1000},
+  gen(){
+    while(G.genTo<this.now()+3){
+      const spb=60/G.bpm,bt=G.genTo,lvl=Math.floor(G.bar/4);
+      const pats=[[0,1,2,3],[0,1,2,3,3.5],[0,1,1.5,2,3,3.5],[0,.5,1,2,2.5,3],[0,.5,1.5,2,2.5,3.5],[0,.75,1.5,2,2.75,3.5]];
+      let p=G.bar<3?pats[0]:pats[Math.min(pats.length-1,Math.floor(Math.random()*Math.min(pats.length,lvl+2)))];
+      if(G.bar>0)p.forEach((b,i)=>G.notes.push({t:bt+b*spb,off:b%1!==0,k:b%1?'snare':i===0?'kick':'tom'}));
+      for(let q=0;q<4;q++)snd('hat',G.t0+bt+q*spb,q===0?.7:.45);
+      G.genTo+=4*spb;G.bar++;if(G.bar%4===0&&G.bar>0)G.bpm=Math.min(170,G.bpm+6);
+    }
+  },
+  down(x,y,ts){
+    const lag=Math.min(.2,Math.max(0,(performance.now()-ts)/1000)),t=this.now()-lag;
+    let best=null,bd=1;G.notes.forEach(n=>{if(n.done)return;const d=Math.abs(n.t-t);if(d<bd){bd=d;best=n}});
+    G.flash=1;
+    if(best&&bd<=.12){best.done=1;snd(best.k);const perfect=bd<=.045;G.streak++;const mult=1+Math.floor(G.streak/10);score+=(perfect?20:10)*mult;
+      G.ripple.push({t:performance.now(),c:perfect?C.brass:C.head});
+      pop(perfect?'PERFECT':'GOOD',W/2,H*.52-this.R()-40,perfect?C.brass:C.head,24);if(G.streak%10===0)pop(`${G.streak} in a row! x${mult+0}`,W/2,H*.52+this.R()+40,C.brass,20)}
+    else snd('snare',0,.4);
+  },
+  update(dt){
+    this.gen();const t=this.now();
+    for(const n of G.notes){if(!n.done&&t-n.t>.12){n.done=2;G.lives--;G.streak=0;snd('bad');pop('MISSED',W/2,H*.52-this.R()-40,C.bad,24);if(G.lives<=0){over('Lost the beat');break}}}
+    G.notes=G.notes.filter(n=>n.t>t-1);G.flash=Math.max(0,G.flash-dt*6);
+  },
+  draw(){
+    const R=this.R(),x0=W/2,y0=H*.52,now=performance.now();
+    // shell
+    cx.fillStyle='#120e18';cx.beginPath();cx.ellipse(x0,y0+R*.22,R*1.04,R,0,0,7);cx.fill();
+    cx.beginPath();cx.arc(x0,y0,R,0,7);cx.fillStyle='#2a2233';cx.fill();cx.lineWidth=8;cx.strokeStyle=C.red;cx.stroke();
+    for(let k=0;k<10;k++){const a=k/10*Math.PI*2;cx.fillStyle='#c9c2d4';cx.beginPath();cx.arc(x0+Math.cos(a)*R,y0+Math.sin(a)*R,4,0,7);cx.fill()}
+    cx.beginPath();cx.arc(x0,y0,R*.88,0,7);cx.fillStyle=`rgba(239,232,220,${.13+(G.flash||0)*.3})`;cx.fill();
+    txt('FLIPS',x0,y0,R*.42,'rgba(21,17,28,.5)');
+    (G.ripple||[]).forEach(r=>{const a=(now-r.t)/400;if(a>1)return;cx.globalAlpha=1-a;cx.strokeStyle=r.c;cx.lineWidth=4;cx.beginPath();cx.arc(x0,y0,R*(1+a*.4),0,7);cx.stroke();cx.globalAlpha=1});
+    if(G.ripple)G.ripple=G.ripple.filter(r=>now-r.t<400);
+    if(ac&&G.notes){const t=this.now(),spb=60/G.bpm,lead=spb*2;
+      G.notes.forEach(n=>{if(n.done)return;const ahead=n.t-t;if(ahead>lead||ahead<-.12)return;const rr2=R*(1+Math.max(0,ahead)/lead*1.5);
+        cx.beginPath();cx.arc(x0,y0,rr2,0,7);cx.lineWidth=n.off?4:7;cx.strokeStyle=n.off?C.teal:C.brass;cx.globalAlpha=Math.min(1,Math.max(.15,1-ahead/lead+.2));cx.stroke();cx.globalAlpha=1})}
+    txt(String(score),W/2,38,42,C.head);
+    const lives=Math.max(0,G.lives==null?3:G.lives);
+    txt(`${G.bpm||80} BPM`,16,38,14,C.muted,'mono','left');
+    for(let i=0;i<3;i++){cx.beginPath();cx.arc(W-24-i*20,38,6,0,7);cx.fillStyle=i<lives?C.red:C.line;cx.fill()}
+    if(G.streak>=5)txt(`STREAK ${G.streak}`,W/2,74,13,C.brass,'mono');
+    if(phase==='play'&&ac&&G.t0&&this.now()<4*60/G.bpm)txt('GET READY',W/2,y0-R-40,24,C.head);
+  }
+};
+
+let last=performance.now();
+function frame(now){
+  if(!running)return;
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W,H+40);
+  if(W>0&&H>0){
+    const g=GAMES[cur];
+    if(phase==='play')g.update(dt);
+    if(phase==='ready'&&cur==='flip'&&!G.st)G={st:'hold',a:0,y:g.hand?g.hand():0,sticks:3};
+    g.draw();
+    const t=performance.now();fx.forEach(f=>{const a=(t-f.t)/1000;if(a>1)return;cx.globalAlpha=1-a*a;txt(f.text,f.x,f.y-a*30,f.size,f.color);cx.globalAlpha=1});
+    while(fx.length&&t-fx[0].t>1000)fx.shift();
+    if(phase==='ready')card(g.name.toUpperCase(),g.help,'Tap to start');
+    if(phase==='over')card(overMsg.toUpperCase(),G.newBest?`New best: ${score}!`:`You scored ${score}.`,'Tap to play again');
+  }
+  requestAnimationFrame(frame);
+}
+})();
+
 </script>
 </body>
 </html>

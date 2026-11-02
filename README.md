@@ -26,7 +26,15 @@ It works offline once it has been opened. High scores are saved on each device.
 
 ## Flips (drummer rhythm game)
 
-`flips/index.html` is a rhythm game made for drummers. Everything, including the drum sounds and backing band, is synthesized in the browser, so it is one file with no assets.
+`flips/index.html` is a set of drum games for a drummer named Flips. Everything, including the drum sounds and backing band, is synthesized in the browser, so it is one file with no assets. The menu lists:
+
+**Quick games**
+
+- **Stick flips:** hold to wind up, release to toss a drumstick, tap to catch it tip up. More spins score more; 3 sticks per run.
+- **Whack-the-kit:** smack bugs, tomatoes and golden sticks that pop up on a drum kit; don't hit the bass player's drink. 45 seconds.
+- **Keep the beat:** tap one big drum as rings close in. Speeds up as you go; 3 misses ends it.
+
+**For a real workout**
 
 - **Play the set:** nine grooves (rock, disco, 16th funk with ghost notes, half-time shuffle, bossa, linear funk, drum and bass, 6/8 bell pattern, double-kick metal). Notes fall down five lanes; hit the pads as they cross the line. Fills on every fourth bar, crash on the one, and the bass follows the kick pattern. Adjustable tempo and three timing windows (Pro is ±22 ms for a Perfect).
 - **Trade fours:** the machine plays a bar, you play it back by ear in the next bar. It gets harder and faster until you miss three.
