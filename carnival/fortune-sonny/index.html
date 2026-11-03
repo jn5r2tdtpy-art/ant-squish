@@ -139,11 +139,11 @@ function chosenVoice() {
   return vs.find(v => v.name === want) || vs[0];
 }
 function voiceLabel() {
-  if (!canSpeak) { $("voiceBtn").textContent = ""; $("voicePick").textContent = ""; return; }
+
   $("voiceBtn").textContent = voiceOn ? "🔊 Sonny’s voice: on" : "🔇 Sonny’s voice: off";
-  const v = chosenVoice(); $("voicePick").textContent = voiceOn && goodVoices().length > 1 ? "Change voice" + (v ? " (" + v.name.replace(/\s*\(.*\)/, "") + ")" : "") : "";
+  $("voicePick").textContent = "";
 }
-$("voiceBtn").onclick = () => { voiceOn = !voiceOn; store.set("fs-voice", voiceOn ? "on" : "off"); voiceLabel(); if (!voiceOn && canSpeak) speechSynthesis.cancel(); };
+$("voiceBtn").onclick = () => { voiceOn = !voiceOn; store.set("fs-voice", voiceOn ? "on" : "off"); voiceLabel(); if (!voiceOn) { player.pause(); if (canSpeak) speechSynthesis.cancel(); } };
 $("voicePick").onclick = () => {
   const vs = goodVoices(); if (!vs.length) return;
   const cur = chosenVoice(), next = vs[(vs.indexOf(cur) + 1) % vs.length];
@@ -151,8 +151,25 @@ $("voicePick").onclick = () => {
   if (S.mode === "idle") speak("Sonny the Sorta Psychic, at your service. Five dollars, please.", () => {});
 };
 if (canSpeak && "onvoiceschanged" in speechSynthesis) speechSynthesis.addEventListener("voiceschanged", voiceLabel);
+// Recorded voice (Joe): every fortune has its own mp3 in voice/, named from the words of the line.
+// One audio player is reused so phones that need a tap to start sound keep playing for the second line.
+const player = new Audio(); player.preload = "auto";
+function voiceFile(text) {
+  let h = 0x811c9dc5;
+  for (const b of new TextEncoder().encode(text)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; }
+  return "voice/" + h.toString(16).padStart(8, "0") + ".mp3";
+}
 function speak(text, onEnd) {
-  if (!canSpeak || !voiceOn) { setTimeout(onEnd, 900 + text.length * 50); return; }
+  if (!voiceOn) { setTimeout(onEnd, 900 + text.length * 50); return; }
+  let done = false; const fin = () => { if (!done) { done = true; player.onended = player.onerror = null; onEnd(); } };
+  player.onended = fin;
+  player.onerror = () => { if (!done) { player.onended = player.onerror = null; speakWithPhone(text, fin); } }; // no recording: use the phone's voice
+  player.src = voiceFile(text);
+  const pr = player.play(); if (pr && pr.catch) pr.catch(() => { if (!done) { player.onended = player.onerror = null; speakWithPhone(text, fin); } });
+  setTimeout(fin, 4000 + text.length * 90);
+}
+function speakWithPhone(text, onEnd) {
+  if (!canSpeak) { setTimeout(onEnd, 900 + text.length * 50); return; }
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/…/g, "...").replace(/[“”]/g, ""));
