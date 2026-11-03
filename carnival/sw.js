@@ -1,9 +1,9 @@
 // Carnival Midway offline cache. Bump VERSION when you change any file.
-const VERSION = "midway-v1";
+const VERSION = "midway-v2";
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png",
-  "clown-knockdown/", "clown-knockdown/index.html",
-  "clown-knockdown/img/glasses.webp", "clown-knockdown/img/tophat.webp", "clown-knockdown/img/bald.webp", "clown-knockdown/img/redhead.webp",
+  "down-the-clown/", "down-the-clown/index.html",
+  "down-the-clown/img/glasses.webp", "down-the-clown/img/tophat.webp", "down-the-clown/img/bald.webp", "down-the-clown/img/redhead.webp",
 ];
 
 self.addEventListener("install", e => {

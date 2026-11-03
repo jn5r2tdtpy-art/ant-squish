@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Clown Knockdown</title>
+<title>Down the Clown</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -61,7 +61,7 @@
 
 <div class="overlay show" id="titleScreen">
   <div class="card">
-    <h1>Clown<br>Knockdown</h1>
+    <h1>Down the<br>Clown</h1>
     <div class="cast">
       <figure><img src="img/glasses.webp" alt="Clown with glasses"><figcaption>10</figcaption></figure>
       <figure><img src="img/tophat.webp" alt="Clown with a top hat"><figcaption>20</figcaption></figure>
@@ -493,7 +493,7 @@ function drawBooth() {
   ctx.fillStyle = sg; rr(bx, by, bw, signH, 8); ctx.fill();
   ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.font = `${Math.round(signH * 0.52)}px Rye, Georgia, serif`;
-  ctx.fillText("CLOWN KNOCKDOWN", W / 2, by + signH / 2 + 1);
+  ctx.fillText("DOWN THE CLOWN", W / 2, by + signH / 2 + 1);
   // chasing bulbs
   const n = Math.max(8, Math.floor(bw / 26));
   for (let i = 0; i < n; i++) {
