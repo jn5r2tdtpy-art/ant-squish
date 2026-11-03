@@ -54,7 +54,7 @@
     <h1>Knock Over<br>the Cans</h1>
     <div class="faces"><img src="img/abby.webp" alt="Abby"><img src="img/eddie.webp" alt="Eddie"><img src="img/sonny.webp" alt="Sonny"></div>
     <div class="rules">
-      <p>Knock <b>all 10 cans</b> off the table with <b>2 balls</b>.</p>
+      <p>Knock <b>all the cans</b> off the table with <b>2 balls</b>. Every 10 rounds the pyramid grows by a row, and you get 1 more ball.</p>
       <p><b>Tap once</b> to lock your aim as the marker slides across the table. <b>Tap again</b> to lock how high you throw as the marker slides up and down beside the cans.</p>
       <p>Hit the <b>bottom row</b> and the cans above come down too. Too low hits the table, too high flies over.</p>
       <p>Knock down the <b>gold can</b> to win 🪙 +1. Each round the markers get faster and the cans move farther back.</p>
@@ -76,10 +76,15 @@
 <script>
 "use strict";
 // ---------- Settings ----------
-const LIVES = 3, BALLS = 2, ROWS = [4, 3, 2, 1];
-const aimSpeed   = n => 1.6 + 0.32 * (n - 1);          // how fast the aim marker slides
-const heightSpeed = n => 0.75 + 0.15 * (n - 1);         // height marker trips up and down per second
-const canScale   = n => Math.max(0.62, 1 - 0.035 * (n - 1)); // cans get farther back (smaller)
+const LIVES = 3, BALLS = 2;
+// the pyramid: 4 rows for rounds 1-10, then every 10 rounds one more can on the bottom and on every row above it
+const rowsFor = n => 4 + Math.floor((n - 1) / 10);
+let ROWS = [4, 3, 2, 1];
+const canCount = () => ROWS.reduce((a, b) => a + b, 0);
+const ballsFor = n => BALLS + rowsFor(n) - 4;   // one more ball each time the pyramid grows
+const aimSpeed   = n => 1.6 + 0.32 * ((n - 1) % 10) + 0.4 * Math.floor((n - 1) / 10);  // speeds up each round, eases back a bit when the pyramid grows         // how fast the aim marker slides
+const heightSpeed = n => 0.75 + 0.15 * ((n - 1) % 10) + 0.2 * Math.floor((n - 1) / 10);         // height marker trips up and down per second
+const canScale   = n => 1 - 0.035 * ((n - 1) % 10);           // cans get farther back each round, then the pyramid grows
 const KNOCK_ON = 0.6;                                    // chance a falling can knocks over a can beside it
 const FACES = ["abby", "eddie", "sonny"];
 const COLORS = ["#e85d7a", "#f08a3c", "#3fa0d8", "#8a5ad8", "#3fbf7a", "#e8c83c"];
@@ -114,12 +119,18 @@ const G = { state: "title", round: 1, score: 0, lives: LIVES, balls: BALLS, best
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 
 function buildCans() {
-  G.cans = []; const gold = Math.floor(Math.random() * 10); let k = 0;
+  const nr = rowsFor(G.round); ROWS = Array.from({ length: nr }, (_, r) => nr - r);
+  G.cans = []; const gold = Math.floor(Math.random() * canCount()); let k = 0;
   ROWS.forEach((n, r) => { for (let i = 0; i < n; i++, k++) G.cans.push({ r, i, face: FACES[Math.floor(Math.random() * 3)], color: COLORS[k % COLORS.length], gold: k === gold, up: true, x: 0, y: 0, vx: 0, vy: 0, rot: 0, vr: 0, t: 0 }); });
   placeCans();
 }
 function can(r, i) { return G.cans.find(c => c.r === r && c.i === i); }
-function startRound() { G.balls = BALLS; buildCans(); newThrow(); G.banner = { big: "Round " + G.round, small: "2 balls · knock all 10 cans off" }; setState("intro"); }
+function startRound() {
+  G.balls = ballsFor(G.round); buildCans(); layout(); newThrow();
+  const grew = G.round > 1 && (G.round - 1) % 10 === 0;
+  G.banner = { big: "Round " + G.round, small: G.balls + " balls · knock all " + canCount() + " cans off", note: grew ? "The pyramid grew! " + ROWS.length + " rows and 1 more ball" : "" };
+  setState("intro");
+}
 function newThrow() { G.aimPhase = rand(0, 6.28); G.hPhase = rand(0, 1); G.ball = null; }
 function newGame() {
   if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
@@ -143,9 +154,9 @@ function placeCans() {
   if (!L.bw) return;
   // fit the pyramid under the sign: 4 cans tall, with a little headroom
   const signBottom = L.by + Math.min(L.bh * 0.14, L.bw * 0.6 * 0.32) + L.bh * 0.06, room = L.tableY - signBottom - 10;
-  const s = canScale(G.round), cw = Math.min(L.bw * 0.15, room / 4 / 1.3) * s, ch = cw * 1.3;
+  const nr = ROWS.length, s = canScale(G.round), cw = Math.min(L.bw * 0.6 / nr, room / nr / 1.3) * s, ch = cw * 1.3;
   L.cw = cw; L.ch = ch; L.ballR = cw * 0.42;
-  L.pyrBottom = L.tableY; L.pyrTop = L.tableY - ch * 4; L.pyrLeft = L.cx - cw * 2; L.pyrRight = L.cx + cw * 2;
+  L.pyrBottom = L.tableY; L.pyrTop = L.tableY - ch * nr; L.pyrLeft = L.cx - cw * nr / 2; L.pyrRight = L.cx + cw * nr / 2;
   for (const c of G.cans) if (c.up) { const n = ROWS[c.r]; c.x = L.cx + (c.i - (n - 1) / 2) * cw; c.y = L.tableY - c.r * ch - ch / 2; }
   // the height meter runs from the table up past the top can
   L.hLow = L.tableY + ch * 0.35; L.hHigh = L.pyrTop - ch * 0.6;
@@ -210,7 +221,7 @@ function afterThrow() {
   const left = G.cans.filter(c => c.up).length;
   if (!left) {
     const bonus = 100 * G.round * (G.balls + 1); G.score += bonus;
-    G.banner = { big: "All cans down!", small: "+" + bonus + " points" + (G.balls ? " · one ball!" : ""), note: "Next round: faster markers, cans farther back", win: true };
+    G.banner = { big: "All cans down!", small: "+" + bonus + " points" + (G.balls ? " · one ball!" : ""), note: G.round % 10 === 0 ? "Next round: the pyramid grows by a row!" : "Next round: faster markers, cans farther back", win: true };
     setState("clear"); sfx.win(); return;
   }
   if (G.balls > 0) { newThrow(); setState("aim"); return; }
@@ -336,7 +347,7 @@ function drawHUD() {
   ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
   ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
   ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
-  ctx.fillText("Balls: " + "●".repeat(Math.max(0, G.balls)) + "○".repeat(BALLS - Math.max(0, G.balls)) + "   Tries: " + G.lives, W / 2, y + 18);
+  ctx.fillText("Balls: " + "●".repeat(Math.max(0, G.balls)) + "○".repeat(Math.max(0, ballsFor(G.round) - G.balls)) + "   Tries: " + G.lives, W / 2, y + 18);
   ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
   const label = G.state === "aim" ? "TAP to lock your aim" : G.state === "height" ? "TAP to lock how high you throw" : "";
   ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 4;
