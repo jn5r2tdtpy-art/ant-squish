@@ -275,11 +275,12 @@ input[type=range]{width:100%;accent-color:var(--brass)}
       <h3>Timing windows</h3>
       <table class="win">
         <tr><th></th><th>Perfect</th><th>Great</th><th>Good</th></tr>
+        <tr><th>Easy</th><td>±60 ms</td><td>±110 ms</td><td>±160 ms</td></tr>
         <tr><th>Casual</th><td>±45 ms</td><td>±85 ms</td><td>±130 ms</td></tr>
         <tr><th>Session</th><td>±32 ms</td><td>±62 ms</td><td>±105 ms</td></tr>
         <tr><th>Pro</th><td>±22 ms</td><td>±45 ms</td><td>±85 ms</td></tr>
       </table>
-      <p class="fine">Casual also thins out sixteenth-note parts and fills.</p>
+      <p class="fine">Easy only has notes on the beat (1, 2, 3, 4), with no fills and no ghost notes. Casual thins out sixteenth-note parts and fills.</p>
     </div>
     <p class="fine">If every hit reads late, run Calibrate in Settings. Wired headphones or the device speaker give the lowest lag. On iPhone, turn off silent mode to hear sound.</p>
   </div>
@@ -330,11 +331,14 @@ const LI=Object.fromEntries(LANES.map((l,i)=>[l.id,i]));
 const KEYMAP={};LANES.forEach((l,i)=>l.keys.forEach(k=>KEYMAP[k]=i));
 
 const DIFFS={
+  easy:{name:'Easy',p:.06,g:.11,ok:.16,pass:.65},
   casual:{name:'Casual',p:.045,g:.085,ok:.13,pass:.7},
   session:{name:'Session',p:.032,g:.062,ok:.105,pass:.78},
   pro:{name:'Pro',p:.022,g:.045,ok:.085,pass:.85},
 };
 const settings=Object.assign({diff:'session',guide:false,click:false,offset:0,vol:.85,gapBars:2,tradeBpm:88,saysBpm:70,gapBpm:100,track:'lot',bpms:{}},store.get('settings',{}));
+// first run after Easy was added: start everyone on Easy
+if(!settings.easyV){settings.easyV=1;settings.diff='easy';try{localStorage.setItem('flips.settings',JSON.stringify(settings))}catch(e){}}
 const saveSettings=()=>store.set('settings',settings);
 
 /* ---------- The set ---------- */
@@ -386,7 +390,7 @@ function buildChart(tr,bpm,diff,seed,opts={}){
   for(let b=0;b<BARS;b++){
     const bt=t0+b*bar,last=b===BARS-1;
     let fillFrom=S;
-    if(b%4===3)fillFrom=(b%8===7&&!last&&diff!=='casual'&&rng()<.6)?0:S/2;
+    if(b%4===3&&diff!=='easy')fillFrom=(b%8===7&&!last&&diff!=='casual'&&rng()<.6)?0:S/2;
     const kicks=[];
     for(const lane of ['hh','sn','kk','tm','cy']){
       const row=tr.p[lane];if(!row)continue;
@@ -394,6 +398,7 @@ function buildChart(tr,bpm,diff,seed,opts={}){
       for(let s=0;s<fillFrom;s++){
         const c=row[s];if(c==='.')continue;
         if(diff==='casual'&&(c==='g'||(dense&&s%2)))continue;
+        if(diff==='easy'&&(c==='g'||s%(S/4)!==0))continue;
         if(b%4===0&&s===0&&(lane==='hh'||lane==='cy'))continue;
         if(lane==='kk')kicks.push(s);
         add(bt+s*sd,lane,c,c==='g');
@@ -831,7 +836,8 @@ cv.addEventListener('pointerdown',e=>{if(!G.running)return;e.preventDefault();co
 
 function rr(x,y,w,h,r){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.rect(x,y,w,h)}
 function drawHighway(notes,vt,spb,showMiss){
-  const hitY=H-26,look=3.2*spb,pps=(hitY-60)/look;
+  // notes move the same distance per beat whatever the screen size, so an upright phone isn't faster than a sideways one
+  const hitY=H-26,pxBeat=72,pps=pxBeat/spb,look=(hitY-60)/pps;
   // lanes
   laneGeo.forEach((g,i)=>{
     cx.fillStyle=i%2?'rgba(255,255,255,.025)':'rgba(255,255,255,.045)';cx.fillRect(g.x,0,g.w,H);
