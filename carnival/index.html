@@ -145,7 +145,7 @@
     btn.onclick = () => {
       const n = i % lines.length; i++;
       box.textContent = lines[n]; box.classList.add("talking");
-      player.src = "mikey/voice/" + n + ".mp3"; player.play().catch(() => {});
+      player.src = "mikey/voice/" + (n === 0 ? "real" : n) + ".mp3"; player.play().catch(() => {});
       player.onended = () => box.classList.remove("talking");
       btn.textContent = "🎩 More from Mikey";
     };
