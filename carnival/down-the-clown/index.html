@@ -212,6 +212,8 @@ const G = {
 };
 
 function roundSpec(n) {
+  // from round 40 a fifth row joins, and the Red Heads start over at 1
+  if (n >= 40) { const k = n - 39, maxRed = 5 * PER_ROW / 2; return { rows: 5, red: Math.min(k, maxRed), over: Math.max(0, k - maxRed) }; }
   let k = n, rows = 1;
   while (rows < MAX_ROWS && k > rows * PER_ROW / 2) { k -= rows * PER_ROW / 2; rows++; }
   const maxRed = rows * PER_ROW / 2;
@@ -237,7 +239,7 @@ function startRound() {
   }));
   const good = cells.length - s.red;
   const full = (6 + good * 2.5) * (s.over ? Math.max(0.55, 1 - 0.06 * s.over) : 1);
-  G.timeMax = full - timeCut(G.round);
+  G.timeMax = full - timeCut(G.round) + (G.round >= 40 ? 5 : 0); // 5 extra seconds from round 40
   G.timeLeft = G.timeMax;
   G.balls = []; G.bonusT = 4;
   placeClowns();
@@ -251,7 +253,9 @@ function startRound() {
 
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 
+// a game costs 1 coin; coins come only from hitting gold clowns (+1 each)
 function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
   G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = [];
   hideOverlays(); startRound();
 }
@@ -382,8 +386,7 @@ function roundCleared() {
   G.score += bonus;
   const next = roundSpec(G.round + 1);
   const note = next.rows > G.rows ? "A new row is coming!" : "Next round: one more Red Head";
-  const coins = Coins.forRound(G.round); Coins.add(coins); Coins.chime(); showCoins();
-  G.banner = { big: "Round clear!", small: "Time bonus +" + bonus + " · 🪙 +" + Coins.label(coins), note: next.over && !G.over ? "The shelf is full — the clock gets faster now" : note };
+  G.banner = { big: "Round clear!", small: "Time bonus +" + bonus, note: G.round === 39 ? "Round 40: a fifth row joins, and 5 extra seconds" : next.over && !G.over ? "The shelf is full — the clock gets faster now" : note };
   setState("clear"); sfx.clear();
 }
 
@@ -401,8 +404,8 @@ function gameOver() {
   if (newBest) { G.best = G.score; store.set("ck-best", String(G.best)); }
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to round " + G.round + (G.rows > 1 ? " with " + G.rows + " rows of clowns." : ".");
-  $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
-  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
+  $("finalBest").textContent = (newBest ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins";
+  showCoins();
   setTimeout(() => $("overScreen").classList.add("show"), 900);
 }
 
@@ -819,7 +822,11 @@ $("pauseBtn").onclick = togglePause;
 ["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
 document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
 
-function showCoins() { const n = Coins.get(); document.getElementById("coinLine").textContent = "🪙 Your coins: " + n + " · win rounds to earn more for Sonny the Sorta Psychic"; }
+function showCoins(broke) {
+  const n = Coins.get(), el = document.getElementById("coinLine");
+  el.innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"
+    : "🪙 A game costs 1 coin. You have " + n + ". Hit a gold clown to win +1.";
+}
 showCoins();
 function showBest() { $("bestLine").textContent = G.best ? "Best score: " + G.best : ""; }
 showBest();
