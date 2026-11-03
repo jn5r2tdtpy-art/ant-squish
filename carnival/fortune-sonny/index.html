@@ -63,7 +63,7 @@
 <div id="panel">
   <div id="prompt">Each fortune costs 🪙 1 coin. Pick a topic, or tap INSERT COIN.</div>
   <div id="topics"></div>
-  <div id="bottomRow"><span id="coins"></span><span id="collected"></span><button class="link" id="voiceBtn"></button></div>
+  <div id="bottomRow"><span id="coins"></span><span id="collected"></span><button class="link" id="voiceBtn"></button><button class="link" id="voicePick"></button></div>
 </div>
 <div id="cardWrap">
   <div id="card">
@@ -122,19 +122,44 @@ function showCollected() { $("collected").textContent = "Fortunes collected: " +
 // ---------- Voice ----------
 let voiceOn = store.get("fs-voice") !== "off";
 const canSpeak = "speechSynthesis" in window;
-function voiceLabel() { $("voiceBtn").textContent = canSpeak ? (voiceOn ? "🔊 Sonny’s voice: on" : "🔇 Sonny’s voice: off") : ""; }
+const RATE = 1.08, PITCH = 0.95; // natural speed and pitch (lower pitch makes phone voices sound robotic)
+// Phone voices vary a lot. Rank them: natural-sounding first, novelty robot voices never.
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|ralph|junior|kathy|princess|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley/i;
+const GOOD = /premium|enhanced|natural|neural|online|google/i;
+const MALE = /daniel|aaron|arthur|alex|tom|evan|nathan|oliver|james|guy|david|mark|george|ryan|eric|christopher|andrew|brian|roger|steffan|thomas|male/i;
+function goodVoices() {
+  if (!canSpeak) return [];
+  const en = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang) && !NOVELTY.test(v.name));
+  const score = v => (GOOD.test(v.name) ? 4 : 0) + (MALE.test(v.name) ? 2 : 0) + (/en[-_]US/i.test(v.lang) ? 1 : 0) + (v.localService === false ? 1 : 0);
+  return en.sort((a, b) => score(b) - score(a));
+}
+function chosenVoice() {
+  const vs = goodVoices(); if (!vs.length) return null;
+  const want = store.get("fs-voice-name");
+  return vs.find(v => v.name === want) || vs[0];
+}
+function voiceLabel() {
+  if (!canSpeak) { $("voiceBtn").textContent = ""; $("voicePick").textContent = ""; return; }
+  $("voiceBtn").textContent = voiceOn ? "🔊 Sonny’s voice: on" : "🔇 Sonny’s voice: off";
+  const v = chosenVoice(); $("voicePick").textContent = voiceOn && goodVoices().length > 1 ? "Change voice" + (v ? " (" + v.name.replace(/\s*\(.*\)/, "") + ")" : "") : "";
+}
 $("voiceBtn").onclick = () => { voiceOn = !voiceOn; store.set("fs-voice", voiceOn ? "on" : "off"); voiceLabel(); if (!voiceOn && canSpeak) speechSynthesis.cancel(); };
+$("voicePick").onclick = () => {
+  const vs = goodVoices(); if (!vs.length) return;
+  const cur = chosenVoice(), next = vs[(vs.indexOf(cur) + 1) % vs.length];
+  store.set("fs-voice-name", next.name); voiceLabel();
+  if (S.mode === "idle") speak("Sonny the Sorta Psychic, at your service. Five dollars, please.", () => {});
+};
+if (canSpeak && "onvoiceschanged" in speechSynthesis) speechSynthesis.addEventListener("voiceschanged", voiceLabel);
 function speak(text, onEnd) {
   if (!canSpeak || !voiceOn) { setTimeout(onEnd, 900 + text.length * 50); return; }
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/…/g, "...").replace(/[“”]/g, ""));
-    const vs = speechSynthesis.getVoices(), en = vs.filter(v => /^en/i.test(v.lang));
-    const male = en.find(v => /male|daniel|fred|alex|david|george|arthur|aaron|guy|tom|rocko/i.test(v.name)) || en[0];
-    if (male) u.voice = male;
-    u.pitch = 0.6; u.rate = 0.9; u.volume = 1;
+    const v = chosenVoice(); if (v) { try { u.voice = v; u.lang = v.lang; } catch (e) {} }
+    u.pitch = PITCH; u.rate = RATE; u.volume = 1;
     let done = false; const fin = () => { if (!done) { done = true; onEnd(); } };
-    u.onend = fin; u.onerror = fin; setTimeout(fin, 3000 + text.length * 90);
+    u.onend = fin; u.onerror = fin; setTimeout(fin, 2500 + text.length * 80);
     speechSynthesis.speak(u);
   } catch (e) { setTimeout(onEnd, 900 + text.length * 50); }
 }
