@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Sonny Knows Best</title>
+<meta name="theme-color" content="#1a0a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0a16; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; }
+  #panel { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(12px + var(--sab));
+    background: linear-gradient(rgba(26,10,22,0), #1a0a16 26%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  body.side #panel { left: 52%; top: 0; bottom: 0; justify-content: center; background: none; padding: 16px; }
+  #prompt { font: 600 15px/1.3 system-ui, sans-serif; color: #f2d9a6; text-align: center; min-height: 20px; }
+  #topics { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 560px; }
+  .topic { font: 700 15px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c);
+    border: 0; border-radius: 999px; padding: 11px 16px; box-shadow: 0 3px 0 #a8661a; cursor: pointer; }
+  .topic:active { transform: translateY(2px); box-shadow: 0 1px 0 #a8661a; }
+  .topic:disabled { opacity: .45; }
+  #bottomRow { display: flex; gap: 14px; align-items: center; justify-content: center; font-size: 13px; color: #cdb896; }
+  .link { background: none; border: 0; color: #cdb896; font: 600 13px system-ui, sans-serif; text-decoration: underline; cursor: pointer; padding: 6px; }
+  #backBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); height: 38px; border-radius: 19px;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 14px system-ui, sans-serif; padding: 0 14px; cursor: pointer; z-index: 3; }
+  /* the fortune card */
+  #cardWrap { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 16px; z-index: 4;
+    background: rgba(10,4,10,.55); }
+  #cardWrap.show { display: flex; }
+  #card { width: min(92vw, 360px); background: #f6ead0; color: #3a1a10; border-radius: 10px; padding: 18px 18px 14px; text-align: center;
+    box-shadow: 0 18px 40px rgba(0,0,0,.6); border: 6px double #8a5a20; transform: translateY(110vh); transition: transform .7s cubic-bezier(.2,.9,.3,1.1);
+    background-image: radial-gradient(rgba(138,90,32,.08) 1px, transparent 1px); background-size: 6px 6px; }
+  #cardWrap.up #card { transform: translateY(0); }
+  #card h3 { font: 400 22px/1.1 "Rye", Georgia, serif; margin: 0 0 4px; color: #8a1a2a; }
+  #card .topicName { font: 800 12px system-ui, sans-serif; letter-spacing: 2px; color: #8a5a20; text-transform: uppercase; }
+  #card .fortune { font: 600 19px/1.4 Georgia, serif; margin: 14px 0; }
+  #card .lucky { font: 600 13px system-ui, sans-serif; color: #6a4a2a; }
+  #card .fine { font: 500 11px system-ui, sans-serif; color: #8a6a4a; margin-top: 8px; font-style: italic; }
+  #card .stars { color: #b08020; letter-spacing: 6px; margin: 2px 0; }
+  #cardBtns { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+  .cbtn { font: 700 15px/1 system-ui, sans-serif; border: 0; border-radius: 999px; padding: 11px 18px; cursor: pointer; }
+  .cbtn.main { color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); box-shadow: 0 3px 0 #a8661a; }
+  .cbtn.alt { color: #3a1a10; background: rgba(58,26,16,.1); }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<button id="backBtn">‹ Midway</button>
+<div id="panel">
+  <div id="prompt">Ask the Great Sonny. He knows best (just ask him).</div>
+  <div id="topics"></div>
+  <div id="bottomRow"><span id="collected"></span><button class="link" id="voiceBtn"></button></div>
+</div>
+<div id="cardWrap">
+  <div id="card">
+    <div class="topicName" id="cardTopic"></div>
+    <h3>Sonny Knows Best</h3>
+    <div class="stars">★ ★ ★</div>
+    <div class="fortune" id="cardText"></div>
+    <div class="lucky" id="cardLucky"></div>
+    <div class="fine" id="cardFine"></div>
+    <div id="cardBtns"><button class="cbtn main" id="againBtn">Ask again</button><button class="cbtn alt" id="closeBtn">Close</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- Sonny's "wisdom" ----------
+const FORTUNES = {
+  Love: [
+    "You will meet the love of your life this week. Don’t get your hopes up. I’m taken. By me.",
+    "Tell them how you feel. Then change the subject to me. Works every time.",
+    "The secret to a happy relationship? Agree with me.",
+    "Your soulmate is out there. Probably asking me for advice.",
+    "Love is all about sacrifice. Make sure it’s theirs.",
+    "Find someone who looks at you the way I look at a mirror.",
+    "Roses are red, violets are blue, I’m much more interesting than you.",
+    "Never go to bed angry. Go to bed right. Like me.",
+  ],
+  Money: [
+    "Invest everything in me. No refunds. No questions.",
+    "A fortune is coming your way. It’s this one. That’ll be five dollars.",
+    "Save money by never picking up the check. I haven’t since 1987.",
+    "Money can’t buy happiness. But it can buy me a nicer hat.",
+    "Your lucky number is whatever is left in your wallet. Hand it over.",
+    "Spend it all now. Future you can deal with it. Not my problem.",
+    "The stock market will go up, down, or sideways. You heard it here first.",
+    "Never lend money to friends. Lend it to me. I’m practically family.",
+  ],
+  Family: [
+    "Your family wants to hear from you. Tell them I said hi. Actually, don’t.",
+    "My family stopped asking me for advice. Their loss.",
+    "Family dinners go better when you do all the talking. Trust me.",
+    "Call your mother. Then tell her all about me.",
+    "Blood is thicker than water. My ego is thicker than both.",
+    "Forgive and forget. Mostly forget. Especially their birthdays.",
+    "The family group chat muted me. Coincidence? No. I’m just too powerful.",
+    "Holidays are about giving. Give everyone a full hour on my accomplishments.",
+  ],
+  Work: [
+    "Take credit for everything. That’s how I became the Great Sonny.",
+    "Teamwork makes the dream work. My dream. Your work.",
+    "Ask for a raise. If they say no, ask for mine.",
+    "Always arrive late. Everyone loves a grand entrance.",
+    "Your boss will notice you this week. Wear a hat like mine.",
+    "Never admit a mistake. I’ve never made one, and look at me.",
+    "If at first you don’t succeed, blame someone else.",
+    "Work smarter, not harder. Or better yet, get someone else to do it.",
+  ],
+  Friends: [
+    "A true friend listens. So go listen to me.",
+    "Lend your friends a hand. Not money. Never money.",
+    "You can count your real friends on one finger. Me.",
+    "Be yourself. Unless you can be me. Then always be me.",
+    "Share your feelings with your friends. Then wait for them to ask about mine.",
+    "Don’t help them move. That’s what trucks are for.",
+    "Friends come and go. I stay. Mostly because nobody asks me to leave.",
+    "The best way to keep a secret? Tell it to me. I won’t be listening.",
+  ],
+  Future: [
+    "I see great things in your future. Mostly me.",
+    "I see a tall, handsome stranger in your future. Oh wait, that’s my reflection.",
+    "Your future is bright. Not as bright as mine, but bright.",
+    "Tomorrow will be just like today, but with more of me in it.",
+    "The crystal ball says… ask again later. I’m on break.",
+    "Great fortune awaits those who agree with me.",
+    "Something wonderful is about to happen. I just walked in.",
+    "The spirits have spoken. They said I’m right. About everything.",
+  ],
+};
+const OPENERS = ["Ah… another one who needs my wisdom.", "Make it quick. I have a mirror to look at.", "Hmm… the ball is cloudy. Probably jealous of me.",
+  "The spirits are speaking… mostly about me.", "Silence! The Great Sonny is concentrating.", "Let’s see what the ball says. It usually agrees with me."];
+const LUCKY = ["Lucky number: 1. Like me.", "Lucky number: whatever I say it is.", "Lucky color: the color of my hat.", "Lucky day: any day you agree with me.",
+  "Lucky number: #1. Me again.", "Lucky charm: a picture of me."];
+const FINE = ["No refunds. Sonny is never wrong.", "Results not guaranteed. Sonny is.", "Fortunes are for entertainment. Sonny is for admiring.", "Do not follow this advice. Or do. Sonny doesn’t care."];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const head = new Image(); head.src = "img/sonny.webp";
+const HEAD_R = 497 / 360;
+
+// Collection: which fortunes you've seen, and a no-repeat bag per topic
+let seen = new Set(); try { seen = new Set(JSON.parse(store.get("fs-seen") || "[]")); } catch (e) {}
+const TOTAL = Object.values(FORTUNES).reduce((n, a) => n + a.length, 0);
+const bags = {};
+function nextFortune(topic) {
+  if (!bags[topic] || !bags[topic].length) {
+    const all = FORTUNES[topic].map((_, i) => i), unseen = all.filter(i => !seen.has(topic + i));
+    bags[topic] = (unseen.length ? unseen : all).sort(() => Math.random() - 0.5);
+  }
+  const i = bags[topic].pop(); seen.add(topic + i); store.set("fs-seen", JSON.stringify([...seen]));
+  return FORTUNES[topic][i];
+}
+function showCollected() { $("collected").textContent = "Fortunes collected: " + seen.size + " of " + TOTAL; }
+
+// ---------- Voice ----------
+let voiceOn = store.get("fs-voice") !== "off";
+const canSpeak = "speechSynthesis" in window;
+function voiceLabel() { $("voiceBtn").textContent = canSpeak ? (voiceOn ? "🔊 Sonny’s voice: on" : "🔇 Sonny’s voice: off") : ""; }
+$("voiceBtn").onclick = () => { voiceOn = !voiceOn; store.set("fs-voice", voiceOn ? "on" : "off"); voiceLabel(); if (!voiceOn && canSpeak) speechSynthesis.cancel(); };
+function speak(text, onEnd) {
+  if (!canSpeak || !voiceOn) { setTimeout(onEnd, 600 + text.length * 45); return; }
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/…/g, "..."));
+    const vs = speechSynthesis.getVoices(), en = vs.filter(v => /^en/i.test(v.lang));
+    const male = en.find(v => /male|daniel|fred|alex|david|george|arthur|aaron|guy/i.test(v.name)) || en[0];
+    if (male) u.voice = male;
+    u.pitch = 0.6; u.rate = 0.88; u.volume = 1;
+    let done = false; const fin = () => { if (!done) { done = true; onEnd(); } };
+    u.onend = fin; u.onerror = fin; setTimeout(fin, 2500 + text.length * 90);
+    speechSynthesis.speak(u);
+  } catch (e) { setTimeout(onEnd, 600 + text.length * 45); }
+}
+
+// ---------- Sound ----------
+let ac = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function tone(freq, dur, type = "sine", peak = 0.15, delay = 0, slideTo = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = {
+  coin() { tone(1800, 0.08, "square", 0.06); tone(2400, 0.25, "triangle", 0.08, 0.06); },
+  mystic() { [392, 466, 554, 659, 554, 466].forEach((f, i) => tone(f, 0.6, "sine", 0.07, i * 0.22)); tone(98, 2.2, "triangle", 0.06); },
+  card() { tone(300, 0.3, "triangle", 0.08, 0, 900); },
+};
+
+// ---------- State ----------
+const S = { mode: "idle", t: 0, modeT: 0, glow: 0, talk: 0, bubble: null, topic: "", fortune: "" };
+const sparks = [];
+
+function ask(topic) {
+  if (S.mode !== "idle") return;
+  audio(); sfx.coin();
+  S.topic = topic; S.fortune = nextFortune(topic);
+  setButtons(false);
+  $("prompt").textContent = "The Great Sonny is gazing into the crystal ball…";
+  S.mode = "gaze"; S.modeT = 0; sfx.mystic();
+  const opener = pick(OPENERS);
+  S.bubble = { text: opener }; S.talk = 1;
+  speak(opener, () => {
+    S.mode = "tell"; S.modeT = 0;
+    S.bubble = { text: S.fortune }; S.talk = 1;
+    $("prompt").textContent = "";
+    speak(S.fortune, () => { S.talk = 0; setTimeout(showCard, 350); });
+  });
+}
+function showCard() {
+  S.mode = "card"; S.bubble = null; sfx.card();
+  $("cardTopic").textContent = S.topic;
+  $("cardText").textContent = "“" + S.fortune + "”";
+  $("cardLucky").textContent = pick(LUCKY);
+  $("cardFine").textContent = pick(FINE);
+  $("cardWrap").classList.add("show");
+  requestAnimationFrame(() => requestAnimationFrame(() => $("cardWrap").classList.add("up")));
+  showCollected();
+}
+function closeCard() {
+  $("cardWrap").classList.remove("up");
+  setTimeout(() => $("cardWrap").classList.remove("show"), 300);
+  S.mode = "idle"; setButtons(true);
+  $("prompt").textContent = "Pick another topic. Sonny has plenty more to say.";
+}
+$("againBtn").onclick = closeCard;
+$("closeBtn").onclick = closeCard;
+$("backBtn").onclick = () => { if (canSpeak) speechSynthesis.cancel(); location.href = "../"; };
+$("cardWrap").addEventListener("click", e => { if (e.target === $("cardWrap")) closeCard(); });
+
+function setButtons(on) { document.querySelectorAll(".topic").forEach(b => b.disabled = !on); }
+for (const t of Object.keys(FORTUNES)) {
+  const b = document.createElement("button"); b.className = "topic"; b.textContent = t;
+  b.onclick = () => ask(t); $("topics").appendChild(b);
+}
+cv.addEventListener("click", e => { // tap the crystal ball for a surprise topic
+  if (S.mode !== "idle" || !L.ball) return;
+  if (Math.hypot(e.clientX - L.ball.x, e.clientY - L.ball.y) < L.ball.r * 1.3) ask(pick(Object.keys(FORTUNES)));
+});
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1;
+const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  L.sat = $("backBtn").getBoundingClientRect().top - 8;
+  L.side = W > H * 1.15;
+  document.body.classList.toggle("side", L.side);
+  const top = (L.side ? 92 : 96) + L.sat;
+  const panelH = L.side ? 0 : $("panel").getBoundingClientRect().height;
+  const availH = H - top - (L.side ? 10 : panelH - 16), availW = L.side ? W * 0.5 - 16 : W - 16;
+  L.cx = L.side ? 8 + availW / 2 : W / 2;
+  const bw = Math.min(availW, availH * 1.2, 640), bh = Math.min(availH, bw / 1.05);
+  L.bx = L.cx - bw / 2; L.by = top; L.bw = bw; L.bh = bh;
+  L.frame = bw * 0.055;
+  L.ix = L.bx + L.frame; L.iy = L.by + L.frame; L.iw = bw - L.frame * 2; L.ih = bh - L.frame * 2;
+  L.floorY = L.iy + L.ih * 0.78;
+  L.headW = L.iw * 0.36; L.headH = L.headW * HEAD_R;
+  L.headX = L.ix + L.iw / 2; L.headY = L.iy + L.ih * 0.1; // top of head
+  L.ball = { x: L.ix + L.iw / 2, y: L.iy + L.ih * 0.74, r: L.iw * 0.13 };
+}
+addEventListener("resize", layout);
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#2a1024"); g.addColorStop(1, "#120610");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const { bx, by, bw, bh, ix, iy, iw, ih } = L;
+  // cabinet frame (wood with gold trim)
+  const fg = ctx.createLinearGradient(0, by, 0, by + bh); fg.addColorStop(0, "#6b3d1c"); fg.addColorStop(1, "#3d200e");
+  ctx.fillStyle = fg; rr(bx, by, bw, bh, 10); ctx.fill();
+  ctx.strokeStyle = "#e0a838"; ctx.lineWidth = 3; rr(bx + 5, by + 5, bw - 10, bh - 10, 8); ctx.stroke();
+  ctx.strokeStyle = "#b07a24"; ctx.lineWidth = 2; rr(bx + L.frame * 0.6, by + L.frame * 0.6, bw - L.frame * 1.2, bh - L.frame * 1.2, 6); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
+  // purple walls
+  ctx.fillStyle = "#3a2440"; ctx.fillRect(ix, iy, iw, ih);
+  // back curtain
+  const cx0 = ix + iw * 0.18, cw = iw * 0.64, ct = iy + ih * 0.12, cb = L.floorY;
+  for (let i = 0; i < 12; i++) {
+    const x = cx0 + cw * i / 12;
+    const cg = ctx.createLinearGradient(x, 0, x + cw / 12, 0);
+    cg.addColorStop(0, "#6a1420"); cg.addColorStop(0.5, "#b02a36"); cg.addColorStop(1, "#6a1420");
+    ctx.fillStyle = cg; ctx.fillRect(x, ct, cw / 12 + 1, cb - ct);
+  }
+  // side walls in perspective
+  ctx.fillStyle = "#4a3050";
+  ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(cx0, ct); ctx.lineTo(cx0, cb); ctx.lineTo(ix, iy + ih); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(ix + iw, iy); ctx.lineTo(cx0 + cw, ct); ctx.lineTo(cx0 + cw, cb); ctx.lineTo(ix + iw, iy + ih); ctx.fill();
+  // lamps on the side walls
+  for (const sx of [ix + iw * 0.08, ix + iw * 0.92]) {
+    const lg = ctx.createRadialGradient(sx, iy + ih * 0.14, 2, sx, iy + ih * 0.14, iw * 0.12);
+    lg.addColorStop(0, "rgba(255,230,180,.9)"); lg.addColorStop(1, "rgba(255,200,120,0)");
+    ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(sx, iy + ih * 0.14, iw * 0.12, 0, 7); ctx.fill();
+  }
+  // wooden floor
+  ctx.fillStyle = "#7a4a26";
+  ctx.beginPath(); ctx.moveTo(cx0, cb); ctx.lineTo(cx0 + cw, cb); ctx.lineTo(ix + iw, iy + ih); ctx.lineTo(ix, iy + ih); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.2)"; ctx.lineWidth = 1.5;
+  for (let k = 1; k < 5; k++) { const y = cb + (iy + ih - cb) * k / 5; ctx.beginPath(); ctx.moveTo(ix, y); ctx.lineTo(ix + iw, y); ctx.stroke(); }
+
+  // Sonny: robe, head, hands, crystal ball
+  const t = S.t, talking = S.talk > 0;
+  const bob = Math.sin(t * (talking ? 9 : 1.3)) * (talking ? 3 : 2), tilt = Math.sin(t * (talking ? 4.5 : 0.8)) * (talking ? 0.05 : 0.03);
+  const hx = L.headX, hy = L.headY + bob, hw = L.headW, hh = L.headH;
+  // robe / shoulders
+  const shY = hy + hh * 0.86, shW = hw * 1.9;
+  const rg = ctx.createLinearGradient(0, shY, 0, L.floorY);
+  rg.addColorStop(0, "#6a2a8a"); rg.addColorStop(1, "#3a1050");
+  ctx.fillStyle = rg;
+  ctx.beginPath(); ctx.moveTo(hx - hw * 0.25, shY - hh * 0.06);
+  ctx.quadraticCurveTo(hx - shW * 0.5, shY, hx - shW * 0.55, L.floorY + 10);
+  ctx.lineTo(hx + shW * 0.55, L.floorY + 10); ctx.quadraticCurveTo(hx + shW * 0.5, shY, hx + hw * 0.25, shY - hh * 0.06); ctx.fill();
+  ctx.strokeStyle = "#e0a838"; ctx.lineWidth = Math.max(3, hw * 0.035);
+  ctx.beginPath(); ctx.ellipse(hx, shY - hh * 0.02, hw * 0.42, hh * 0.1, 0, 0.1, Math.PI - 0.1); ctx.stroke();
+  ctx.fillStyle = "#c0308a"; ctx.beginPath(); ctx.arc(hx, shY + hh * 0.08, hw * 0.05, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#e0a838"; ctx.lineWidth = 2; ctx.stroke();
+  // head
+  ctx.save(); ctx.translate(hx, hy + hh); ctx.rotate(tilt);
+  if (head.complete && head.naturalWidth) ctx.drawImage(head, -hw / 2, -hh, hw, hh);
+  ctx.restore();
+  // ball glow on the scene
+  const b = L.ball, glow = 0.55 + 0.25 * Math.sin(t * 2) + S.glow * 0.6;
+  const halo = ctx.createRadialGradient(b.x, b.y, b.r * 0.2, b.x, b.y, b.r * 4);
+  halo.addColorStop(0, `rgba(255,170,190,${0.35 * glow})`); halo.addColorStop(1, "rgba(255,120,160,0)");
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 4, 0, 7); ctx.fill();
+  // cushion
+  ctx.fillStyle = "#1e3a8a"; ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r * 0.95, b.r * 1.2, b.r * 0.42, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#2a4ea8"; ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r * 0.82, b.r * 1.0, b.r * 0.28, 0, 0, 7); ctx.fill();
+  // the ball
+  const bg2 = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.35, b.r * 0.1, b.x, b.y, b.r);
+  bg2.addColorStop(0, "rgba(255,240,245,.95)"); bg2.addColorStop(0.5, `rgba(255,${150 + 40 * S.glow},${180 + 30 * S.glow},.85)`); bg2.addColorStop(1, "rgba(200,80,140,.75)");
+  ctx.fillStyle = bg2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+  // swirling sparkles inside the ball
+  ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.95, 0, 7); ctx.clip();
+  const nS = 10 + Math.round(S.glow * 20);
+  for (let i = 0; i < nS; i++) {
+    const a = t * (1 + S.glow * 3) + i * 2.4, rr2 = b.r * (0.2 + 0.7 * ((i * 37) % 10) / 10);
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5 + i);
+    ctx.fillStyle = "#fff7c0"; ctx.beginPath(); ctx.arc(b.x + Math.cos(a) * rr2, b.y + Math.sin(a * 1.3) * rr2 * 0.7, 1.6 + (i % 3), 0, 7); ctx.fill();
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+  ctx.restore(); // end clip
+  // glass reflection
+  ctx.save(); ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
+  ctx.globalAlpha = 0.07; ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.moveTo(ix + iw * 0.05, iy); ctx.lineTo(ix + iw * 0.22, iy); ctx.lineTo(ix + iw * 0.02, iy + ih); ctx.lineTo(ix - iw * 0.15, iy + ih); ctx.fill();
+  ctx.restore(); ctx.globalAlpha = 1;
+  // sign
+  ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(clamp(bw * 0.07, 18, 34)); ctx.font = `${fs}px Rye, Georgia, serif`;
+  ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 6;
+  ctx.fillText("SONNY KNOWS BEST", L.cx, L.sat + 72);
+  ctx.shadowBlur = 0;
+  drawBubble();
+}
+
+function drawBubble() {
+  const bb = S.bubble; if (!bb) return;
+  const fs = clamp(L.iw * 0.042, 13, 18);
+  ctx.font = `700 ${fs}px Georgia, serif`;
+  const maxW = Math.min(W - 24, L.iw * 0.9), words = bb.text.split(" "), lines = [];
+  let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 24 && cur) { lines.push(cur); cur = w; } else cur = t; }
+  lines.push(cur);
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.3, bw = tw + 26, bh = lines.length * lh + 16;
+  const x = clamp(L.headX - bw / 2, 8, W - bw - 8), y = Math.max(L.by + 6, L.headY - 6);
+  ctx.fillStyle = "rgba(255,250,235,.96)"; ctx.strokeStyle = "#3a1a10"; ctx.lineWidth = 2.5;
+  rr(x, y, bw, bh, 14); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#3a1a10"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, x + bw / 2, y + 8 + lh * (i + 0.5)));
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  S.t += dt; S.modeT += dt;
+  const target = S.mode === "gaze" || S.mode === "tell" ? 1 : 0;
+  S.glow += (target - S.glow) * Math.min(1, dt * 3);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+voiceLabel(); showCollected();
+layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+if (canSpeak) speechSynthesis.getVoices();
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
