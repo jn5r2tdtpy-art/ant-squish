@@ -1,7 +1,9 @@
 // Midway coins: your one purse, shared by every game on this phone.
 // Win a round or race in any game to earn coins; Sonny the Sorta Psychic charges 1 coin per fortune.
 (function () {
-  const KEY = "midway-coins", STARTER = 5; // everyone starts with 5 free coins
+  const KEY = "midway-coins", STARTER = 50; // everyone starts with 50 free coins
+  // one-time top-up: anyone who started with fewer coins gets brought up to 50
+  try { if (!localStorage.getItem("midway-coins-50")) { const v = parseInt(localStorage.getItem(KEY), 10); if (!(v >= STARTER)) localStorage.setItem(KEY, String(STARTER)); localStorage.setItem("midway-coins-50", "1"); } } catch (e) {}
   // If players were set up on this phone for a while, add all of their coins together into this one purse
   try {
     const d = JSON.parse(localStorage.getItem("midway-players") || "null");
