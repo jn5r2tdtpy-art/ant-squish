@@ -130,7 +130,7 @@ const store = {
 };
 const isTouch = matchMedia("(pointer: coarse)").matches;
 $("howTo").textContent = isTouch
-  ? "Drag anywhere on the screen to move the sights, lift your finger to fire."
+  ? "Touch a clown to aim (slide to adjust), lift your finger to fire."
   : "Aim with the mouse and click to fire (or arrow keys and Space).";
 
 // Sprites and hit masks (so a shot has to land on the clown, not the empty corners)
@@ -696,7 +696,7 @@ function drawBanner() {
 function drawHint() {
   if (G.state !== "play" || G.round > 1 || G.stateT > 5) return;
   ctx.globalAlpha = 0.85; ctx.fillStyle = "#fff4dc"; ctx.font = "600 13px system-ui, sans-serif"; ctx.textAlign = "center";
-  ctx.fillText(isTouch ? "Drag anywhere to aim · lift to fire" : "Aim with the mouse · click to fire", W / 2, H - L.safeB - 12);
+  ctx.fillText(isTouch ? "Touch a clown to aim · lift to fire" : "Aim with the mouse · click to fire", W / 2, H - L.safeB - 12);
   ctx.globalAlpha = 1;
 }
 
@@ -735,15 +735,13 @@ cv.addEventListener("pointerdown", e => {
   audio();
   if (!canAim()) return;
   ptr = { id: e.pointerId, x: e.clientX, y: e.clientY, type: e.pointerType };
-  if (e.pointerType === "mouse") { G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim(); }
+  G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim();
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
 });
 cv.addEventListener("pointermove", e => {
   if (!canAim()) return;
-  if (e.pointerType === "mouse") { G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim(); return; }
-  if (!ptr || ptr.id !== e.pointerId) return;
-  G.aim.x += (e.clientX - ptr.x) * 1.35; G.aim.y += (e.clientY - ptr.y) * 1.35;
-  ptr.x = e.clientX; ptr.y = e.clientY; clampAim();
+  if (e.pointerType !== "mouse" && (!ptr || ptr.id !== e.pointerId)) return;
+  G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim();
 });
 const release = e => { if (!ptr || ptr.id !== e.pointerId) return; ptr = null; if (e.type === "pointerup") fire(); };
 cv.addEventListener("pointerup", release);
