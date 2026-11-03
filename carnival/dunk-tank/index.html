@@ -533,7 +533,7 @@ function togglePause() {
   if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
 }
 function toMidway() { location.href = "../"; }
-function showCoins() { $("coinLine").textContent = "🪙 Midway coins: " + Coins.get() + " · dunk them to earn more for Sonny the Sorta Psychic"; }
+function showCoins() { $("coinLine").textContent = "🪙 " + Coins.who() + "’s coins: " + Coins.get() + " · dunk them to earn more for Sonny the Sorta Psychic"; }
 $("playBtn").onclick = () => { audio(); newGame(); };
 $("againBtn").onclick = () => { audio(); newGame(); };
 $("restartBtn").onclick = () => newGame();
