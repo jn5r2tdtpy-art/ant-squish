@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Dunk Tank</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c);
+    border: 0; border-radius: 999px; padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4);
+    cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(20,4,10,.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e;
+    text-shadow: 0 3px 0 #1f3f9f, 0 6px 16px rgba(0,0,0,.6); letter-spacing: .5px; }
+  h1 { font-size: clamp(36px, 11vw, 54px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .pickLabel { font: 800 13px system-ui, sans-serif; letter-spacing: 1px; color: #cdb896; text-transform: uppercase; }
+  .who { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .who button { background: rgba(255,244,220,.08); border: 3px solid transparent; border-radius: 14px; padding: 6px; cursor: pointer; width: 82px; }
+  .who button.on { border-color: #ffd75e; background: rgba(255,215,94,.15); }
+  .who img { height: 66px; width: auto; display: block; margin: 0 auto 4px; }
+  .who span { font: 700 12px system-ui, sans-serif; color: #fff4dc; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0;
+    cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <h1>Dunk Tank</h1>
+    <div class="pickLabel">Who’s in the tank?</div>
+    <div class="who" id="who"></div>
+    <div class="rules">
+      <p>Hit the <b>bullseye</b> to drop them in the water. You get <b>3 balls</b> a round.</p>
+      <p><b>Tap once</b> to lock your aim as the marker sweeps across the board. <b>Tap again</b> to lock your power. Stop it in the <b>green zone</b> or the ball goes too low or too high.</p>
+      <p>Each round the meters get faster and the bullseye gets smaller. From round 4, watch the <b>wind</b> flag.</p>
+      <p>Miss all 3 balls and you lose one of 3 tries. Dunk them to earn 🪙 coins.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseScreen">
+  <div class="card">
+    <h2>Paused</h2>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <button class="btn ghost" id="restartBtn">Start over</button>
+    <button class="btn ghost" id="midwayBtn2">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="overScreen">
+  <div class="card">
+    <h2>Game Over</h2>
+    <div class="big" id="finalScore">0</div>
+    <p id="finalLine"></p>
+    <p class="muted" id="finalBest"></p>
+    <button class="btn" id="againBtn">Play again</button>
+    <button class="btn ghost" id="midwayBtn3">Back to the Midway</button>
+  </div>
+</div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, BALLS = 3;
+const aimSpeed   = n => 1.7 + 0.28 * (n - 1);                       // how fast the aim marker sweeps
+const powerSpeed = n => 0.6 + 0.13 * (n - 1);                       // power meter trips up and down per second
+const bullseye   = n => Math.max(0.055, 0.1 - 0.006 * (n - 1));    // bullseye size, as a share of the board width
+const windFor    = n => n < 4 ? 0 : Math.min(0.22, 0.06 + 0.03 * (n - 4)); // most the wind can push, share of board width
+const WHO = [
+  { id: "sonny", name: "Sonny", src: "../fortune-sonny/img/sonny.webp", aspect: 497 / 360, shirt: "#1f5a3a" },
+  { id: "tophat", name: "Top Hat", src: "../duck-duck-splash/img/tophat.webp", aspect: 293 / 240, shirt: "#5a2a7a", wide: 1.2 },
+  { id: "glasses", name: "Glasses", src: "../duck-duck-splash/img/glasses.webp", aspect: 315 / 240, shirt: "#b0304a" },
+  { id: "bald", name: "Baldy", src: "../duck-duck-splash/img/bald.webp", aspect: 320 / 240, shirt: "#2a5aa8" },
+];
+const TAUNTS = {
+  miss: ["You throw like a wet noodle!", "Is that all you’ve got?", "I’m not even damp!", "My grandma throws harder than that!", "Ha! Missed me!",
+    "Did you close your eyes?", "Swing and a miss!", "I could do this all day!", "Try aiming at the target this time!", "That ball needs glasses!"],
+  close: ["Whoa! That was close!", "Hey, easy now…", "Missed me by a hair!", "Okay, that one scared me."],
+  start: ["Come on, dunk me if you can!", "I’ve got a dry towel and nowhere to be!", "Nobody’s dunked me all day!", "Step right up and try your luck!"],
+  dunk: ["AAAH! Cold! Cold!", "Blub blub blub!", "No fair! I wasn’t ready!", "That’s it, I’m calling my lawyer!", "Okay, okay, nice throw!"],
+  sonny: ["I’m too good to get wet!", "Back in my day, people could throw!", "You couldn’t dunk me with a fire hose!", "This hat stays dry, pal!"],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+for (const w of WHO) { w.img = new Image(); w.img.src = w.src; }
+let who = WHO.find(w => w.id === store.get("dt-who")) || WHO[0];
+function buildPicker() {
+  $("who").innerHTML = "";
+  for (const w of WHO) {
+    const b = document.createElement("button"); b.className = w === who ? "on" : "";
+    b.innerHTML = `<img src="${w.src}" alt=""><span>${w.name}</span>`;
+    b.onclick = () => { who = w; store.set("dt-who", w.id); buildPicker(); };
+    $("who").appendChild(b);
+  }
+}
+buildPicker();
+
+// ---------- Sound (synthesized) ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    } catch (e) { ac = null; }
+  }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
+function noise(dur, type, freq, peak, q = 1, delay = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q; env(g, t, 0.005, peak, dur);
+  s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + dur + 0.05);
+}
+function tone(freq, dur, type = "sine", peak = 0.2, delay = 0, slideTo = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t); if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  env(g, t, 0.008, peak, dur); o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = {
+  lock() { tone(880, 0.06, "square", 0.06); },
+  throw() { noise(0.18, "bandpass", 700, 0.3, 0.8); },
+  thud() { tone(140, 0.12, "sine", 0.35, 0, 70); noise(0.06, "lowpass", 700, 0.3); },
+  clang() { [520, 780, 1170].forEach((f, i) => tone(f, 0.5, "triangle", 0.12, i * 0.01)); noise(0.08, "highpass", 3000, 0.3); },
+  splash() { noise(0.9, "lowpass", 1400, 0.7); noise(0.5, "bandpass", 500, 0.4, 1, 0.1); tone(200, 0.3, "sine", 0.2, 0.05, 80); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- Game state ----------
+const G = {
+  state: "title", // title | intro | aim | power | flying | result | dunk | clear | fail | over | paused
+  round: 1, score: 0, lives: LIVES, balls: BALLS, best: +store.get("dt-best") || 0,
+  stateT: 0, t: 0, aimPhase: 0, powerPhase: 0, aimX: 0, power: 0, goal: 0.6, wind: 0,
+  ball: null, parts: [], pops: [], bubble: null, dunkT: 0, banner: null, pausedFrom: null,
+};
+function startRound() { G.balls = BALLS; newBall(); G.banner = { big: "Round " + G.round, small: windFor(G.round) ? "Watch the wind!" : "3 balls · hit the bullseye" }; setState("intro"); say(pick(who.id === "sonny" ? TAUNTS.start.concat(TAUNTS.sonny) : TAUNTS.start)); }
+function newBall() {
+  G.aimPhase = rand(0, 6.28); G.powerPhase = rand(0, 1); G.ball = null;
+  G.goal = rand(0.45, 0.8);                      // where the green zone sits on the power meter this throw
+  const wmax = windFor(G.round); G.wind = wmax ? rand(-wmax, wmax) : 0;
+}
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function newGame() { G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; G.dunkT = 0; hideOverlays(); layout(); startRound(); }
+function say(text) { G.bubble = { text, t: 0, life: 2.2 }; }
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1;
+const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect();
+  L.safeT = pr.top; L.safeB = H - pr.bottom; L.land = W > H * 1.15;
+  L.hudH = 60 + L.safeT;
+  L.meterH = (L.land ? 70 : 110) + L.safeB;        // power meter strip at the bottom
+  const top = L.hudH + 8, bottom = H - L.meterH;
+  const sh = bottom - top, sw = Math.min(W - 16, sh * 1.25, 760);
+  L.sx = (W - sw) / 2; L.sy = top; L.sw = sw; L.sh = sh;
+  // tank on the left, yellow board with the target on the right
+  L.tank = { x: L.sx + sw * 0.03, y: L.sy + sh * 0.12, w: sw * 0.52, h: sh * 0.82 };
+  L.board = { x: L.sx + sw * 0.6, y: L.sy + sh * 0.1, w: sw * 0.37, h: sh * 0.72 };
+  L.tx = L.board.x + L.board.w * 0.5; L.ty = L.board.y + L.board.h * 0.32;
+  L.R = L.board.w * bullseye(G.round) * 2.2;       // bullseye radius on screen
+  L.range = L.board.h * 1.25;                      // how far the power meter can move the ball up and down
+}
+const goalHalf = () => (L.R * 0.9) / L.range;      // half the width of the green zone on the meter
+
+// ---------- Throwing ----------
+function aimNow() { return L.tx + Math.sin(G.aimPhase) * L.board.w * 0.46; }
+function powerNow() { const p = G.powerPhase % 2; return p < 1 ? p : 2 - p; } // up and down
+function tap() {
+  audio();
+  if (G.state === "aim") { G.aimX = aimNow(); sfx.lock(); setState("power"); }
+  else if (G.state === "power") { G.power = powerNow(); sfx.lock(); throwBall(); }
+}
+function throwBall() {
+  const dy = (G.goal - G.power) * L.range;         // too much power goes high, too little goes low
+  const tx = G.aimX + G.wind * L.board.w, ty = L.ty + dy;
+  G.ball = { sx: W * 0.5, sy: H - L.meterH * 0.4, tx, ty, t: 0 };
+  G.balls--; sfx.throw(); setState("flying");
+}
+function land() {
+  const b = G.ball, d = Math.hypot(b.tx - L.tx, b.ty - L.ty);
+  const onBoard = b.tx > L.board.x && b.tx < L.board.x + L.board.w && b.ty > L.board.y && b.ty < L.board.y + L.board.h;
+  for (let i = 0; i < 6; i++) G.parts.push({ kind: "dust", x: b.tx, y: b.ty, vx: rand(-60, 60), vy: rand(-80, 10), r: rand(2, 4), life: 0.4, t: 0 });
+  if (d <= L.R) { dunk(); return; }
+  sfx.thud();
+  G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-30, 30), vy: -40, r: ballR(1), life: 0.9, t: 0 });
+  const close = d <= L.R * 2.2;
+  G.pops.push({ x: b.tx, y: b.ty - 20, text: close ? "So close!" : onBoard ? "Miss!" : "Way off!", color: close ? "#ffd75e" : "#ffffff", t: 0 });
+  say(pick(close ? TAUNTS.close : who.id === "sonny" && Math.random() < 0.4 ? TAUNTS.sonny : TAUNTS.miss));
+  setState("result");
+}
+function dunk() {
+  const ballBonus = G.balls + 1;                   // 3 for the first ball, 2 for the second, 1 for the last
+  const pts = 100 * ballBonus * G.round; G.score += pts;
+  const coins = Coins.forRound(G.round) + (G.balls === BALLS - 1 ? Coins.BONUS : 0);
+  Coins.add(coins); Coins.chime(); showCoins();
+  sfx.clang(); setTimeout(sfx.splash, 200);
+  G.dunkT = 0.0001; say(pick(TAUNTS.dunk));
+  G.banner = { big: "DUNKED!", small: "+" + pts + " points · 🪙 +" + Coins.label(coins), note: G.balls === BALLS - 1 ? "First ball! Bonus coin" : "Next round: faster meters, smaller bullseye", win: true };
+  setState("dunk"); setTimeout(sfx.win, 900);
+}
+function outOfBalls() {
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Out of balls!", small: G.lives === 1 ? "1 try left" : G.lives + " tries left", note: "Try that round again" };
+  say(pick(who.id === "sonny" ? TAUNTS.sonny : TAUNTS.miss));
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const newBest = G.score > G.best;
+  if (newBest) { G.best = G.score; store.set("dt-best", String(G.best)); }
+  $("finalScore").textContent = G.score;
+  $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const FLY = 0.65;
+function update(dt) {
+  G.t += dt;
+  if (G.state === "paused" || G.state === "title") return;
+  G.stateT += dt;
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
+  if (G.state === "intro" && G.stateT > 1.6) setState("aim");
+  if (G.state === "aim") G.aimPhase += dt * aimSpeed(G.round);
+  if (G.state === "power") G.powerPhase += dt * powerSpeed(G.round) * 2;
+  if (G.state === "flying") { G.ball.t += dt / FLY; if (G.ball.t >= 1) land(); }
+  if (G.state === "result" && G.stateT > 1.1) { if (G.balls > 0) { newBall(); setState("aim"); } else outOfBalls(); }
+  if (G.state === "dunk" && G.stateT > 3.2) setState("clear");
+  if (G.state === "clear") { G.round++; G.dunkT = 0; layout(); startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) { layout(); startRound(); }
+  if (G.dunkT > 0) G.dunkT += dt;
+  for (const p of G.parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 700 * dt; }
+  G.parts = G.parts.filter(p => p.t < p.life);
+  for (const p of G.pops) p.t += dt;
+  G.pops = G.pops.filter(p => p.t < 1);
+}
+
+// ---------- Drawing ----------
+const ballR = t => clamp(L.sw * 0.04, 10, 26) * (1 - 0.6 * t);
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function star(x, y, r) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } ctx.fill(); }
+
+function drawScene() {
+  // tent stripes and grass
+  const sw2 = Math.max(40, W / 10);
+  for (let x = 0, i = 0; x < W; x += sw2, i++) { ctx.fillStyle = i % 2 ? "#f4eee4" : "#d42a36"; ctx.fillRect(x, 0, sw2 + 1, H); }
+  ctx.fillStyle = "rgba(30,6,10,.25)"; ctx.fillRect(0, 0, W, H);
+  const gy = L.sy + L.sh * 0.88;
+  const gg = ctx.createLinearGradient(0, gy, 0, H); gg.addColorStop(0, "#5a9a3a"); gg.addColorStop(1, "#2f6a22");
+  ctx.fillStyle = gg; ctx.fillRect(0, gy, W, H - gy);
+  // scalloped awning
+  ctx.fillStyle = "#d42a36";
+  const aw = Math.max(36, W / 12); ctx.fillRect(0, L.hudH - 6, W, 10);
+  for (let x = 0, i = 0; x < W; x += aw, i++) { ctx.fillStyle = i % 2 ? "#f4eee4" : "#d42a36"; ctx.beginPath(); ctx.moveTo(x, L.hudH); ctx.quadraticCurveTo(x + aw / 2, L.hudH + aw * 0.55, x + aw, L.hudH); ctx.fill(); }
+}
+
+function drawBoard() {
+  const b = L.board;
+  ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.fillRect(b.x + 5, b.y + 6, b.w, b.h);
+  const g = ctx.createLinearGradient(b.x, 0, b.x + b.w, 0); g.addColorStop(0, "#f2c419"); g.addColorStop(1, "#ffd93a");
+  ctx.fillStyle = g; ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.strokeStyle = "rgba(0,0,0,.12)"; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h);
+  // the lever arm from the board to the tank
+  ctx.strokeStyle = "#555a63"; ctx.lineWidth = Math.max(3, b.w * 0.025);
+  ctx.beginPath(); ctx.moveTo(L.tx - L.R * 2.4, L.ty); ctx.lineTo(L.tank.x + L.tank.w * 0.98, L.ty); ctx.stroke();
+  // target
+  ctx.fillStyle = "#1a1a1e"; ctx.beginPath(); ctx.arc(L.tx, L.ty, L.R * 2.2, 0, 7); ctx.fill();
+  const flash = G.state === "dunk" && Math.floor(G.stateT * 8) % 2 === 0;
+  ctx.fillStyle = flash ? "#ffffff" : "#e0242e"; ctx.beginPath(); ctx.arc(L.tx, L.ty, L.R, 0, 7); ctx.fill();
+  // step stool
+  ctx.fillStyle = "#c8282c"; const st = { x: b.x + b.w * 0.12, y: b.y + b.h + 2, w: b.w * 0.28 };
+  ctx.fillRect(st.x, st.y - 6, st.w, 8); ctx.fillRect(st.x + 3, st.y, 5, b.w * 0.18); ctx.fillRect(st.x + st.w - 8, st.y, 5, b.w * 0.18);
+  // wind flag
+  if (windFor(G.round)) {
+    const len = b.w * 0.22, fx = b.x + b.w * 0.82, fy = b.y + b.h * 0.92, dir = Math.sign(G.wind) || 1, mag = Math.abs(G.wind) / windFor(G.round);
+    ctx.strokeStyle = "#333"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - len * 1.1); ctx.stroke();
+    const wave = Math.sin(G.t * 10) * 3;
+    ctx.fillStyle = "#3a8ee6"; ctx.beginPath(); ctx.moveTo(fx, fy - len * 1.1); ctx.lineTo(fx + dir * len * (0.4 + 0.6 * mag), fy - len * 0.95 + wave); ctx.lineTo(fx, fy - len * 0.8); ctx.fill();
+    ctx.fillStyle = "#fff4dc"; ctx.font = "800 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#13246a"; ctx.fillText("WIND " + (dir > 0 ? "→" : "←") + " " + Math.max(1, Math.round(mag * 3)), b.x + b.w * 0.5, fy - len * 0.2);
+  }
+}
+
+function drawTank() {
+  const T = L.tank, wx = T.x, ww = T.w;
+  const tankTop = T.y + T.h * 0.58, cageTop = T.y, seatBase = T.y + T.h * 0.5;
+  // back of the cage (stripes behind)
+  ctx.fillStyle = "#e9e4dc"; ctx.fillRect(wx + ww * 0.04, cageTop, ww * 0.92, tankTop - cageTop);
+  for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? "#e9e4dc" : "#d84a50"; ctx.fillRect(wx + ww * 0.04 + i * ww * 0.92 / 6, cageTop, ww * 0.92 / 6 + 1, tankTop - cageTop); }
+  // water inside (visible above the tank rim when the person is under)
+  const wetY = tankTop - (G.dunkT > 0 ? Math.min(1, G.dunkT * 3) * T.h * 0.05 : 0);
+  ctx.fillStyle = "rgba(70,150,230,.85)"; ctx.fillRect(wx + ww * 0.04, wetY, ww * 0.92, tankTop - wetY + 2);
+  // the person on the seat (falls when dunked)
+  const p = who, hw = ww * 0.3 * (p.wide || 1), hh = ww * 0.3 * p.aspect;
+  let fall = 0;
+  if (G.dunkT > 0) { const k = G.dunkT; fall = k < 0.35 ? (k / 0.35) ** 2 : k < 2.4 ? 1 : Math.max(0, 1 - (k - 2.4) / 0.8); }
+  const bob = Math.sin(G.t * 1.6) * 2;
+  const seatY = seatBase + fall * T.h * 0.42 + bob, cx = wx + ww * 0.5;
+  ctx.save(); ctx.beginPath(); ctx.rect(wx, cageTop - hh, ww, tankTop - cageTop + hh + 2); ctx.clip(); // hidden once under water
+  // seat plank (drops away)
+  ctx.fillStyle = "#c8a070";
+  ctx.save(); ctx.translate(wx + ww * 0.92, seatBase + 6); ctx.rotate(G.dunkT > 0 && G.dunkT < 2.6 ? Math.min(1, G.dunkT * 5) * 1.2 : 0);
+  ctx.fillRect(-ww * 0.7, -4, ww * 0.7, 9); ctx.restore();
+  // body
+  ctx.fillStyle = p.shirt; rr(cx - ww * 0.2, seatY - ww * 0.24, ww * 0.4, ww * 0.28, ww * 0.08); ctx.fill();
+  ctx.fillStyle = "#3a3f4a"; rr(cx - ww * 0.19, seatY, ww * 0.38, ww * 0.08, 6); ctx.fill();
+  ctx.fillRect(cx - ww * 0.17, seatY + ww * 0.04, ww * 0.1, ww * 0.18); ctx.fillRect(cx + ww * 0.07, seatY + ww * 0.04, ww * 0.1, ww * 0.18);
+  if (p.img.complete && p.img.naturalWidth) ctx.drawImage(p.img, cx - hw / 2, seatY - ww * 0.22 - hh * 0.9, hw, hh);
+  ctx.restore();
+  // splash
+  if (G.dunkT > 0.3 && G.dunkT < 0.4 && !G.splashed) { G.splashed = true; for (let i = 0; i < 40; i++) G.parts.push({ kind: "water", x: cx + rand(-ww * 0.3, ww * 0.3), y: tankTop, vx: rand(-200, 200), vy: rand(-520, -180), r: rand(3, 7), life: rand(0.7, 1.2), t: 0 }); }
+  if (G.dunkT === 0) G.splashed = false;
+  // chain-link cage in front
+  ctx.save(); ctx.beginPath(); ctx.rect(wx + ww * 0.02, cageTop, ww * 0.96, tankTop - cageTop); ctx.clip();
+  ctx.strokeStyle = "rgba(200,205,215,.55)"; ctx.lineWidth = 1.2; const m = Math.max(9, ww * 0.035);
+  for (let d = -T.h; d < ww + T.h; d += m) {
+    ctx.beginPath(); ctx.moveTo(wx + d, cageTop); ctx.lineTo(wx + d + T.h, cageTop + T.h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(wx + d, cageTop); ctx.lineTo(wx + d - T.h, cageTop + T.h); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.strokeStyle = "#a9afb8"; ctx.lineWidth = 4; ctx.strokeRect(wx + ww * 0.02, cageTop, ww * 0.96, tankTop - cageTop);
+  for (const f of [0.3, 0.7]) { ctx.beginPath(); ctx.moveTo(wx + ww * f, cageTop); ctx.lineTo(wx + ww * f, tankTop); ctx.stroke(); }
+  // blue tank with stars and sign
+  const tg = ctx.createLinearGradient(wx, 0, wx + ww, 0); tg.addColorStop(0, "#1f48b8"); tg.addColorStop(0.5, "#2d62d8"); tg.addColorStop(1, "#1a3a98");
+  ctx.fillStyle = tg; rr(wx, tankTop, ww, T.y + T.h - tankTop, 10); ctx.fill();
+  ctx.fillStyle = "#2a6ae6"; ctx.fillRect(wx - 4, tankTop - 4, ww + 8, 10);
+  ctx.fillStyle = "#ffffff";
+  for (const [fx, fy] of [[0.12, 0.25], [0.88, 0.2], [0.9, 0.6], [0.1, 0.7], [0.82, 0.86]]) star(wx + ww * fx, tankTop + (T.y + T.h - tankTop) * fy, Math.max(5, ww * 0.03));
+  const sh = (T.y + T.h - tankTop) * 0.36, sx = wx + ww * 0.25, sy = tankTop + (T.y + T.h - tankTop) * 0.14;
+  ctx.fillStyle = "#ffd93a"; ctx.fillRect(sx, sy, ww * 0.5, sh);
+  ctx.fillStyle = "#13246a"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(sh * 0.4); ctx.font = `800 ${fs}px system-ui, sans-serif`;
+  ctx.fillText("DUNK", sx + ww * 0.25, sy + sh * 0.3); ctx.fillText("TANK", sx + ww * 0.25, sy + sh * 0.74);
+}
+
+function drawAim() {
+  if (G.state !== "aim" && G.state !== "power") return;
+  const b = L.board, x = G.state === "aim" ? aimNow() : G.aimX;
+  // sweeping marker along the top and bottom of the board
+  ctx.fillStyle = G.state === "aim" ? "#ffffff" : "#7aff8a";
+  for (const y of [b.y + 4, b.y + b.h - 4]) { ctx.beginPath(); ctx.moveTo(x, y + (y < b.y + b.h / 2 ? 14 : -14)); ctx.lineTo(x - 9, y); ctx.lineTo(x + 9, y); ctx.fill(); }
+  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.75)" : "rgba(122,255,138,.9)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.moveTo(x, b.y + 16); ctx.lineTo(x, b.y + b.h - 16); ctx.stroke(); ctx.setLineDash([]);
+}
+
+function drawMeter() {
+  const y0 = H - L.meterH + 10, h = L.land ? 22 : 26, w = Math.min(W - 40, 520), x0 = (W - w) / 2;
+  const label = G.state === "aim" ? "TAP to lock your aim" : G.state === "power" ? "TAP in the green zone for power" : G.state === "flying" ? "…" : "";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 15px system-ui, sans-serif";
+  ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 4; ctx.fillText(label, W / 2, y0 + h + 22); ctx.shadowBlur = 0;
+  // power bar: low on the left, high on the right
+  ctx.fillStyle = "rgba(0,0,0,.45)"; rr(x0 - 4, y0 - 4, w + 8, h + 8, 10); ctx.fill();
+  const g = ctx.createLinearGradient(x0, 0, x0 + w, 0); g.addColorStop(0, "#3a7af0"); g.addColorStop(0.5, "#f2c419"); g.addColorStop(1, "#e0242e");
+  ctx.fillStyle = g; rr(x0, y0, w, h, 7); ctx.fill();
+  const gh = goalHalf();
+  ctx.fillStyle = "rgba(60,230,110,.95)"; ctx.fillRect(x0 + w * (G.goal - gh), y0, w * gh * 2, h);
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(x0 + w * (G.goal - gh), y0, w * gh * 2, h);
+  ctx.fillStyle = "#13246a"; ctx.font = "800 11px system-ui, sans-serif";
+  ctx.fillText("LOW", x0 + 18, y0 + h / 2); ctx.fillText("HIGH", x0 + w - 20, y0 + h / 2);
+  if (G.state === "power" || G.state === "flying" || G.state === "result") {
+    const p = G.state === "power" ? powerNow() : G.power, px = x0 + w * p;
+    ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px, y0 - 2); ctx.lineTo(px - 8, y0 - 12); ctx.lineTo(px + 8, y0 - 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillRect(px - 2, y0, 4, h);
+  }
+}
+
+function drawBall() {
+  const b = G.ball; if (!b || G.state !== "flying") return;
+  const t = b.t, x = b.sx + (b.tx - b.sx) * t, y = b.sy + (b.ty - b.sy) * t - Math.sin(Math.PI * t) * L.sh * 0.25;
+  ballAt(x, y, ballR(t));
+}
+function ballAt(x, y, r) {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#c9c4b8"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+}
+function drawParts() {
+  for (const p of G.parts) {
+    const k = 1 - p.t / p.life; ctx.globalAlpha = Math.min(1, k * 2);
+    if (p.kind === "ball") ballAt(p.x, p.y, p.r);
+    else { ctx.fillStyle = p.kind === "water" ? "rgba(120,190,255,.9)" : "#e8d9a0"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) {
+    ctx.globalAlpha = 1 - p.t * p.t; ctx.font = "800 22px system-ui, sans-serif"; ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    ctx.strokeText(p.text, p.x, p.y - p.t * 40); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y - p.t * 40);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawBubble() {
+  const bb = G.bubble; if (!bb) return;
+  const k = Math.min(1, bb.t / 0.12, (bb.life - bb.t) / 0.2); if (k <= 0) return;
+  const fs = clamp(L.sw * 0.032, 12, 17); ctx.font = `700 ${fs}px system-ui, sans-serif`;
+  const maxW = Math.min(L.tank.w * 1.3, W - 24), words = bb.text.split(" "), lines = []; let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 22 && cur) { lines.push(cur); cur = w; } else cur = t; }
+  lines.push(cur);
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.25, bw = tw + 22, bh = lines.length * lh + 12;
+  const x = clamp(L.tank.x + L.tank.w * 0.5 - bw / 2, 8, W - bw - 8), y = Math.max(L.hudH + 14, L.tank.y - bh - 6);
+  ctx.globalAlpha = k; ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5;
+  rr(x, y, bw, bh, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, x + bw / 2, y + 6 + lh * (i + 0.5))); ctx.globalAlpha = 1;
+}
+function drawHUD() {
+  const y = L.safeT + 30;
+  ctx.fillStyle = "rgba(20,4,10,.75)"; ctx.fillRect(0, 0, W, L.hudH - 6);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Balls: " + "●".repeat(Math.max(0, G.balls)) + "○".repeat(BALLS - Math.max(0, G.balls)) + "   Tries: " + G.lives, W / 2, y + 18);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "dunk", "fail"].includes(G.state) || (G.state === "dunk" && G.stateT < 0.8)) return;
+  const k = clamp((G.state === "dunk" ? G.stateT - 0.8 : G.stateT) / 0.25, 0, 1), y = L.sy + L.sh * 0.42, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.86)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "38px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawScene(); drawBoard(); drawTank(); drawAim(); drawBall(); drawParts(); drawBubble(); drawMeter(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
+addEventListener("keydown", e => {
+  if (e.key === " " || e.key === "Enter") { tap(); e.preventDefault(); }
+  if (e.key === "Escape" || e.key === "p") togglePause();
+});
+
+// ---------- Screens ----------
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function toMidway() { location.href = "../"; }
+function showCoins() { $("coinLine").textContent = "🪙 Midway coins: " + Coins.get() + " · dunk them to earn more for Sonny the Sorta Psychic"; }
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause;
+$("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : "";
+showCoins();
+addEventListener("resize", layout);
+layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>

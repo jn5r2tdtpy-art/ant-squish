@@ -83,6 +83,13 @@ It works offline once it has been opened. High scores are saved on each device.
 - Rounds are 30 seconds. Reach the goal (200 points in round 1, 50 more each round) to move on. Rows get 12% faster each round and a third row joins in round 3.
 - Miss a goal and you lose one of 3 water drops and replay the round. Settings (`goalFor`, `rowsFor`, `speedFor`, `ROUND_TIME`) are near the top of the game code; the heads are in `img/`.
 
+**Dunk Tank** (`carnival/dunk-tank/`): hit the bullseye to drop someone in the water. Pick who’s in the tank (Sonny, Top Hat, Glasses or Baldy; it reuses the head pictures from Sonny the Sorta Psychic and Duck Duck Splash).
+
+- No tapping on the target: tap once to lock your aim as a marker sweeps across the board, then tap again to lock your power. The power meter has a green zone; too little power and the ball goes low, too much and it goes high.
+- 3 balls a round. Each round the aim marker and power meter move faster, and the bullseye gets smaller. From round 4 a wind flag shows the ball getting pushed left or right, so you have to aim off the bullseye.
+- Dunk on the first ball for 300 × the round, second 200 ×, third 100 ×. Dunks earn coins (and a bonus coin on the first ball). Miss all 3 and you lose one of 3 tries.
+- Settings (`aimSpeed`, `powerSpeed`, `bullseye`, `windFor`) and the taunts are near the top of the game code.
+
 **Sonny the Sorta Psychic** (`carnival/fortune-sonny/`): a fortune-teller machine. The machine picture is `img/machine.webp`; the bulbs twinkle, the lamps flicker and the crystal ball swirls on top of it. Pick a topic (Love, Money, Family, Work, Friends, Future), or tap INSERT COIN or the crystal ball for a surprise. Sonny's words show on the purple sign (and he says them out loud if the phone can speak; there is an on/off switch), then a fortune card comes out of the card slot.
 
 - 1,200 fortunes (200 per topic) of cocky, selfish, thinks-he's-hilarious advice, always about him: the self-pitying black sheep who got a raw deal, works harder than everybody (ask him), rides a Harley, and treats his exes and family badly. The Family fortunes are all the opposite of good family advice: he is divorced, and his daughters and sisters don’t like him, and he still thinks he’s right. They are in `fortunes.js`, along with his opening lines (`OPENERS`), lucky numbers (`LUCKY`) and fine print (`FINE`). To add one, copy a line in the right list and change the words.
