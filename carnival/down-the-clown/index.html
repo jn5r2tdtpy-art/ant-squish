@@ -20,7 +20,7 @@
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { position: fixed; inset: 0; display: block; touch-action: none; }
-  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: 0; width: 0; pointer-events: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
   .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c);
     border: 0; border-radius: 999px; padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4);
     cursor: pointer; min-width: 190px; }
@@ -50,7 +50,7 @@
   #pauseBtn, #backBtn { position: fixed; top: calc(8px + var(--sat)); width: 42px; height: 42px; border-radius: 50%;
     border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0;
     cursor: pointer; display: none; }
-  #pauseBtn { left: 10px; }
+  #pauseBtn { left: calc(10px + env(safe-area-inset-left, 0px)); }
   #pauseBtn.show { display: block; }
 </style>
 </head>
@@ -74,6 +74,7 @@
       <p>Each round adds another Red Head. Once half the shelf is Red Heads, a new row of clowns is added and it starts again with one.</p>
       <p>A clown glowing gold is worth <b>double</b>.</p>
       <p id="howTo" class="muted"></p>
+      <p id="sideways"><b>Tip:</b> it plays best with your phone turned sideways.</p>
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
     <p class="muted" id="bestLine"></p>
@@ -129,6 +130,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
 };
 const isTouch = matchMedia("(pointer: coarse)").matches;
+if (!isTouch) $("sideways").style.display = "none";
 $("howTo").textContent = isTouch
   ? "Touch a clown to aim (slide to adjust), lift your finger to fire."
   : "Aim with the mouse and click to fire (or arrow keys and Space).";
@@ -259,16 +261,27 @@ function layout() {
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   cv.style.width = W + "px"; cv.style.height = H + "px";
   const pr = $("probe").getBoundingClientRect();
-  L.safeT = pr.top; L.safeB = H - pr.bottom;
-  L.hudH = 76 + L.safeT;
-  L.cannonH = clamp(H * 0.2, 120, 190) + L.safeB;
-  L.bw = Math.min(W - 12, 620); L.bx = (W - L.bw) / 2;
-  L.by = L.hudH + 6; L.bh = H - L.by - L.cannonH;
+  L.safeT = pr.top; L.safeB = H - pr.bottom; L.safeL = pr.left; L.safeR = W - pr.right;
+  L.land = W > H * 1.15;
+  if (L.land) {
+    // Sideways: score on the left, cannon on the right, booth gets the full height
+    L.side = clamp(W * 0.17, 104, 180);
+    const l = L.safeL + L.side, r = W - L.safeR - L.side;
+    L.bw = Math.min(r - l, 780); L.bx = l + (r - l - L.bw) / 2;
+    L.by = L.safeT + 6; L.bh = H - L.by - L.safeB - 6;
+    L.hudH = L.safeT; L.cannonH = L.side * 0.9;
+    L.cx = W - L.safeR - L.side / 2; L.cy = H - L.safeB - clamp(L.side * 0.4, 40, 60);
+  } else {
+    L.hudH = 76 + L.safeT;
+    L.cannonH = clamp(H * 0.2, 120, 190) + L.safeB;
+    L.bw = Math.min(W - 12, 620); L.bx = (W - L.bw) / 2;
+    L.by = L.hudH + 6; L.bh = H - L.by - L.cannonH;
+    L.cx = W / 2; L.cy = H - L.safeB - clamp(L.cannonH * 0.32, 40, 62);
+  }
   L.frame = clamp(L.bw * 0.045, 12, 26);
-  L.signH = clamp(L.bh * 0.08, 28, 44);
+  L.signH = clamp(L.bh * 0.08, 26, 44);
   L.ix = L.bx + L.frame; L.iw = L.bw - L.frame * 2;
   L.iy = L.by + L.signH + 6; L.ih = L.bh - L.signH - 6 - 22;
-  L.cx = W / 2; L.cy = H - L.safeB - clamp(L.cannonH * 0.32, 40, 62);
   placeClowns();
 }
 
@@ -310,7 +323,7 @@ function muzzle() {
   const s = sights(), a = Math.atan2(s.y - L.cy, s.x - L.cx), len = barrelLen();
   return { x: L.cx + Math.cos(a) * len, y: L.cy + Math.sin(a) * len, a };
 }
-const barrelLen = () => clamp(L.cannonH * 0.48, 56, 84);
+const barrelLen = () => L.land ? clamp(L.side * 0.42, 44, 70) : clamp(L.cannonH * 0.48, 56, 84);
 
 function fire() {
   if (G.state !== "play" || G.reload > 0) return;
@@ -563,11 +576,11 @@ function drawCannon() {
   const { cx, cy } = L, s = sights();
   const a = Math.atan2(s.y - cy, s.x - cx), len = barrelLen(), bwid = len * 0.42;
   // counter
-  const ct = L.by + L.bh;
+  const ct = L.land ? cy - len * 0.9 : L.by + L.bh, cl = L.land ? L.bx + L.bw + 6 : 0;
   const cg = ctx.createLinearGradient(0, ct, 0, H);
   cg.addColorStop(0, "#5a1a10"); cg.addColorStop(1, "#2a0a06");
-  ctx.fillStyle = cg; ctx.fillRect(0, ct, W, H - ct);
-  ctx.fillStyle = "rgba(255,215,94,.35)"; ctx.fillRect(0, ct, W, 2);
+  ctx.fillStyle = cg; ctx.fillRect(cl, ct, W - cl, H - ct);
+  ctx.fillStyle = "rgba(255,215,94,.35)"; ctx.fillRect(cl, ct, W - cl, 2);
   // stand
   ctx.fillStyle = "#3b2a20"; rr(cx - len * 0.55, cy + len * 0.08, len * 1.1, len * 0.55, 10); ctx.fill();
   // barrel
@@ -648,7 +661,32 @@ function drawSights() {
   ctx.stroke(); ctx.shadowBlur = 0;
 }
 
+function drawHUDSide() {
+  const x = L.safeL + L.side / 2, w = L.side - 24;
+  let y = L.safeT + 74;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND " + G.round, x, y);
+  y += 34; ctx.fillStyle = "#ffd75e"; ctx.font = "800 30px system-ui, sans-serif"; ctx.fillText(String(G.score), x, y);
+  y += 32;
+  for (let i = 0; i < LIVES; i++) {
+    const bx = x + (i - 1) * 24;
+    if (i < G.lives) drawBall(bx, y, 9);
+    else { ctx.strokeStyle = "rgba(255,244,220,.3)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(bx, y, 8, 0, 7); ctx.stroke(); }
+  }
+  y += 28;
+  const f = G.timeMax ? clamp(G.timeLeft / G.timeMax, 0, 1) : 1;
+  ctx.fillStyle = "rgba(255,244,220,.15)"; rr(x - w / 2, y - 4, w, 8, 4); ctx.fill();
+  const low = G.timeLeft <= 5 && G.state === "play";
+  ctx.fillStyle = low ? (Math.floor(G.t * 6) % 2 ? "#ff5a5a" : "#ffb0b0") : "#7aff8a";
+  rr(x - w / 2, y - 4, Math.max(8, w * f), 8, 4); ctx.fill();
+  const left = G.clowns.filter(c => !TYPES[c.type].bad && c.state !== "falling" && c.state !== "down").length;
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif";
+  ctx.fillText(Math.ceil(G.timeLeft) + " seconds", x, y + 20);
+  ctx.fillText(left + " clown" + (left === 1 ? "" : "s") + " left", x, y + 38);
+}
+
 function drawHUD() {
+  if (L.land) return drawHUDSide();
   const y = L.safeT + 29;
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.textAlign = "left";
@@ -696,6 +734,11 @@ function drawBanner() {
 function drawHint() {
   if (G.state !== "play" || G.round > 1 || G.stateT > 5) return;
   ctx.globalAlpha = 0.85; ctx.fillStyle = "#fff4dc"; ctx.font = "600 13px system-ui, sans-serif"; ctx.textAlign = "center";
+  if (L.land) {
+    const x = L.safeL + L.side / 2, y = H - L.safeB - 60;
+    ["Touch a clown", "to aim,", "lift to fire"].forEach((t, i) => ctx.fillText(t, x, y + i * 18));
+    ctx.globalAlpha = 1; return;
+  }
   ctx.fillText(isTouch ? "Touch a clown to aim · lift to fire" : "Aim with the mouse · click to fire", W / 2, H - L.safeB - 12);
   ctx.globalAlpha = 1;
 }

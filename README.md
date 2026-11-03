@@ -52,6 +52,7 @@ It works offline once it has been opened. High scores are saved on each device.
 
 - **Points:** glasses clown 10, top-hat clown 20, bald clown 30. The Red Head is −10 and pops back up. A clown glowing gold is worth double.
 - **Rounds:** each round adds one more Red Head. When half the clowns are Red Heads, a new row is added and it starts again with one Red Head (4 clowns a row, up to 4 rows; after that the clock gets shorter each round).
+- **Best sideways:** the directions tell phone players to turn the phone sideways. Sideways, the score sits on the left, the cannon on the right, and the booth uses the full height.
 - **Aim:** touch a clown to aim (slide to adjust), lift to fire (mouse: aim and click; keyboard: arrows and Space). The sights sway a little more each round.
 - Clear a round to get 5 points for every second left. Run out of time and you lose one of 3 cannon balls and replay the round.
 - The clown pictures are in `carnival/down-the-clown/img/`. To change who is on the shelf, replace those files (transparent background, about 260 px wide) and their point values in `TYPES` near the top of the game code.
