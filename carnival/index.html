@@ -125,6 +125,15 @@
     </div>
   </a>
 
+  <a class="game" href="knock-cans/">
+    <img src="knock-cans/img/sonny.webp" alt="" style="width:64px">
+    <div>
+      <h2>Knock Over the Cans</h2>
+      <p>Two balls, ten cans. Time your aim and your throw to knock the whole pyramid down!</p>
+      <div class="best" id="kcBest"></div>
+    </div>
+  </a>
+
   <a class="game" href="ventriloquist/">
     <img src="ventriloquist/img/card.webp" alt="" style="width:78px;border-radius:12px">
     <div>
@@ -158,7 +167,7 @@
   showPurse();
   addEventListener("pageshow", showPurse);
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}
-  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"]]) {
+  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"], ["kc-best", "kcBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
   }
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
