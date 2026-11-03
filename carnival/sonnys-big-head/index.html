@@ -105,7 +105,7 @@ const RACERS = [
 // Race settings (n = race number, starting at 1)
 const targetSize = n => Math.max(0.1, 0.16 - 0.01 * (n - 1));            // hit zone radius, as a share of the lane width
 const targetSwing = n => n < 2 ? 0 : Math.min(0.26, 0.08 + 0.04 * (n - 2)); // how far the targets slide side to side
-const targetSpeed = n => 0.9 + 0.15 * n;
+const targetSpeed = n => n <= 5 ? 0.9 + 0.15 * n : Math.min(4, 1.65 + 0.35 * (n - 5)); // speeds up faster after race 5
 const cpuWobble = n => Math.max(0.55, 0.75 - 0.04 * (n - 1));             // computer aim wobble (smaller = better shots)
 const yourWobble = n => Math.min(0.35, 0.1 + 0.03 * (n - 1));           // your water pressure wobble
 
@@ -123,7 +123,7 @@ const store = {
 };
 const isTouch = matchMedia("(pointer: coarse)").matches;
 $("howTo").textContent = isTouch
-  ? "Hold your finger on your target to squirt, and follow it when it moves."
+  ? "Hold your finger on your target to squirt, and follow it when it moves. The bubble above your finger shows where your water is going: green means you’re on target."
   : "Hold the mouse button to squirt and aim at your target (or arrow keys and hold Space).";
 const head = new Image(); head.src = "img/sonny.webp";
 const HEAD_R = 584 / 482;
@@ -522,6 +522,32 @@ function drawSights() {
   ctx.globalAlpha = 1;
 }
 
+// Magnifier bubble above your finger, so you can see where your water is going
+function drawLoupe() {
+  if (!G.finger.down || !G.finger.touch || (G.state !== "race" && G.state !== "ready")) return;
+  const me = G.lanes[1]; if (!me || me.ax === undefined) return;
+  const R = clamp(L.laneW * 0.42, 40, 62), zoom = 1.8;
+  let lx = G.finger.x, ly = G.finger.y - R - 46;
+  if (ly - R < L.hudH) { ly = G.finger.y; lx = G.finger.x + (G.finger.x < W / 2 ? 1 : -1) * (R + 50); }
+  lx = clamp(lx, R + 4, W - R - 4);
+  const on = Math.hypot(me.ax - me.tx, me.ay - me.ty) < me.r;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(lx, ly, R, 0, 7); ctx.clip();
+  ctx.fillStyle = "#f6efe2"; ctx.fillRect(lx - R, ly - R, R * 2, R * 2);
+  // copy the area around your aim from the screen, zoomed in
+  const src = R / zoom;
+  try { ctx.drawImage(cv, (me.ax - src) * DPR, (me.ay - src) * DPR, src * 2 * DPR, src * 2 * DPR, lx - R, ly - R, R * 2, R * 2); } catch (e) {}
+  // aim mark in the middle
+  const r = 9;
+  ctx.strokeStyle = "#0a6cff"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(lx, ly, r, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(lx - r * 1.8, ly); ctx.lineTo(lx + r * 1.8, ly); ctx.moveTo(lx, ly - r * 1.8); ctx.lineTo(lx, ly + r * 1.8); ctx.stroke();
+  ctx.restore();
+  ctx.lineWidth = 4; ctx.strokeStyle = on ? "#3ad06a" : "#ff5a5a";
+  ctx.beginPath(); ctx.arc(lx, ly, R, 0, 7); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.beginPath(); ctx.arc(lx, ly, R + 2.5, 0, 7); ctx.stroke();
+}
+
 function drawBubble() {
   const bb = G.bubble, me = G.lanes[1]; if (!bb || !me) return;
   const k = Math.min(1, bb.t / 0.12, (bb.life - bb.t) / 0.2); if (k <= 0) return;
@@ -602,7 +628,7 @@ function draw() {
   drawFrags(); drawDrops();
   for (const ln of G.lanes) drawGun(ln);
   drawParts(); drawPops(); drawSights(); drawBubble();
-  drawHUD(); drawBanner(); drawHint();
+  drawHUD(); drawBanner(); drawHint(); drawLoupe();
 }
 
 let last = performance.now();
@@ -618,7 +644,7 @@ const canAim = () => G.state === "race" || G.state === "ready";
 cv.addEventListener("pointerdown", e => {
   audio();
   if (!canAim()) return;
-  ptrId = e.pointerId; G.finger.x = e.clientX; G.finger.y = e.clientY; G.finger.down = true;
+  ptrId = e.pointerId; G.finger.x = e.clientX; G.finger.y = e.clientY; G.finger.down = true; G.finger.touch = e.pointerType !== "mouse";
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
 });
 cv.addEventListener("pointermove", e => {
