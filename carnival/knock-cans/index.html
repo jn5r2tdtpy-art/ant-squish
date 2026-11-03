@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Knock Over the Cans</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #1f6fb0, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(32px, 10vw, 48px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .faces { display: flex; gap: 10px; justify-content: center; }
+  .faces img { height: 76px; width: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <h1>Knock Over<br>the Cans</h1>
+    <div class="faces"><img src="img/abby.webp" alt="Abby"><img src="img/eddie.webp" alt="Eddie"><img src="img/sonny.webp" alt="Sonny"></div>
+    <div class="rules">
+      <p>Knock <b>all 10 cans</b> off the table with <b>2 balls</b>.</p>
+      <p><b>Tap once</b> to lock your aim as the marker slides across the table. <b>Tap again</b> to lock how high you throw as the marker slides up and down beside the cans.</p>
+      <p>Hit the <b>bottom row</b> and the cans above come down too. Too low hits the table, too high flies over.</p>
+      <p>Knock down the <b>gold can</b> to win 🪙 +1. Each round the markers get faster and the cans move farther back.</p>
+      <p>Leave cans standing and you lose one of 3 tries.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, BALLS = 2, ROWS = [4, 3, 2, 1];
+const aimSpeed   = n => 1.6 + 0.32 * (n - 1);          // how fast the aim marker slides
+const heightSpeed = n => 0.75 + 0.15 * (n - 1);         // height marker trips up and down per second
+const canScale   = n => Math.max(0.62, 1 - 0.035 * (n - 1)); // cans get farther back (smaller)
+const KNOCK_ON = 0.6;                                    // chance a falling can knocks over a can beside it
+const FACES = ["abby", "eddie", "sonny"];
+const COLORS = ["#e85d7a", "#f08a3c", "#3fa0d8", "#8a5ad8", "#3fbf7a", "#e8c83c"];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const IMG = {}; for (const f of FACES) { IMG[f] = new Image(); IMG[f].src = "img/" + f + ".webp"; }
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.005, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.008, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  lock() { tone(880, 0.06, "square", 0.06); },
+  throw() { noise(0.18, "bandpass", 700, 0.3, 0.8); },
+  clank(dl = 0) { [700, 1050, 1580].forEach((f, i) => tone(f * rand(0.9, 1.1), 0.25, "triangle", 0.08, dl + i * 0.01)); noise(0.06, "highpass", 3500, 0.25, 1, dl); },
+  thud() { tone(130, 0.12, "sine", 0.3, 0, 70); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, lives: LIVES, balls: BALLS, best: +store.get("kc-best") || 0, cans: [], ball: null, parts: [], pops: [],
+  stateT: 0, t: 0, aimPhase: 0, hPhase: 0, aimX: 0, hgt: 0, banner: null, pausedFrom: null };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+
+function buildCans() {
+  G.cans = []; const gold = Math.floor(Math.random() * 10); let k = 0;
+  ROWS.forEach((n, r) => { for (let i = 0; i < n; i++, k++) G.cans.push({ r, i, face: FACES[Math.floor(Math.random() * 3)], color: COLORS[k % COLORS.length], gold: k === gold, up: true, x: 0, y: 0, vx: 0, vy: 0, rot: 0, vr: 0, t: 0 }); });
+  placeCans();
+}
+function can(r, i) { return G.cans.find(c => c.r === r && c.i === i); }
+function startRound() { G.balls = BALLS; buildCans(); newThrow(); G.banner = { big: "Round " + G.round, small: "2 balls · knock all 10 cans off" }; setState("intro"); }
+function newThrow() { G.aimPhase = rand(0, 6.28); G.hPhase = rand(0, 1); G.ball = null; }
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; hideOverlays(); layout(); startRound();
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 60 + L.safeT; L.meterH = (W > H ? 56 : 96) + L.safeB;
+  const top = L.hudH + 6, bottom = H - L.meterH, h = bottom - top, w = Math.min(W - 16, Math.max(h * 1.0, Math.min(W - 16, h * 1.5)), 680);
+  L.bx = (W - w) / 2; L.by = top; L.bw = w; L.bh = h;
+  L.tableY = L.by + h * 0.8;                    // top of the table the cans stand on
+  L.cx = W / 2;
+  placeCans();
+}
+function placeCans() {
+  if (!L.bw) return;
+  // fit the pyramid under the sign: 4 cans tall, with a little headroom
+  const signBottom = L.by + Math.min(L.bh * 0.14, L.bw * 0.6 * 0.32) + L.bh * 0.06, room = L.tableY - signBottom - 10;
+  const s = canScale(G.round), cw = Math.min(L.bw * 0.15, room / 4 / 1.3) * s, ch = cw * 1.3;
+  L.cw = cw; L.ch = ch; L.ballR = cw * 0.42;
+  L.pyrBottom = L.tableY; L.pyrTop = L.tableY - ch * 4; L.pyrLeft = L.cx - cw * 2; L.pyrRight = L.cx + cw * 2;
+  for (const c of G.cans) if (c.up) { const n = ROWS[c.r]; c.x = L.cx + (c.i - (n - 1) / 2) * cw; c.y = L.tableY - c.r * ch - ch / 2; }
+  // the height meter runs from the table up past the top can
+  L.hLow = L.tableY + ch * 0.35; L.hHigh = L.pyrTop - ch * 0.6;
+  L.mx = Math.min(W - 26, L.pyrRight + cw * 1.1);
+  L.aimL = L.pyrLeft - cw * 0.9; L.aimR = L.pyrRight + cw * 0.9;
+}
+
+// ---------- Throwing ----------
+const aimNow = () => L.cx + Math.sin(G.aimPhase) * (L.aimR - L.aimL) / 2;
+const hNow = () => { const p = G.hPhase % 2; return p < 1 ? p : 2 - p; };     // 0 = low, 1 = high
+const yFromH = h => L.hLow + (L.hHigh - L.hLow) * h;
+function tap() {
+  audio();
+  if (G.state === "aim") { G.aimX = aimNow(); sfx.lock(); setState("height"); }
+  else if (G.state === "height") { G.hgt = hNow(); sfx.lock(); throwBall(); }
+}
+function throwBall() {
+  const tx = G.aimX, ty = yFromH(G.hgt);
+  G.ball = { sx: W / 2, sy: H - L.meterH * 0.3, tx, ty, t: 0 }; G.balls--; sfx.throw(); setState("flying");
+}
+function knock(c, dir, delay) {
+  if (!c.up) return; c.up = false; c.t = -delay;
+  c.vx = dir * rand(120, 260) * (L.cw / 60); c.vy = rand(-320, -160) * (L.cw / 60); c.vr = dir * rand(5, 10);
+  const pts = c.gold ? 50 : 10; G.score += pts;
+  G.pops.push({ x: c.x, y: c.y, text: "+" + pts, color: c.gold ? "#ffd75e" : "#fff", t: -delay });
+  if (c.gold) { Coins.add(1); setTimeout(() => Coins.chime(), delay * 1000); G.pops.push({ x: c.x, y: c.y + L.ch * 0.6, text: "🪙 +1", color: "#ffd75e", t: -delay }); showCoins(); }
+  sfx.clank(delay);
+}
+// after a hit: cans that lost their support fall, and falling cans may knock a neighbor over
+function settle() {
+  let changed = true, wave = 0;
+  while (changed) {
+    changed = false; wave++;
+    for (const c of G.cans) {
+      if (!c.up || c.r === 0) continue;
+      const a = can(c.r - 1, c.i), b = can(c.r - 1, c.i + 1);
+      if (!a.up || !b.up) {
+        // it tumbles off to one side, crashing into what's left beneath it on that side
+        const dir = !a.up && !b.up ? (Math.random() < 0.5 ? -1 : 1) : !a.up ? 1 : -1;
+        knock(c, dir, 0.12 * wave); changed = true;
+        const side = can(c.r, c.i + dir), below = a.up ? a : b.up ? b : null;
+        if (below && Math.random() < KNOCK_ON) knock(below, dir, 0.12 * wave + 0.1);
+        if (side && side.up && Math.random() < KNOCK_ON * 0.6) knock(side, dir, 0.12 * wave + 0.08);
+      }
+    }
+  }
+}
+function land() {
+  const b = G.ball, r = L.ballR;
+  const hit = G.cans.filter(c => c.up && Math.abs(b.tx - c.x) < L.cw / 2 + r * 0.7 && Math.abs(b.ty - c.y) < L.ch / 2 + r * 0.7);
+  if (b.ty > L.tableY + L.ch * 0.15) { sfx.thud(); G.pops.push({ x: b.tx, y: L.tableY, text: "Too low!", color: "#fff", t: 0 }); }
+  else if (b.ty < L.pyrTop - L.ch * 0.25 && !hit.length) { G.pops.push({ x: b.tx, y: L.pyrTop - L.ch * 0.3, text: "Too high!", color: "#fff", t: 0 }); }
+  else if (!hit.length) { sfx.thud(); G.pops.push({ x: b.tx, y: b.ty, text: "Miss!", color: "#fff", t: 0 }); }
+  hit.forEach(c => knock(c, b.tx < c.x ? 1 : -1, 0));
+  // a solid hit carries through to the can behind it in the same row
+  hit.forEach(c => { const d = b.tx < c.x ? 1 : -1, n = can(c.r, c.i + d); if (n && n.up && Math.random() < 0.45) knock(n, d, 0.1); });
+  if (hit.length) settle();
+  G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-60, 60), vy: -60, r, life: 1, t: 0 });
+  setState("result");
+}
+function afterThrow() {
+  const left = G.cans.filter(c => c.up).length;
+  if (!left) {
+    const bonus = 100 * G.round * (G.balls + 1); G.score += bonus;
+    G.banner = { big: "All cans down!", small: "+" + bonus + " points" + (G.balls ? " · one ball!" : ""), note: "Next round: faster markers, cans farther back", win: true };
+    setState("clear"); sfx.win(); return;
+  }
+  if (G.balls > 0) { newThrow(); setState("aim"); return; }
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: left === 1 ? "1 can left!" : left + " cans left!", small: G.lives === 1 ? "1 try left" : G.lives + " tries left", note: "Try that round again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("kc-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const FLY = 0.6;
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.5) setState("aim");
+  if (G.state === "aim") G.aimPhase += dt * aimSpeed(G.round);
+  if (G.state === "height") G.hPhase += dt * heightSpeed(G.round) * 2;
+  if (G.state === "flying") { G.ball.t += dt / FLY; if (G.ball.t >= 1) land(); }
+  if (G.state === "result" && G.stateT > 1.4) afterThrow();
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; layout(); startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  for (const c of G.cans) if (!c.up) { c.t += dt; if (c.t > 0) { c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 1400 * dt * (L.cw / 60); c.rot += c.vr * dt; } }
+  for (const p of G.parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt; }
+  G.parts = G.parts.filter(p => p.t < p.life);
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function star(x, y, r) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } ctx.fill(); }
+function drawBooth() {
+  ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  const { bx, by, bw, bh } = L;
+  // striped back wall and side panels
+  const sw = bw / 12;
+  for (let i = 0; i < 12; i++) { ctx.fillStyle = i % 2 ? "#f6f1ea" : "#e0424e"; ctx.fillRect(bx + i * sw, by, sw + 1, L.tableY - by); }
+  ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(bx, by, bw * 0.12, L.tableY - by); ctx.fillRect(bx + bw * 0.88, by, bw * 0.12, L.tableY - by);
+  // sign
+  const sgW = bw * 0.6, sgH = Math.min(bh * 0.14, sgW * 0.32), sgx = W / 2 - sgW / 2, sgy = by + bh * 0.03;
+  ctx.fillStyle = "#fffaf2"; ctx.fillRect(sgx, sgy, sgW, sgH);
+  ctx.save(); ctx.beginPath(); ctx.rect(sgx, sgy, sgW, sgH); ctx.clip(); ctx.fillStyle = "#e85d6a";
+  for (let i = 0; i < 16; i++) { const a0 = i / 16 * Math.PI * 2, a1 = a0 + Math.PI / 16; ctx.beginPath(); ctx.moveTo(W / 2, sgy + sgH / 2); ctx.lineTo(W / 2 + Math.cos(a0) * sgW, sgy + sgH / 2 + Math.sin(a0) * sgW); ctx.lineTo(W / 2 + Math.cos(a1) * sgW, sgy + sgH / 2 + Math.sin(a1) * sgW); ctx.fill(); }
+  ctx.restore();
+  ctx.fillStyle = "#3aa6c8"; rr(sgx + sgW * 0.15, sgy + sgH * 0.18, sgW * 0.7, sgH * 0.64, 10); ctx.fill();
+  ctx.strokeStyle = "#1f6f8a"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = "#13324a"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(sgH * 0.26); ctx.font = `${fs}px Rye, Georgia, serif`;
+  ctx.fillText("KNOCK OVER", W / 2, sgy + sgH * 0.37); ctx.fillText("THE CANS", W / 2, sgy + sgH * 0.64);
+  // pink starry table
+  ctx.fillStyle = "#e97f8f"; ctx.fillRect(0, L.tableY, W, H - L.tableY);
+  ctx.fillStyle = "rgba(255,255,255,.22)";
+  for (let i = 0; i < 60; i++) star((i * 71) % W, L.tableY + 10 + ((i * 37) % Math.max(1, H - L.tableY)), 6 + (i % 3) * 3);
+  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(0, L.tableY, W, 4);
+}
+function drawCan(c) {
+  const w = L.cw * 0.94, h = L.ch * 0.96;
+  ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+  const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  const base = c.gold ? "#e8b830" : c.color;
+  g.addColorStop(0, shadeC(base, -35)); g.addColorStop(0.3, shadeC(base, 25)); g.addColorStop(0.7, base); g.addColorStop(1, shadeC(base, -40));
+  ctx.fillStyle = g; rr(-w / 2, -h / 2, w, h, w * 0.06); ctx.fill();
+  // metal rims
+  const mg = ctx.createLinearGradient(-w / 2, 0, w / 2, 0); mg.addColorStop(0, "#8a9098"); mg.addColorStop(0.4, "#e8ecf0"); mg.addColorStop(1, "#7a8088");
+  ctx.fillStyle = mg; ctx.fillRect(-w / 2, -h / 2, w, h * 0.07); ctx.fillRect(-w / 2, h / 2 - h * 0.07, w, h * 0.07);
+  // white label circle with the face
+  ctx.fillStyle = "#fffaf2"; ctx.beginPath(); ctx.arc(0, h * 0.02, w * 0.4, 0, 7); ctx.fill();
+  ctx.strokeStyle = c.gold ? "#a06a00" : "#3a5aa8"; ctx.lineWidth = Math.max(1.5, w * 0.03); ctx.stroke();
+  const im = IMG[c.face];
+  if (im.complete && im.naturalWidth) { const fh = w * 0.72, fw = fh * im.naturalWidth / im.naturalHeight; ctx.drawImage(im, -fw / 2, h * 0.02 - fh / 2, fw, fh); }
+  if (c.gold) {
+    const pulse = 0.5 + 0.5 * Math.sin(G.t * 6);
+    ctx.strokeStyle = `rgba(255,240,160,${0.5 + 0.5 * pulse})`; ctx.lineWidth = 3; rr(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, w * 0.08); ctx.stroke();
+    ctx.fillStyle = "#7a4a00"; ctx.font = `800 ${Math.round(w * 0.2)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("+1", 0, -h * 0.36);
+  }
+  ctx.restore();
+}
+function shadeC(hex, amt) { const n = parseInt(hex.slice(1), 16); const r = clamp((n >> 16) + amt, 0, 255), g = clamp(((n >> 8) & 255) + amt, 0, 255), b = clamp((n & 255) + amt, 0, 255); return `rgb(${r},${g},${b})`; }
+function drawMarkers() {
+  const show = ["aim", "height", "flying", "result"].includes(G.state); if (!show) return;
+  // aim marker along the table edge
+  const ax = G.state === "aim" ? aimNow() : G.aimX;
+  ctx.fillStyle = G.state === "aim" ? "#ffffff" : "#7aff8a";
+  ctx.beginPath(); ctx.moveTo(ax, L.tableY + 6); ctx.lineTo(ax - 11, L.tableY + 24); ctx.lineTo(ax + 11, L.tableY + 24); ctx.fill();
+  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.7)" : "rgba(122,255,138,.85)"; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ax, L.tableY); ctx.lineTo(ax, L.hHigh); ctx.stroke(); ctx.setLineDash([]);
+  // height meter beside the cans
+  if (G.state !== "aim") {
+    const x = L.mx, y0 = L.hLow, y1 = L.hHigh;
+    ctx.fillStyle = "rgba(20,4,10,.55)"; rr(x - 9, y1 - 6, 18, y0 - y1 + 12, 9); ctx.fill();
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, "#3a7af0"); g.addColorStop(0.5, "#f2c419"); g.addColorStop(1, "#e0242e");
+    ctx.fillStyle = g; rr(x - 5, y1, 10, y0 - y1, 5); ctx.fill();
+    // bottom row band = the best place to hit
+    ctx.fillStyle = "rgba(60,230,110,.9)"; const b0 = L.tableY, b1 = L.tableY - L.ch; ctx.fillRect(x - 5, b1, 10, b0 - b1);
+    const hy = yFromH(G.state === "height" ? hNow() : G.hgt);
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 10, hy); ctx.lineTo(x - 24, hy - 9); ctx.lineTo(x - 24, hy + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (G.state === "height") { ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.moveTo(L.aimL, hy); ctx.lineTo(x - 26, hy); ctx.stroke(); ctx.setLineDash([]); }
+  }
+}
+function ballAt(x, y, r) {
+  ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.clip();
+  const cols = ["#e8304a", "#f08a2c", "#f2d23c", "#3fbf5a", "#3a7af0", "#8a4ad8"];
+  cols.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(x - r + i * (2 * r / 6), y - r, 2 * r / 6 + 1, 2 * r); });
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r); g.addColorStop(0, "rgba(255,255,255,.55)"); g.addColorStop(1, "rgba(0,0,0,.25)");
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); ctx.restore();
+}
+function drawBall() {
+  const b = G.ball; if (!b || G.state !== "flying") return;
+  const t = b.t, x = b.sx + (b.tx - b.sx) * t, y = b.sy + (b.ty - b.sy) * t - Math.sin(Math.PI * t) * L.bh * 0.2;
+  ballAt(x, y, L.ballR * (2.2 - 1.2 * t));
+}
+function drawHUD() {
+  const y = L.safeT + 30; ctx.fillStyle = "rgba(20,4,10,.75)"; ctx.fillRect(0, 0, W, L.hudH - 6);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Balls: " + "●".repeat(Math.max(0, G.balls)) + "○".repeat(BALLS - Math.max(0, G.balls)) + "   Tries: " + G.lives, W / 2, y + 18);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  const label = G.state === "aim" ? "TAP to lock your aim" : G.state === "height" ? "TAP to lock how high you throw" : "";
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.7)"; ctx.shadowBlur = 4;
+  ctx.fillText(label, W / 2, H - L.meterH / 2 - L.safeB / 2); ctx.shadowBlur = 0;
+}
+function drawPops() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { if (p.t < 0) continue; ctx.globalAlpha = 1 - p.t * p.t; ctx.font = "800 20px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    ctx.strokeText(p.text, p.x, p.y - p.t * 40); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y - p.t * 40); }
+  ctx.globalAlpha = 1;
+  for (const p of G.parts) { ctx.globalAlpha = 1 - p.t / p.life; ballAt(p.x, p.y, p.r); } ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.by + L.bh * 0.36, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.88)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "34px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawBooth();
+  for (const c of G.cans) if (c.up) drawCan(c);
+  for (const c of G.cans) if (!c.up && c.y < H + 200) drawCan(c);
+  drawMarkers(); drawBall(); drawPops(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
+addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { tap(); e.preventDefault(); } if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Knock down the gold can to win +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
