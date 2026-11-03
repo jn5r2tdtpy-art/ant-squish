@@ -74,7 +74,6 @@
       <p>Each round adds another Red Head. Once half the shelf is Red Heads, a new row of clowns is added and it starts again with one.</p>
       <p>A clown glowing gold is worth <b>double</b>.</p>
       <p id="howTo" class="muted"></p>
-      <p id="sideways"><b>Tip:</b> it plays best with your phone turned sideways.</p>
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
     <p class="muted" id="bestLine"></p>
@@ -132,7 +131,6 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
 };
 const isTouch = matchMedia("(pointer: coarse)").matches;
-if (!isTouch) $("sideways").style.display = "none";
 $("howTo").textContent = isTouch
   ? "Touch a clown to aim (slide to adjust), lift your finger to fire."
   : "Aim with the mouse and click to fire (or arrow keys and Space).";
