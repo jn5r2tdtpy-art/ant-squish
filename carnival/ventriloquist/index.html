@@ -48,9 +48,12 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const img = s => { const i = new Image(); i.src = s; return i; };
-const I = { sonny: img("img/sonny.webp"), top: img("img/eddie-top.webp"), jaw: img("img/eddie-jaw.webp") };
+const I = { photo: img("img/photo.webp") };
 // sizes of the pictures and where Eddie's mouth is
-const EW = 400, EH = 505, MOUTH_Y = 386, JAW_L = 152, JAW_R = 256, SW = 655, SH = 886, HW = 420, HH = 240;
+// The photo is 1119 x 1406. Eddie's jaw is the part between his painted dummy lines, below his mouth.
+const PW = 1119, PH = 1406;
+const JAW = [[305, 556], [362, 553], [419, 552], [420, 626], [392, 640], [362, 643], [332, 640], [304, 630]];
+const JAW_TOP = 552, EDDIE_MOUTH = [362, 556], SONNY_MOUTH = [690, 410], EDDIE_HAT = [345, 250], SONNY_HAT = [700, 40];
 
 // ---------- Voices ----------
 let voiceOn = store.get("ve-voice") !== "off";
@@ -126,160 +129,76 @@ function layout() {
   L.side = W > H * 1.15; document.body.classList.toggle("side", L.side);
   const top = $("backBtn").getBoundingClientRect().bottom + 6, bottom = L.side ? H - 6 : H - $("panel").getBoundingClientRect().height - 4;
   L.top = top; L.bottom = bottom;
-  const sw = L.side ? W * 0.66 : W, h = bottom - top, w = Math.min(sw, h * 0.95);
-  L.u = Math.min(w / 6, h / 8.2);           // close-up: one unit of the stage
-  L.cx = sw / 2 - L.u * 0.15; L.floor = bottom + L.u * 2.2;
+  const sw = L.side ? W * 0.66 : W;
+  L.vh = Math.max(40, Math.min(64, (bottom - top) * 0.09));     // the sign across the top
+  L.band = L.side ? 0 : Math.min(110, (bottom - top) * 0.16);   // room for speech bubbles above the photo
+  const areaTop = top - 6 + L.vh + 10 + L.band, areaH = bottom - areaTop - 6, areaW = sw - 24;
+  L.s = Math.min(areaW / PW, areaH / PH);
+  L.pw = PW * L.s; L.ph = PH * L.s; L.px = (sw - L.pw) / 2; L.py = areaTop + (areaH - L.ph) / 2;
+  L.u = L.pw / 6; L.sw = sw;
 }
 addEventListener("resize", layout);
 
 // ---------- Drawing ----------
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+const P = (x, y) => [L.px + x * L.s, L.py + y * L.s];
 function drawStage() {
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#3a0a12"); g.addColorStop(1, "#14040a"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // curtains
-  const cw = W * 0.16;
-  for (const side of [0, 1]) {
-    for (let i = 0; i < 5; i++) {
-      const x = side ? W - cw + i * cw / 5 : i * cw / 5, sw = cw / 5;
-      const cg = ctx.createLinearGradient(x, 0, x + sw, 0); cg.addColorStop(0, "#6a0e1a"); cg.addColorStop(0.5, "#b8202e"); cg.addColorStop(1, "#6a0e1a");
-      ctx.fillStyle = cg; ctx.fillRect(x, 0, sw + 1, L.floor);
-    }
+  // curtains on both sides
+  const cw = Math.max(30, L.sw * 0.1);
+  for (const side of [0, 1]) for (let i = 0; i < 5; i++) {
+    const x = side ? W - cw + i * cw / 5 : i * cw / 5, w = cw / 5;
+    const cg = ctx.createLinearGradient(x, 0, x + w, 0); cg.addColorStop(0, "#6a0e1a"); cg.addColorStop(0.5, "#b8202e"); cg.addColorStop(1, "#6a0e1a");
+    ctx.fillStyle = cg; ctx.fillRect(x, 0, w + 1, H);
   }
-  // valance with gold fringe and the show's name
-  const vh = Math.max(40, L.u * 1.3), vy = L.top - 6;
+  // sign with gold fringe
+  const vh = L.vh, vy = L.top - 6;
   ctx.fillStyle = "#9a1626"; ctx.fillRect(0, vy, W, vh);
-  for (let x = 0; x < W; x += 30) { ctx.fillStyle = "#9a1626"; ctx.beginPath(); ctx.arc(x + 15, vy + vh, 15, 0, Math.PI); ctx.fill(); }
+  for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.arc(x + 15, vy + vh, 15, 0, Math.PI); ctx.fill(); }
   ctx.fillStyle = "#e0a838"; ctx.fillRect(0, vy + vh - 3, W, 3);
   ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  let fs = Math.round(vh * 0.42); ctx.font = `${fs}px Rye, Georgia, serif`;
+  let fs = Math.round(vh * 0.46); ctx.font = `${fs}px Rye, Georgia, serif`;
   while (ctx.measureText("THE SONNY & EDDIE SHOW").width > W - 30 && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
   ctx.fillText("THE SONNY & EDDIE SHOW", W / 2, vy + vh * 0.48);
-  // spotlight and wooden stage
-  const sp = ctx.createRadialGradient(L.cx, L.floor, 10, L.cx, L.floor - L.u * 3, L.u * 7);
-  sp.addColorStop(0, "rgba(255,240,200,.18)"); sp.addColorStop(1, "rgba(255,240,200,0)"); ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "#5a3418"; ctx.fillRect(0, L.floor, W, H - L.floor);
-  ctx.fillStyle = "#7a4a26"; ctx.fillRect(0, L.floor, W, 6);
-  // stool
-  const u = L.u, sx = L.cx + u * 1.2;
-  ctx.fillStyle = "#3a2410"; ctx.fillRect(sx - u * 1.1, L.floor - u * 2.4, u * 0.18, u * 2.4); ctx.fillRect(sx + u * 0.9, L.floor - u * 2.4, u * 0.18, u * 2.4);
-  ctx.fillStyle = "#8a1a2a"; rr(sx - u * 1.3, L.floor - u * 2.6, u * 2.6, u * 0.4, u * 0.15); ctx.fill();
+  // spotlight behind the photo
+  const cx = L.px + L.pw / 2, cy = L.py + L.ph * 0.4, sp = ctx.createRadialGradient(cx, cy, 10, cx, cy, L.pw * 0.9);
+  sp.addColorStop(0, "rgba(255,240,200,.28)"); sp.addColorStop(1, "rgba(255,240,200,0)"); ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
 }
 
-// shaded rounded shape helper
-function shade(x0, x1, c0, c1, c2) { const g = ctx.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, c0); g.addColorStop(0.5, c1); g.addColorStop(1, c2); return g; }
-function limb(x1, y1, x2, y2, w, color) { ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
-function hand(x, y, r, a) { ctx.save(); ctx.translate(x, y); ctx.rotate(a || 0); ctx.fillStyle = "#e7ad8a"; ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.8, 0, 0, 7); ctx.fill();
-  ctx.strokeStyle = "rgba(120,60,40,.35)"; ctx.lineWidth = 1; for (const k of [-0.35, 0, 0.35]) { ctx.beginPath(); ctx.moveTo(r * 0.2, k * r); ctx.lineTo(r * 0.9, k * r); ctx.stroke(); } ctx.restore(); }
-
-function drawSonny() {
-  const u = L.u, x = L.cx + u * 1.35, seat = L.floor - u * 2.6;
-  const talk = S.talker === "S", bob = Math.sin(S.t * (talk ? 7 : 1.5)) * (talk ? 1.5 : 1);
-  const ty = seat - u * 3.0 + bob;                       // top of the shoulders
-  // trousers: thighs forward on the stool, shins down, shiny shoes
-  ctx.fillStyle = shade(x - u, x + u, "#1d1f25", "#33363f", "#1d1f25");
-  rr(x - u * 0.95, seat - u * 0.35, u * 1.95, u * 0.75, u * 0.3); ctx.fill();
-  for (const k of [-0.45, 0.45]) { ctx.fillStyle = shade(x + k * u - u * 0.28, x + k * u + u * 0.28, "#1d1f25", "#353842", "#1d1f25"); rr(x + k * u - u * 0.27, seat + u * 0.1, u * 0.54, L.floor - seat - u * 0.35, u * 0.12); ctx.fill(); }
-  for (const k of [-0.45, 0.45]) { const g = ctx.createRadialGradient(x + k * u + u * 0.05, L.floor - u * 0.3, 2, x + k * u, L.floor - u * 0.18, u * 0.5); g.addColorStop(0, "#5a5a62"); g.addColorStop(1, "#0b0b0e");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x + k * u + u * 0.08, L.floor - u * 0.16, u * 0.42, u * 0.17, 0, 0, 7); ctx.fill(); }
-  // suit jacket with rounded shoulders and shading
-  ctx.fillStyle = shade(x - u * 1.3, x + u * 1.3, "#3c4150", "#5d6474", "#353a48");
-  ctx.beginPath(); ctx.moveTo(x - u * 0.45, ty - u * 0.05);
-  ctx.quadraticCurveTo(x - u * 1.3, ty, x - u * 1.25, ty + u * 0.7);
-  ctx.lineTo(x - u * 1.15, seat + u * 0.25); ctx.lineTo(x + u * 1.15, seat + u * 0.25); ctx.lineTo(x + u * 1.25, ty + u * 0.7);
-  ctx.quadraticCurveTo(x + u * 1.3, ty, x + u * 0.45, ty - u * 0.05); ctx.closePath(); ctx.fill();
-  // white shirt, purple tie, lapels, pocket square, buttons
-  ctx.fillStyle = "#f3f0e8"; ctx.beginPath(); ctx.moveTo(x - u * 0.42, ty - u * 0.05); ctx.lineTo(x + u * 0.42, ty - u * 0.05); ctx.lineTo(x, ty + u * 1.55); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#6c1f6e"; ctx.beginPath(); ctx.moveTo(x - u * 0.11, ty + u * 0.08); ctx.lineTo(x + u * 0.11, ty + u * 0.08); ctx.lineTo(x + u * 0.17, ty + u * 1.3); ctx.lineTo(x, ty + u * 1.5); ctx.lineTo(x - u * 0.17, ty + u * 1.3); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#8a2f8c"; ctx.beginPath(); ctx.moveTo(x - u * 0.13, ty - u * 0.05); ctx.lineTo(x + u * 0.13, ty - u * 0.05); ctx.lineTo(x + u * 0.09, ty + u * 0.12); ctx.lineTo(x - u * 0.09, ty + u * 0.12); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#2c303b";
-  for (const sg of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + sg * u * 0.42, ty - u * 0.05); ctx.lineTo(x + sg * u * 0.62, ty + u * 0.45); ctx.lineTo(x + sg * u * 0.42, ty + u * 0.5); ctx.lineTo(x + sg * u * 0.05, ty + u * 1.6); ctx.lineTo(x + sg * u * 0.2, ty + u * 1.6); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = "#d9c26a"; ctx.beginPath(); ctx.moveTo(x + u * 0.68, ty + u * 0.7); ctx.lineTo(x + u * 0.95, ty + u * 0.7); ctx.lineTo(x + u * 0.88, ty + u * 0.56); ctx.lineTo(x + u * 0.78, ty + u * 0.62); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#14161b"; for (const k of [1.75, 2.15]) { ctx.beginPath(); ctx.arc(x + u * 0.05, ty + u * k, u * 0.06, 0, 7); ctx.fill(); }
-  // right arm resting on the knee
-  limb(x + u * 1.05, ty + u * 0.45, x + u * 1.3, seat - u * 0.45, u * 0.46, "#4c5262");
-  limb(x + u * 1.3, seat - u * 0.45, x + u * 0.85, seat + u * 0.02, u * 0.42, "#4c5262");
-  ctx.fillStyle = "#f3f0e8"; ctx.beginPath(); ctx.ellipse(x + u * 0.78, seat + u * 0.06, u * 0.2, u * 0.13, 0.4, 0, 7); ctx.fill();
-  hand(x + u * 0.62, seat + u * 0.12, u * 0.2, Math.PI);
-  // neck and head (full top hat photo)
-  ctx.fillStyle = "#dca283"; rr(x - u * 0.26, ty - u * 0.45, u * 0.52, u * 0.55, u * 0.12); ctx.fill();
-  const hw = u * 2.55, hh = hw * SH / SW;
-  if (I.sonny.complete && I.sonny.naturalWidth) ctx.drawImage(I.sonny, x - hw * 0.5, ty - hh * 0.9, hw, hh);
-  return { x, ty, seat };
-}
-
-function drawEddie(son) {
-  const u = L.u, x = son.x - u * 1.65, base = son.seat + u * 0.05; // sitting on Sonny's left knee
+function drawPhoto() {
+  if (!(I.photo.complete && I.photo.naturalWidth)) return;
+  const { px, py, pw, ph, s } = L;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
+  ctx.fillStyle = "#b8860b"; rr(px - 6, py - 6, pw + 12, ph + 12, 10); ctx.fill();
+  ctx.restore();
+  ctx.drawImage(I.photo, px, py, pw, ph);
+  // Eddie's jaw drops with the loudness of his voice
   const talk = S.talker === "E";
   let open = 0;
   if (talk) { const l = loudness(); open = l == null ? (Math.sin(S.lineT * 22) > 0 ? 1 : 0.2) : clamp((l - 0.015) * 9, 0, 1); }
   S.jaw += (open - S.jaw) * 0.5;
-  const turn = talk ? Math.sin(S.t * 3) * 0.06 : Math.sin(S.t * 0.9) * 0.03;
-  // floppy dummy legs and big shoes
-  const sw = Math.sin(S.t * 2) * u * 0.05;
-  ctx.fillStyle = shade(x - u * 0.6, x + u * 0.6, "#1f2b55", "#34457e", "#1f2b55"); rr(x - u * 0.58, base - u * 0.3, u * 1.16, u * 0.45, u * 0.18); ctx.fill();
-  for (const [k, d] of [[-0.3, sw], [0.3, -sw]]) {
-    ctx.fillStyle = shade(x + k * u - u * 0.15, x + k * u + u * 0.15, "#1f2b55", "#34457e", "#1f2b55"); rr(x + k * u - u * 0.15, base, u * 0.3, u * 1.05 + d, u * 0.1); ctx.fill();
-    ctx.fillStyle = "#f3f0e8"; ctx.fillRect(x + k * u - u * 0.14, base + u * 0.95 + d, u * 0.28, u * 0.1);
-    ctx.fillStyle = "#151515"; ctx.beginPath(); ctx.ellipse(x + k * u + u * 0.04, base + u * 1.12 + d, u * 0.26, u * 0.12, 0, 0, 7); ctx.fill();
+  const drop = S.jaw * 26 * s; // in screen pixels (26 photo pixels at full open)
+  if (drop > 0.4) {
+    const path = () => { ctx.beginPath(); JAW.forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); };
+    // dark inside of the mouth where the jaw used to be
+    ctx.save(); path(); ctx.clip();
+    const [mx, my] = P(EDDIE_MOUTH[0], JAW_TOP), mg = ctx.createLinearGradient(0, my, 0, my + drop + 4);
+    mg.addColorStop(0, "#1a0406"); mg.addColorStop(1, "#4a0f14"); ctx.fillStyle = mg; ctx.fillRect(px, my - 2, pw, drop + 6);
+    ctx.restore();
+    // the jaw itself, moved down
+    ctx.save(); ctx.translate(0, drop); path(); ctx.clip(); ctx.drawImage(I.photo, px, py, pw, ph); ctx.restore();
+    // a thin shadow line along the top of the dropped jaw
+    ctx.strokeStyle = "rgba(20,5,5,.5)"; ctx.lineWidth = 1.2; ctx.beginPath();
+    JAW.slice(0, 3).forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y + drop) : ctx.moveTo(X, Y + drop); }); ctx.stroke();
   }
-  // checkered jacket with dark lapels
-  const ty = base - u * 1.95;
-  ctx.save(); ctx.beginPath(); ctx.moveTo(x - u * 0.3, ty); ctx.quadraticCurveTo(x - u * 0.78, ty, x - u * 0.76, ty + u * 0.45); ctx.lineTo(x - u * 0.7, base + u * 0.05);
-  ctx.lineTo(x + u * 0.7, base + u * 0.05); ctx.lineTo(x + u * 0.76, ty + u * 0.45); ctx.quadraticCurveTo(x + u * 0.78, ty, x + u * 0.3, ty); ctx.closePath(); ctx.clip();
-  ctx.fillStyle = "#d9cfb8"; ctx.fillRect(x - u, ty - u * 0.2, u * 2, u * 2.4);
-  ctx.fillStyle = "rgba(120,60,50,.55)"; const c = u * 0.13;
-  for (let yy = ty - u * 0.2, r = 0; yy < base + u * 0.1; yy += c, r++) for (let xx = x - u + (r % 2) * c; xx < x + u; xx += c * 2) ctx.fillRect(xx, yy, c, c);
-  const sh = ctx.createLinearGradient(x - u * 0.8, 0, x + u * 0.8, 0); sh.addColorStop(0, "rgba(0,0,0,.28)"); sh.addColorStop(0.5, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(0,0,0,.3)");
-  ctx.fillStyle = sh; ctx.fillRect(x - u, ty - u * 0.2, u * 2, u * 2.4);
-  ctx.restore();
-  ctx.fillStyle = "#f3f0e8"; ctx.beginPath(); ctx.moveTo(x - u * 0.28, ty); ctx.lineTo(x + u * 0.28, ty); ctx.lineTo(x, ty + u * 0.75); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#24242a";
-  for (const sg of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + sg * u * 0.3, ty); ctx.lineTo(x + sg * u * 0.6, ty + u * 0.35); ctx.lineTo(x + sg * u * 0.36, ty + u * 0.4); ctx.lineTo(x + sg * u * 0.04, ty + u * 0.8); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = "#151515"; for (const k of [0.95, 1.4]) { ctx.beginPath(); ctx.arc(x, ty + u * k, u * 0.06, 0, 7); ctx.fill(); }
-  // red polka-dot bow tie
-  ctx.fillStyle = "#b8202e";
-  ctx.beginPath(); ctx.moveTo(x, ty + u * 0.1); ctx.lineTo(x - u * 0.3, ty - u * 0.05); ctx.lineTo(x - u * 0.3, ty + u * 0.26); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x, ty + u * 0.1); ctx.lineTo(x + u * 0.3, ty - u * 0.05); ctx.lineTo(x + u * 0.3, ty + u * 0.26); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#f3f0e8"; for (const [dx, dy] of [[-0.2, 0.05], [-0.14, 0.17], [0.2, 0.05], [0.14, 0.17]]) { ctx.beginPath(); ctx.arc(x + dx * u, ty + dy * u, u * 0.025, 0, 7); ctx.fill(); }
-  ctx.fillStyle = "#8a1622"; ctx.beginPath(); ctx.arc(x, ty + u * 0.1, u * 0.065, 0, 7); ctx.fill();
-  // Eddie's little arms resting in his lap, Sonny's sleeve reaching behind him
-  limb(son.x - u * 1.05, son.ty + u * 0.5, x + u * 0.55, ty + u * 1.05, u * 0.42, "#4c5262");
-  limb(x - u * 0.66, ty + u * 0.35, x - u * 0.6, base - u * 0.4, u * 0.24, "#24242a");
-  limb(x - u * 0.6, base - u * 0.4, x - u * 0.2, base - u * 0.2, u * 0.22, "#24242a");
-  hand(x - u * 0.08, base - u * 0.18, u * 0.12, 0);
-  // head: top part, dark mouth gap, then the jaw that drops; dummy lines down from the corners
-  const hw = u * 1.65, s = hw / EW, hh = EH * s, hx = x - hw / 2, hy = ty - hh * 0.9;
-  const drop = S.jaw * u * 0.42;
-  ctx.save(); ctx.translate(x, ty); ctx.rotate(turn); ctx.translate(-x, -ty);
-  ctx.fillStyle = "#2a0a0e"; ctx.fillRect(hx + JAW_L * s, hy + MOUTH_Y * s - 2, (JAW_R - JAW_L) * s, drop + 4);
-  if (I.jaw.complete && I.jaw.naturalWidth) ctx.drawImage(I.jaw, hx, hy + drop, hw, hh);
-  if (I.top.complete && I.top.naturalWidth) ctx.drawImage(I.top, hx, hy, hw, hh);
-  ctx.strokeStyle = "rgba(60,25,15,.55)"; ctx.lineWidth = 1.2;
-  for (const jx of [JAW_L, JAW_R]) { ctx.beginPath(); ctx.moveTo(hx + jx * s, hy + MOUTH_Y * s + drop); ctx.lineTo(hx + jx * s, hy + (MOUTH_Y + 85) * s + drop); ctx.stroke(); }
-  ctx.restore();
-  return { x, hy };
-}
-
-// Stage lighting: spotlights on the faces, suits fading into shadow, dark edges, a little film grain
-let grain = null;
-function drawLight(son, ed) {
-  const u = L.u;
-  const sh = ctx.createLinearGradient(0, son.ty + u * 0.2, 0, L.bottom);
-  sh.addColorStop(0, "rgba(8,2,4,0)"); sh.addColorStop(0.55, "rgba(8,2,4,.72)"); sh.addColorStop(1, "rgba(8,2,4,.96)");
-  ctx.fillStyle = sh; ctx.fillRect(0, son.ty + u * 0.2, W, L.bottom - son.ty);
-  ctx.fillStyle = "rgb(8,2,4)"; ctx.fillRect(0, L.bottom, W, H - L.bottom);
-  const vg = ctx.createRadialGradient(L.cx, son.ty - u * 0.4, u * 1.6, L.cx, son.ty, Math.max(W, H) * 0.75);
-  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.78)");
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.globalCompositeOperation = "soft-light";
-  for (const [px, py, r] of [[son.x, son.ty - u * 1.3, u * 1.9], [ed.x, ed.hy + u * 0.8, u * 1.4]]) {
-    const g = ctx.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, "rgba(255,235,200,.55)"); g.addColorStop(1, "rgba(255,235,200,0)");
-    ctx.fillStyle = g; ctx.fillRect(px - r, py - r, r * 2, r * 2);
+  // a soft glow on whoever is talking
+  if (S.talker) {
+    const [gx, gy] = S.talker === "E" ? P(355, 460) : P(690, 330), r = (S.talker === "E" ? 190 : 230) * s;
+    ctx.save(); ctx.globalCompositeOperation = "soft-light";
+    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r); g.addColorStop(0, "rgba(255,240,210,.45)"); g.addColorStop(1, "rgba(255,240,210,0)");
+    ctx.fillStyle = g; ctx.fillRect(gx - r, gy - r, r * 2, r * 2); ctx.restore();
   }
-  ctx.restore();
-  if (!grain) { grain = document.createElement("canvas"); grain.width = grain.height = 160; const g = grain.getContext("2d"), d = g.createImageData(160, 160);
-    for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - 0.5) * 60; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 22; } g.putImageData(d, 0, 0); }
-  ctx.save(); ctx.globalCompositeOperation = "overlay"; ctx.fillStyle = ctx.createPattern(grain, "repeat"); ctx.translate((S.t * 397) % 160, (S.t * 211) % 160); ctx.fillRect(-160, -160, W + 320, H + 320); ctx.restore();
 }
 
 function drawBubble(px, py, text, left) {
@@ -288,7 +207,7 @@ function drawBubble(px, py, text, left) {
   for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 24 && cur) { lines.push(cur); cur = w; } else cur = t; }
   lines.push(cur);
   const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.28, bw = tw + 26, bh = lines.length * lh + 14;
-  const bx = clamp(left ? px - bw * 0.85 : px - bw * 0.6, 8, (L.side ? W * 0.66 : W) - bw - 8), by = Math.max(L.top + 52, py - bh - 18);
+  const bx = clamp(left ? px - bw * 0.45 : px - bw * 0.55, 8, L.sw - bw - 8), by = Math.max(L.top - 6 + L.vh + 8, L.py - bh - 10);
   if (py < by + bh + 8) py = by + bh + 14;
   ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5; rr(bx, by, bw, bh, 14); ctx.fill(); ctx.stroke();
   const tx = clamp(px, bx + 20, bx + bw - 20);
@@ -300,15 +219,15 @@ function drawBubble(px, py, text, left) {
 
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  drawStage(); const son = drawSonny(); const ed = drawEddie(son); drawLight(son, ed);
+  drawStage(); drawPhoto();
   if (S.talker && S.line) {
-    if (S.talker === "E") drawBubble(ed.x, ed.hy - L.u * 0.5, S.line, true);
-    else drawBubble(son.x - L.u * 0.2, son.ty - L.u * 2.45, S.line, false);
+    if (S.talker === "E") { const [x, y] = P(EDDIE_HAT[0], EDDIE_HAT[1]); drawBubble(x, y, S.line, true); }
+    else { const [x, y] = P(SONNY_HAT[0], SONNY_HAT[1]); drawBubble(x, y, S.line, false); }
   }
   if (S.laugh > 0) {
     ctx.globalAlpha = Math.min(1, S.laugh * 2); ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center";
     ctx.font = `${Math.round(clamp(L.u * 0.6, 20, 34))}px Rye, Georgia, serif`;
-    ctx.fillText("Ba-dum tss!", W / 2, L.top + L.u * 2); ctx.globalAlpha = 1;
+    ctx.fillText("Ba-dum tss!", L.px + L.pw / 2, L.py + L.ph * 0.93); ctx.globalAlpha = 1;
   }
 }
 let last = performance.now();
