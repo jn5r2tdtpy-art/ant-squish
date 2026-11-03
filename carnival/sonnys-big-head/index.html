@@ -683,7 +683,7 @@ $("pauseBtn").onclick = togglePause;
 ["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
 document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
 
-function showCoins() { const n = Coins.get(); document.getElementById("coinLine").textContent = "🪙 Midway coins: " + n + " · win rounds to earn more for Sonny the Sorta Psychic"; }
+function showCoins() { const n = Coins.get(); document.getElementById("coinLine").textContent = "🪙 " + Coins.who() + "’s coins: " + n + " · win rounds to earn more for Sonny the Sorta Psychic"; }
 showCoins();
 $("bestLine").textContent = G.best ? "Best score: " + G.best : "";
 
