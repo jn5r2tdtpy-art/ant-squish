@@ -348,6 +348,7 @@ function gameOver() {
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to race " + G.race + ".";
   $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
   $("overScreen").classList.add("show");
 }
 

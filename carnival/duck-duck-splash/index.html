@@ -282,7 +282,7 @@ function land(s) {
   splashAt(s.tx, s.ty, hit ? 14 : 7);
   if (!hit) { sfx.splash(); return; }
   if (hit.kind === "target") {
-    hit.tg.spin = 1.4; addPoints(TARGET_PTS, hit.p.x, hit.p.y, "#ffd75e", "BULLSEYE!"); sfx.ding();
+    hit.tg.spin = 1.4; addPoints(TARGET_PTS, hit.p.x, hit.p.y, "#ffd75e", "BULLSEYE! 🪙 +1"); sfx.ding(); Coins.add(Coins.BONUS); Coins.chime(); showCoins();
   } else {
     hit.h.state = "falling"; hit.h.t = 0;
     addPoints(TYPES[hit.h.type].pts, hit.b.x + hit.b.w / 2, hit.b.y + hit.b.h * 0.3, "#ffffff", ""); sfx.hit();
@@ -316,6 +316,7 @@ function gameOver() {
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to round " + G.round + ".";
   $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
   setTimeout(() => $("overScreen").classList.add("show"), 700);
 }
 

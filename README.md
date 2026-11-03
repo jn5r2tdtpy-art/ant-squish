@@ -48,7 +48,7 @@ It works offline once it has been opened. High scores are saved on each device.
 
 `carnival/index.html` is the Midway menu, a separate installable app ("Midway" on the home screen, with its own `manifest.webmanifest`, icons and offline `sw.js`; bump `VERSION` in `carnival/sw.js` when you change any of its files). Each game lives in its own folder under `carnival/`.
 
-**Midway coins** (`carnival/coins.js`): one coin purse shared by every game on the device. The games are free to play; win a round (or a race) in Down the Clown, Gabby Abby, Blow Up Sonny’s Big Ego Head or Duck Duck Splash to earn coins: 1 coin for rounds 1–5, 2 coins for rounds 6–10, 3 for 11–15 and so on. Sonny the Sorta Psychic costs 1 coin per fortune. Everyone starts with 1 free coin. The Midway menu shows how many coins you have.
+**Midway coins** (`carnival/coins.js`): one coin purse shared by every game on the device, made generous so there are always coins for Sonny. The games are free to play. Winning a round (or a race) in Down the Clown, Gabby Abby, Blow Up Sonny’s Big Ego Head or Duck Duck Splash pays 3 coins, then 4 from round 4, 5 from round 7, and so on. A gold clown, a gold tooth or a bullseye pays 1 more coin on the spot, and every game over pays 1 coin just for playing. Sonny the Sorta Psychic costs 1 coin per fortune. Everyone starts with 5 free coins. Amounts are set at the top of `coins.js`.
 
 **Down the Clown** (`carnival/down-the-clown/`): fire an air cannon to knock the clowns off the shelves before the clock runs out.
 

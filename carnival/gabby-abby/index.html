@@ -373,7 +373,7 @@ function hitTooth(th, b) {
   G.parts.push({ kind: "tooth", x: b.tx, y: b.ty, vx: rand(-120, 120), vy: rand(-260, -160), r: L.toothW * 0.5, rot: 0, life: 1.1, t: 0, gold: mult > 1 });
   const cols = ["#ffd75e", "#ff5a7a", "#5ad1ff", "#8dff7a", "#fff4dc"];
   for (let i = 0; i < 12; i++) G.parts.push({ kind: "confetti", x: b.tx, y: b.ty, vx: rand(-160, 160), vy: rand(-230, -40), r: rand(3, 6), color: cols[i % cols.length], rot: rand(0, 6), life: rand(0.6, 1.0), t: 0 });
-  sfx.clack(); if (mult > 1) sfx.bonus();
+  sfx.clack(); if (mult > 1) { sfx.bonus(); Coins.add(Coins.BONUS); Coins.chime(); showCoins(); G.pops.push({ x: p.x, y: p.y + 40, text: "🪙 +1", sub: "", color: "#ffd75e", t: 0 }); }
   say("hit");
   if (G.teeth.every(t => t.state === "falling" || t.state === "down")) roundCleared();
 }
@@ -404,6 +404,7 @@ function gameOver() {
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to round " + G.round + ".";
   $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
   setTimeout(() => $("overScreen").classList.add("show"), 900);
 }
 

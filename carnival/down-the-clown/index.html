@@ -371,7 +371,7 @@ function land(b) {
     G.pops.push({ x: hit.x, y: hit.base - hit.h * 0.7, text: "+" + pts, sub: mult > 1 ? "DOUBLE!" : "", color: mult > 1 ? "#ffd75e" : "#fff4dc", t: 0 });
     const cols = ["#ffd75e", "#ff5a7a", "#5ad1ff", "#8dff7a", "#fff4dc"];
     for (let i = 0; i < 16; i++) G.parts.push({ kind: "confetti", x: b.tx, y: b.ty, vx: rand(-170, 170), vy: rand(-240, -40), r: rand(3, 6), color: cols[i % cols.length], rot: rand(0, 6), life: rand(0.6, 1.0), t: 0 });
-    sfx.hit(); if (mult > 1) sfx.bonus();
+    sfx.hit(); if (mult > 1) { sfx.bonus(); Coins.add(Coins.BONUS); Coins.chime(); showCoins(); G.pops.push({ x: hit.x, y: hit.base - hit.h * 0.25, text: "🪙 +1", sub: "", color: "#ffd75e", t: 0 }); }
     hit.bonus = 0;
     if (!G.clowns.some(c => !TYPES[c.type].bad && c.state !== "falling" && c.state !== "down")) roundCleared();
   }
@@ -402,6 +402,7 @@ function gameOver() {
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to round " + G.round + (G.rows > 1 ? " with " + G.rows + " rows of clowns." : ".");
   $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
   setTimeout(() => $("overScreen").classList.add("show"), 900);
 }
 
