@@ -1,32 +1,23 @@
-// Midway coins: one purse per player, shared by every game on this device.
+// Midway coins: your one purse, shared by every game on this phone.
 // Win a round or race in any game to earn coins; Sonny the Sorta Psychic charges 1 coin per fortune.
 (function () {
-  // Each person who plays on this phone can have their own purse. Coins live on this phone only.
-  const KEY = "midway-players", STARTER = 5; // every new player starts with 5 free coins
-  function load() {
-    let d = null;
-    try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
-    if (!d || !Array.isArray(d.players) || !d.players.length) {
-      // first time: turn the old single purse into the first player
-      let old = STARTER; try { const v = parseInt(localStorage.getItem("midway-coins"), 10); if (v >= 0) old = Math.max(v, STARTER); } catch (e) {}
-      d = { players: [{ name: "Player 1", coins: old }], current: 0 };
-      if (window.__midwayPlayers) d = window.__midwayPlayers;
-      save(d);
+  const KEY = "midway-coins", STARTER = 5; // everyone starts with 5 free coins
+  // If players were set up on this phone for a while, add all of their coins together into this one purse
+  try {
+    const d = JSON.parse(localStorage.getItem("midway-players") || "null");
+    if (d && Array.isArray(d.players)) {
+      const total = d.players.reduce((n, p) => n + Math.max(0, p.coins | 0), 0);
+      localStorage.setItem(KEY, String(Math.max(total, STARTER)));
+      localStorage.removeItem("midway-players");
     }
-    if (!(d.current >= 0 && d.current < d.players.length)) d.current = 0;
-    return d;
+  } catch (e) {}
+  function read() {
+    try { const v = localStorage.getItem(KEY); if (v === null) { localStorage.setItem(KEY, String(STARTER)); return STARTER; } return Math.max(0, parseInt(v, 10) || 0); }
+    catch (e) { return window.__midwayCoins != null ? window.__midwayCoins : STARTER; }
   }
-  function save(d) { window.__midwayPlayers = d; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
-  function read() { const d = load(); return Math.max(0, d.players[d.current].coins | 0); }
-  function write(n) { const d = load(); d.players[d.current].coins = Math.max(0, n); save(d); }
+  function write(n) { window.__midwayCoins = n; try { localStorage.setItem(KEY, String(n)); } catch (e) {} }
   window.Coins = {
     get: read,
-    who() { const d = load(); return d.players[d.current].name; },
-    players() { const d = load(); return d.players.map((p, i) => ({ name: p.name, coins: p.coins, current: i === d.current })); },
-    choose(i) { const d = load(); if (i >= 0 && i < d.players.length) { d.current = i; save(d); } },
-    addPlayer(name) { const d = load(); d.players.push({ name: String(name).trim().slice(0, 20) || "Player " + (d.players.length + 1), coins: STARTER }); d.current = d.players.length - 1; save(d); },
-    rename(i, name) { const d = load(); if (d.players[i] && String(name).trim()) { d.players[i].name = String(name).trim().slice(0, 20); save(d); } },
-    remove(i) { const d = load(); if (d.players.length > 1 && d.players[i]) { d.players.splice(i, 1); d.current = Math.min(d.current, d.players.length - 1); save(d); } },
     add(n) { const v = read() + n; write(v); return v; },
     spend(n) { const v = read(); if (v < n) return false; write(v - n); return true; },
     // coins for winning round (or race) number r: 3 coins for rounds 1-3, 4 for 4-6, 5 for 7-9, and so on

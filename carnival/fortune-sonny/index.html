@@ -163,7 +163,7 @@ const sfx = {
 // ---------- State ----------
 const S = { mode: "idle", t: 0, glow: 0, sign: null, signT: 0, topic: "", fortune: "", coinT: 9 };
 
-function showCoins() { const n = Coins.get(); $("coins").textContent = "🪙 " + Coins.who() + ": " + n; }
+function showCoins() { const n = Coins.get(); $("coins").textContent = "🪙 Your coins: " + n; }
 function noCoins() {
   const p = $("prompt"); p.classList.remove("says");
   p.innerHTML = "<span>Out of coins! Sonny doesn’t work for free.<br>Win rounds in the other Midway games to earn more. <a href=\"../\" style=\"color:#ffd75e\">Go win coins ›</a></span>";

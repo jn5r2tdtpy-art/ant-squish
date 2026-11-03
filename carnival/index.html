@@ -40,17 +40,6 @@
   .game h2 { font-family: "Rye", Georgia, serif; font-weight: 400; font-size: 24px; margin: 0 0 4px; color: #ffd75e; }
   .game p { margin: 0; font-size: 14px; line-height: 1.4; color: #e6dcc6; }
   .game .best { margin-top: 6px; font-weight: 700; color: #7aff8a; font-size: 13px; }
-  .players { margin-top: 14px; background: rgba(255,244,220,.07); border-radius: 16px; padding: 10px 12px; }
-  .playersHead { font-weight: 800; color: #ffd75e; font-size: 15px; }
-  .playersHead span { display: block; font-weight: 500; color: #cdb896; font-size: 12px; margin-top: 2px; }
-  #playerList { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0 8px; }
-  .pl { border: 2px solid rgba(255,244,220,.25); background: rgba(0,0,0,.2); color: #fff4dc; border-radius: 999px; padding: 8px 14px;
-    font: 700 15px system-ui, sans-serif; cursor: pointer; }
-  .pl b { color: #ffd75e; margin-left: 6px; }
-  .pl.on { border-color: #ffd75e; background: rgba(255,215,94,.18); }
-  .pl.on::before { content: "▶ "; color: #ffd75e; }
-  .playerBtns { display: flex; gap: 8px; justify-content: center; }
-  .playerBtns button { background: none; border: 0; color: #cdb896; font: 600 13px system-ui, sans-serif; text-decoration: underline; cursor: pointer; padding: 4px 6px; }
   .purse { display: inline-block; margin-top: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(255,215,94,.14); color: #ffd75e; font-weight: 800; }
   .game .cost { margin-top: 6px; font-weight: 700; color: #ffd75e; font-size: 13px; }
   .soon { margin-top: 18px; text-align: center; color: #cdb896; font-size: 14px; border: 2px dashed rgba(255,244,220,.25);
@@ -63,11 +52,7 @@
     <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>Carnival<br>Midway</h1>
     <p>Step right up and try your luck!</p>
-    <div class="players">
-      <div class="playersHead">🪙 Coins on this phone <span>tap a name to play as them</span></div>
-      <div id="playerList"></div>
-      <div class="playerBtns"><button id="addPlayer">+ Add player</button><button id="editPlayer">Rename</button><button id="delPlayer">Remove</button></div>
-    </div>
+    <p class="purse" id="purse"></p>
   </header>
 
   <a class="game" href="down-the-clown/">
@@ -129,22 +114,9 @@
 </main>
 <script src="coins.js"></script>
 <script>
-  function showPlayers() {
-    const box = document.getElementById("playerList"); box.innerHTML = "";
-    Coins.players().forEach((p, i) => {
-      const b = document.createElement("button"); b.className = "pl" + (p.current ? " on" : "");
-      b.innerHTML = ""; b.appendChild(document.createTextNode(p.name));
-      const c = document.createElement("b"); c.textContent = "🪙 " + p.coins; b.appendChild(c);
-      b.onclick = () => { Coins.choose(i); showPlayers(); };
-      box.appendChild(b);
-    });
-    document.getElementById("delPlayer").style.display = Coins.players().length > 1 ? "" : "none";
-  }
-  document.getElementById("addPlayer").onclick = () => { const n = prompt("Name of the new player?"); if (n && n.trim()) { Coins.addPlayer(n); showPlayers(); } };
-  document.getElementById("editPlayer").onclick = () => { const ps = Coins.players(), i = ps.findIndex(p => p.current); const n = prompt("New name for " + ps[i].name + "?", ps[i].name); if (n && n.trim()) { Coins.rename(i, n); showPlayers(); } };
-  document.getElementById("delPlayer").onclick = () => { const ps = Coins.players(), i = ps.findIndex(p => p.current); if (confirm("Remove " + ps[i].name + " and their " + Coins.label(ps[i].coins) + "?")) { Coins.remove(i); showPlayers(); } };
-  showPlayers();
-  addEventListener("pageshow", showPlayers);
+  function showPurse() { document.getElementById("purse").textContent = "🪙 You have " + Coins.label(Coins.get()) + " · win rounds in any game to earn more"; }
+  showPurse();
+  addEventListener("pageshow", showPurse);
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}
   for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
