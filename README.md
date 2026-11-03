@@ -43,3 +43,15 @@ It works offline once it has been opened. High scores are saved on each device.
 - **Flip’s click:** the click drops out for 1, 2 or 4 bars. Keep time and the game reports your offset and tempo drift in BPM.
 - Every hit shows how many ms early or late it was, and each result screen shows your average offset (rushing or laying back) and spread.
 - **Controls:** tap the pads, or keys D (hi-hat), F (snare), Space (kick), J (tom), K (cymbal). Settings has a latency calibration for Bluetooth speakers and slow screens.
+
+## Carnival Midway (carnival games)
+
+`carnival/index.html` is the Midway menu, a separate installable app ("Midway" on the home screen, with its own `manifest.webmanifest`, icons and offline `sw.js`; bump `VERSION` in `carnival/sw.js` when you change any of its files). Each game lives in its own folder under `carnival/`.
+
+**Down the Clown** (`carnival/down-the-clown/`): fire an air cannon to knock the clowns off the shelves before the clock runs out.
+
+- **Points:** glasses clown 10, top-hat clown 20, bald clown 30. The Red Head is −10 and pops back up. A clown glowing gold is worth double.
+- **Rounds:** each round adds one more Red Head. When half the clowns are Red Heads, a new row is added and it starts again with one Red Head (4 clowns a row, up to 4 rows; after that the clock gets shorter each round).
+- **Aim:** drag anywhere to move the sights, lift to fire (mouse: aim and click; keyboard: arrows and Space). The sights sway a little more each round.
+- Clear a round to get 5 points for every second left. Run out of time and you lose one of 3 cannon balls and replay the round.
+- The clown pictures are in `carnival/down-the-clown/img/`. To change who is on the shelf, replace those files (transparent background, about 260 px wide) and their point values in `TYPES` near the top of the game code.

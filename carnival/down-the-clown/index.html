@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Down the Clown</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: 0; width: 0; pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c);
+    border: 0; border-radius: 999px; padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4);
+    cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(20,4,10,.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e;
+    text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); letter-spacing: .5px; }
+  h1 { font-size: clamp(34px, 10vw, 50px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .cast { display: flex; gap: 6px; justify-content: center; align-items: flex-end; width: 100%; }
+  .cast figure { margin: 0; flex: 1; max-width: 92px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .cast img { width: 100%; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .cast figcaption { font: 800 15px/1 system-ui, sans-serif; color: #ffd75e; }
+  .cast figure.bad figcaption { color: #ff6b6b; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .bad-t { color: #ff8080; font-weight: 700; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  #pauseBtn, #backBtn { position: fixed; top: calc(8px + var(--sat)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0;
+    cursor: pointer; display: none; }
+  #pauseBtn { left: 10px; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <h1>Down the<br>Clown</h1>
+    <div class="cast">
+      <figure><img src="img/glasses.webp" alt="Clown with glasses"><figcaption>10</figcaption></figure>
+      <figure><img src="img/tophat.webp" alt="Clown with a top hat"><figcaption>20</figcaption></figure>
+      <figure><img src="img/bald.webp" alt="Bald clown"><figcaption>30</figcaption></figure>
+      <figure class="bad"><img src="img/redhead.webp" alt="Red head clown"><figcaption>−10</figcaption></figure>
+    </div>
+    <div class="rules">
+      <p>Fire the air cannon to knock down <b>every clown</b> before the clock runs out.</p>
+      <p><span class="bad-t">Don’t hit the Red Head!</span> She costs you 10 points and pops right back up.</p>
+      <p>Each round adds another Red Head. Once half the shelf is Red Heads, a new row of clowns is added and it starts again with one.</p>
+      <p>A clown glowing gold is worth <b>double</b>.</p>
+      <p id="howTo" class="muted"></p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseScreen">
+  <div class="card">
+    <h2>Paused</h2>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <button class="btn ghost" id="restartBtn">Start over</button>
+    <button class="btn ghost" id="midwayBtn2">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="overScreen">
+  <div class="card">
+    <h2>Game Over</h2>
+    <div class="big" id="finalScore">0</div>
+    <p id="finalLine"></p>
+    <p class="muted" id="finalBest"></p>
+    <button class="btn" id="againBtn">Play again</button>
+    <button class="btn ghost" id="midwayBtn3">Back to the Midway</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- Settings ----------
+const PER_ROW = 4;          // clowns on each shelf
+const MAX_ROWS = 4;         // after this the rows stop growing and the clock gets shorter
+const LIVES = 3;
+const RELOAD = 0.36;        // seconds between shots
+const FLIGHT = 0.42;        // seconds a ball takes to reach the shelf
+const TIME_BONUS = 5;       // points per second left when a round is cleared
+
+const TYPES = {
+  glasses: { pts: 10, src: "img/glasses.webp", aspect: 458 / 260 },
+  tophat:  { pts: 20, src: "img/tophat.webp",  aspect: 500 / 260 },
+  bald:    { pts: 30, src: "img/bald.webp",    aspect: 471 / 260 },
+  redhead: { pts: -10, src: "img/redhead.webp", aspect: 433 / 260, bad: true },
+};
+const GOOD_TYPES = [["glasses", 0.45], ["tophat", 0.35], ["bald", 0.2]];
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const isTouch = matchMedia("(pointer: coarse)").matches;
+$("howTo").textContent = isTouch
+  ? "Drag anywhere on the screen to move the sights, lift your finger to fire."
+  : "Aim with the mouse and click to fire (or arrow keys and Space).";
+
+// Sprites and hit masks (so a shot has to land on the clown, not the empty corners)
+for (const k in TYPES) {
+  const t = TYPES[k];
+  t.img = new Image();
+  t.img.onload = () => {
+    try {
+      const mw = 52, mh = Math.round(mw * t.img.naturalHeight / t.img.naturalWidth);
+      const c = document.createElement("canvas"); c.width = mw; c.height = mh;
+      const x = c.getContext("2d"); x.drawImage(t.img, 0, 0, mw, mh);
+      const d = x.getImageData(0, 0, mw, mh).data, a = new Uint8Array(mw * mh);
+      for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+      t.mask = { w: mw, h: mh, a };
+    } catch (e) { /* opened from a file: fall back to the sprite box */ }
+  };
+  t.img.src = t.src;
+}
+
+// ---------- Sound (synthesized) ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    } catch (e) { ac = null; }
+  }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function env(g, t, a, peak, dur) {
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+}
+function noise(dur, type, freq, peak, q = 1, delay = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  env(g, t, 0.005, peak, dur);
+  s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + dur + 0.05);
+}
+function tone(freq, dur, type = "sine", peak = 0.2, delay = 0, slideTo = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  env(g, t, 0.008, peak, dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = {
+  fire()   { noise(0.22, "bandpass", 900, 0.5, 0.7); noise(0.08, "lowpass", 300, 0.5); },
+  hit()    { tone(180, 0.18, "triangle", 0.45, 0, 60); noise(0.12, "lowpass", 1800, 0.4); tone(660, 0.12, "square", 0.05, 0.05); tone(990, 0.16, "square", 0.05, 0.11); },
+  bonus()  { [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.14, "square", 0.06, i * 0.06)); },
+  bad()    { tone(120, 0.45, "sawtooth", 0.18); tone(127, 0.45, "square", 0.1); noise(0.1, "lowpass", 1500, 0.35); },
+  miss()   { noise(0.09, "bandpass", 400, 0.35, 2); },
+  tick()   { tone(1400, 0.04, "square", 0.05); },
+  clear()  { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  timeup() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+  pop()    { tone(300, 0.12, "sine", 0.15, 0, 700); },
+};
+
+// ---------- Game state ----------
+const G = {
+  state: "title", // title | intro | play | clear | timeout | over | paused
+  round: 1, score: 0, lives: LIVES, best: +store.get("ck-best") || 0,
+  clowns: [], rows: 1, red: 1, over: 0,
+  timeLeft: 0, timeMax: 0, stateT: 0, lastTick: 0,
+  balls: [], parts: [], pops: [],
+  aim: { x: 0, y: 0 }, reload: 0, recoil: 0, shake: 0, redFlash: 0,
+  bonusT: 0, t: 0, banner: null, pausedFrom: null,
+};
+
+function roundSpec(n) {
+  let k = n, rows = 1;
+  while (rows < MAX_ROWS && k > rows * PER_ROW / 2) { k -= rows * PER_ROW / 2; rows++; }
+  const maxRed = rows * PER_ROW / 2;
+  return { rows, red: Math.min(k, maxRed), over: Math.max(0, k - maxRed) };
+}
+
+function pickGood() {
+  let r = Math.random();
+  for (const [k, w] of GOOD_TYPES) { if ((r -= w) <= 0) return k; }
+  return "glasses";
+}
+
+function startRound() {
+  const s = roundSpec(G.round);
+  G.rows = s.rows; G.red = s.red; G.over = s.over;
+  const cells = [];
+  for (let r = 0; r < s.rows; r++) for (let c = 0; c < PER_ROW; c++) cells.push({ r, c });
+  const reds = new Set();
+  while (reds.size < s.red) reds.add(Math.floor(Math.random() * cells.length));
+  G.clowns = cells.map((cell, i) => ({
+    type: reds.has(i) ? "redhead" : pickGood(), row: cell.r, col: cell.c,
+    state: "rising", t: rand(0, 0.25) - 0.25, wob: 0, bonus: 0,
+  }));
+  const good = cells.length - s.red;
+  G.timeMax = (6 + good * 2.5) * (s.over ? Math.max(0.55, 1 - 0.06 * s.over) : 1);
+  G.timeLeft = G.timeMax;
+  G.balls = []; G.bonusT = 4;
+  placeClowns();
+  if (!G.aimSet) { G.aim.x = W / 2; G.aim.y = L.iy + L.ih * 0.55; G.aimSet = true; }
+  const redTxt = s.red === 1 ? "1 Red Head" : s.red + " Red Heads";
+  const rowTxt = s.rows === 1 ? "1 row" : s.rows + " rows";
+  G.banner = { big: "Round " + G.round, small: rowTxt + " · " + redTxt + (s.over ? " · faster clock" : "") };
+  setState("intro");
+  sfx.pop();
+}
+
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+
+function newGame() {
+  G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = [];
+  hideOverlays(); startRound();
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1;
+const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect();
+  L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 76 + L.safeT;
+  L.cannonH = clamp(H * 0.2, 120, 190) + L.safeB;
+  L.bw = Math.min(W - 12, 620); L.bx = (W - L.bw) / 2;
+  L.by = L.hudH + 6; L.bh = H - L.by - L.cannonH;
+  L.frame = clamp(L.bw * 0.045, 12, 26);
+  L.signH = clamp(L.bh * 0.08, 28, 44);
+  L.ix = L.bx + L.frame; L.iw = L.bw - L.frame * 2;
+  L.iy = L.by + L.signH + 6; L.ih = L.bh - L.signH - 6 - 22;
+  L.cx = W / 2; L.cy = H - L.safeB - clamp(L.cannonH * 0.32, 40, 62);
+  placeClowns();
+}
+
+function placeClowns() {
+  if (!W) return;
+  const rows = G.rows || 1;
+  const shelfT = clamp(L.ih * 0.025, 7, 13), gap = 8;
+  const sc = k => Math.pow(0.9, rows - 1 - k); // k = 0 is the back (top) row
+  let sumS = 0; for (let k = 0; k < rows; k++) sumS += sc(k);
+  const ASPECT = 1.93;
+  const fromH = (L.ih - rows * (shelfT + gap)) / sumS / ASPECT;
+  const fromW = L.iw / PER_ROW * 0.82;
+  const cw = Math.min(fromH, fromW, 140);
+  let used = 0; for (let k = 0; k < rows; k++) used += cw * sc(k) * ASPECT + shelfT + gap;
+  let base = L.iy + L.ih - (L.ih - used) * 0.45;
+  L.rowInfo = [];
+  for (let k = rows - 1; k >= 0; k--) {
+    const s = sc(k), slot = L.iw / PER_ROW * (0.72 + 0.28 * s) ;
+    L.rowInfo[k] = { base, s, slot, left: W / 2 - slot * PER_ROW / 2 };
+    base -= cw * s * ASPECT + shelfT + gap;
+  }
+  L.shelfT = shelfT; L.cw = cw;
+  for (const c of G.clowns) {
+    const r = L.rowInfo[c.row]; if (!r) continue;
+    c.x = r.left + r.slot * (c.col + 0.5); c.base = r.base;
+    c.w = cw * r.s; c.h = c.w * TYPES[c.type].aspect;
+  }
+}
+
+// ---------- Shooting ----------
+function sway() {
+  const A = Math.min(18, 2 + (G.round - 1) * 0.9) * (L.cw / 80);
+  const t = G.t;
+  return { x: A * (Math.sin(t * 2.1) + 0.5 * Math.sin(t * 5.3 + 1)), y: A * 0.7 * (Math.sin(t * 1.7 + 2) + 0.45 * Math.sin(t * 4.4)) };
+}
+function sights() { const s = sway(); return { x: G.aim.x + s.x, y: G.aim.y + s.y }; }
+
+function muzzle() {
+  const s = sights(), a = Math.atan2(s.y - L.cy, s.x - L.cx), len = barrelLen();
+  return { x: L.cx + Math.cos(a) * len, y: L.cy + Math.sin(a) * len, a };
+}
+const barrelLen = () => clamp(L.cannonH * 0.48, 56, 84);
+
+function fire() {
+  if (G.state !== "play" || G.reload > 0) return;
+  const s = sights(), m = muzzle();
+  G.balls.push({ sx: m.x, sy: m.y, tx: s.x, ty: s.y, t: 0 });
+  G.reload = RELOAD; G.recoil = 1;
+  for (let i = 0; i < 8; i++) G.parts.push({ kind: "puff", x: m.x, y: m.y, vx: Math.cos(m.a) * rand(30, 90) + rand(-30, 30), vy: Math.sin(m.a) * rand(30, 90) + rand(-30, 30), r: rand(6, 12), life: rand(0.35, 0.6), t: 0 });
+  sfx.fire();
+}
+
+function hitTest(c, x, y) {
+  if (c.state !== "up" && !(c.state === "rising" && c.t > 0.5 * RISE)) return false;
+  const left = c.x - c.w / 2, top = c.base - c.h;
+  if (x < left || x > left + c.w || y < top || y > c.base) return false;
+  const m = TYPES[c.type].mask;
+  if (!m) return Math.abs(x - c.x) < c.w * 0.38;
+  const u = Math.floor((x - left) / c.w * m.w), v = Math.floor((y - top) / c.h * m.h);
+  return !!m.a[clamp(v, 0, m.h - 1) * m.w + clamp(u, 0, m.w - 1)];
+}
+
+function land(b) {
+  if (G.state !== "play") return;
+  const hit = G.clowns.slice().sort((p, q) => q.row - p.row).find(c => hitTest(c, b.tx, b.ty));
+  if (!hit) {
+    sfx.miss();
+    G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-40, 40), vy: -60, r: ballR(1), life: 0.8, t: 0 });
+    for (let i = 0; i < 5; i++) G.parts.push({ kind: "dust", x: b.tx, y: b.ty, vx: rand(-60, 60), vy: rand(-60, 20), r: rand(2, 4), life: 0.4, t: 0 });
+    return;
+  }
+  hit.state = "falling"; hit.t = 0;
+  for (const c of G.clowns) if (c !== hit && c.row === hit.row && Math.abs(c.col - hit.col) === 1) c.wob = 0.35;
+  const T = TYPES[hit.type];
+  if (T.bad) {
+    G.score = Math.max(0, G.score + T.pts);
+    G.shake = 0.35; G.redFlash = 1;
+    G.pops.push({ x: hit.x, y: hit.base - hit.h * 0.7, text: "−10", sub: "Not the Red Head!", color: "#ff5a5a", t: 0 });
+    for (let i = 0; i < 14; i++) G.parts.push({ kind: "spark", x: b.tx, y: b.ty, vx: rand(-160, 160), vy: rand(-200, 40), r: rand(2, 4), color: "#ff4040", life: rand(0.4, 0.7), t: 0 });
+    sfx.bad();
+  } else {
+    const mult = hit.bonus > 0 ? 2 : 1, pts = T.pts * mult;
+    G.score += pts;
+    G.pops.push({ x: hit.x, y: hit.base - hit.h * 0.7, text: "+" + pts, sub: mult > 1 ? "DOUBLE!" : "", color: mult > 1 ? "#ffd75e" : "#fff4dc", t: 0 });
+    const cols = ["#ffd75e", "#ff5a7a", "#5ad1ff", "#8dff7a", "#fff4dc"];
+    for (let i = 0; i < 16; i++) G.parts.push({ kind: "confetti", x: b.tx, y: b.ty, vx: rand(-170, 170), vy: rand(-240, -40), r: rand(3, 6), color: cols[i % cols.length], rot: rand(0, 6), life: rand(0.6, 1.0), t: 0 });
+    sfx.hit(); if (mult > 1) sfx.bonus();
+    hit.bonus = 0;
+    if (!G.clowns.some(c => !TYPES[c.type].bad && c.state !== "falling" && c.state !== "down")) roundCleared();
+  }
+}
+
+function roundCleared() {
+  const secs = Math.ceil(G.timeLeft), bonus = secs * TIME_BONUS;
+  G.score += bonus;
+  const next = roundSpec(G.round + 1);
+  const note = next.rows > G.rows ? "A new row is coming!" : "Next round: one more Red Head";
+  G.banner = { big: "Round clear!", small: "Time bonus +" + bonus, note: next.over && !G.over ? "The shelf is full — the clock gets faster now" : note };
+  setState("clear"); sfx.clear();
+}
+
+function timeUp() {
+  G.lives--;
+  G.balls = [];
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Time’s up!", small: G.lives === 1 ? "1 cannon ball left" : G.lives + " cannon balls left", note: "Try that round again" };
+  setState("timeout"); sfx.timeup();
+}
+
+function gameOver() {
+  setState("over"); sfx.timeup();
+  const newBest = G.score > G.best;
+  if (newBest) { G.best = G.score; store.set("ck-best", String(G.best)); }
+  $("finalScore").textContent = G.score;
+  $("finalLine").textContent = "You made it to round " + G.round + (G.rows > 1 ? " with " + G.rows + " rows of clowns." : ".");
+  $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const FALL = 0.3, RISE = 0.35, RED_BACK = 1.4;
+function update(dt) {
+  G.t += dt;
+  if (G.state === "paused" || G.state === "title") return;
+  G.stateT += dt;
+  G.reload = Math.max(0, G.reload - dt);
+  G.recoil = Math.max(0, G.recoil - dt * 5);
+  G.shake = Math.max(0, G.shake - dt);
+  G.redFlash = Math.max(0, G.redFlash - dt * 2.5);
+
+  if (G.state === "intro" && G.stateT > 1.7) setState("play");
+  if (G.state === "clear" && G.stateT > 2.4) { G.round++; startRound(); }
+  if (G.state === "timeout" && G.stateT > 2.4) startRound();
+
+  if (G.state === "play") {
+    G.timeLeft -= dt;
+    if (G.timeLeft <= 5 && Math.ceil(G.timeLeft) !== G.lastTick) { G.lastTick = Math.ceil(G.timeLeft); if (G.timeLeft > 0) sfx.tick(); }
+    if (G.timeLeft <= 0) { G.timeLeft = 0; timeUp(); }
+    // gold double-points clown
+    G.bonusT -= dt;
+    if (G.bonusT <= 0) {
+      G.bonusT = rand(6, 9);
+      const pool = G.clowns.filter(c => !TYPES[c.type].bad && c.state === "up");
+      if (pool.length > 1) pool[Math.floor(Math.random() * pool.length)].bonus = 3.2;
+    }
+    if (keys.size) {
+      const sp = L.cw * 4 * dt;
+      if (keys.has("ArrowLeft")) G.aim.x -= sp;
+      if (keys.has("ArrowRight")) G.aim.x += sp;
+      if (keys.has("ArrowUp")) G.aim.y -= sp;
+      if (keys.has("ArrowDown")) G.aim.y += sp;
+      clampAim();
+    }
+  }
+
+  for (const c of G.clowns) {
+    c.t += dt; c.wob = Math.max(0, c.wob - dt);
+    c.bonus = Math.max(0, c.bonus - dt);
+    if (c.state === "falling" && c.t >= FALL) { c.state = "down"; c.t = 0; }
+    else if (c.state === "down" && TYPES[c.type].bad && G.state === "play" && c.t >= RED_BACK) { c.state = "rising"; c.t = 0; }
+    else if (c.state === "rising" && c.t >= RISE) { c.state = "up"; c.t = 0; }
+  }
+
+  for (const b of G.balls) b.t += dt / FLIGHT;
+  const landed = G.balls.filter(b => b.t >= 1);
+  G.balls = G.balls.filter(b => b.t < 1);
+  landed.forEach(land);
+
+  for (const p of G.parts) {
+    p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.kind === "puff") { p.vx *= 0.9; p.vy *= 0.9; p.r += dt * 30; }
+    else p.vy += 600 * dt;
+    if (p.rot !== undefined) p.rot += dt * 8;
+  }
+  G.parts = G.parts.filter(p => p.t < p.life);
+  for (const p of G.pops) p.t += dt;
+  G.pops = G.pops.filter(p => p.t < 1.1);
+}
+
+// ---------- Drawing ----------
+const ballR = t => clamp(L.cw * 0.2, 10, 18) * (1 - 0.55 * t);
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function drawTent() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#3a0a18"); g.addColorStop(1, "#16040a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.18; ctx.fillStyle = "#f2e2c4";
+  const sw = 38;
+  for (let x = -sw; x < W + sw; x += sw * 2) ctx.fillRect(x, 0, sw, H);
+  ctx.globalAlpha = 1;
+}
+
+function drawBooth() {
+  const { bx, by, bw, bh, frame, signH, ix, iw } = L;
+  // back wall
+  const g = ctx.createLinearGradient(0, by, 0, by + bh);
+  g.addColorStop(0, "#0b1430"); g.addColorStop(1, "#13224d");
+  ctx.fillStyle = g; ctx.fillRect(ix, by + signH, iw, bh - signH);
+  // side nets
+  ctx.save(); ctx.beginPath(); ctx.rect(ix, by + signH, iw, bh - signH); ctx.clip();
+  ctx.strokeStyle = "rgba(255,230,120,.12)"; ctx.lineWidth = 1;
+  const netW = Math.max(18, (iw - (L.rowInfo ? L.rowInfo[0].slot * PER_ROW : iw)) / 2 + 10);
+  for (const side of [0, 1]) {
+    const x0 = side ? ix + iw - netW : ix;
+    for (let d = -bh; d < bh + netW; d += 12) {
+      ctx.beginPath(); ctx.moveTo(x0, by + d); ctx.lineTo(x0 + netW, by + d + netW); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0 + netW, by + d); ctx.lineTo(x0, by + d + netW); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  // posts
+  for (const x of [bx, bx + bw - frame]) {
+    const pg = ctx.createLinearGradient(x, 0, x + frame, 0);
+    pg.addColorStop(0, "#7a0c1e"); pg.addColorStop(0.5, "#d0243a"); pg.addColorStop(1, "#7a0c1e");
+    ctx.fillStyle = pg; ctx.fillRect(x, by, frame, bh);
+    ctx.fillStyle = "#ffcf4a"; ctx.fillRect(x + frame * 0.42, by + signH, frame * 0.16, bh - signH);
+  }
+  // sign
+  const sg = ctx.createLinearGradient(0, by, 0, by + signH);
+  sg.addColorStop(0, "#d0243a"); sg.addColorStop(1, "#8a0f22");
+  ctx.fillStyle = sg; rr(bx, by, bw, signH, 8); ctx.fill();
+  ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${Math.round(signH * 0.52)}px Rye, Georgia, serif`;
+  ctx.fillText("DOWN THE CLOWN", W / 2, by + signH / 2 + 1);
+  // chasing bulbs
+  const n = Math.max(8, Math.floor(bw / 26));
+  for (let i = 0; i < n; i++) {
+    const x = bx + 10 + (bw - 20) * i / (n - 1), on = (Math.floor(G.t * 6) + i) % 3 === 0;
+    for (const y of [by + 4, by + signH - 4]) {
+      ctx.fillStyle = on ? "#fff7c0" : "#a06a20";
+      ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 7); ctx.fill();
+    }
+  }
+  // front ledge with glowing edge
+  const ly = by + bh - 22;
+  ctx.fillStyle = "#0a3f86"; ctx.fillRect(ix, ly, iw, 22);
+  ctx.fillStyle = "#58c8ff"; ctx.shadowColor = "#58c8ff"; ctx.shadowBlur = 12;
+  ctx.fillRect(ix, ly, iw, 2); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#9fe0ff"; ctx.font = "700 12px system-ui, sans-serif";
+  ctx.fillText("GOLD CLOWNS ARE WORTH DOUBLE!", W / 2, ly + 12);
+}
+
+function drawRows() {
+  if (!L.rowInfo) return;
+  for (let k = 0; k < G.rows; k++) {
+    const r = L.rowInfo[k]; if (!r) continue;
+    for (const c of G.clowns) if (c.row === k) drawClown(c);
+    // shelf
+    const x = r.left - 8, w = r.slot * PER_ROW + 16, y = r.base - 3;
+    ctx.fillStyle = "#0d4fa3"; ctx.fillRect(x, y, w, L.shelfT);
+    ctx.fillStyle = "#0a3474"; ctx.fillRect(x, y + L.shelfT * 0.6, w, L.shelfT * 0.4);
+    ctx.fillStyle = "#6fd3ff"; ctx.shadowColor = "#58c8ff"; ctx.shadowBlur = 8;
+    ctx.fillRect(x, y, w, 1.5); ctx.shadowBlur = 0;
+  }
+}
+
+function drawClown(c) {
+  const T = TYPES[c.type];
+  if (c.state === "down" || c.t < 0 && c.state === "rising") return;
+  let p = 0;
+  if (c.state === "falling") p = clamp(c.t / FALL, 0, 1);
+  else if (c.state === "rising") p = 1 - clamp(c.t / RISE, 0, 1);
+  p = p * p;
+  ctx.save();
+  ctx.translate(c.x, c.base);
+  if (c.wob > 0) ctx.rotate(Math.sin(c.wob * 45) * c.wob * 0.12);
+  if (c.bonus > 0 && p === 0) {
+    const pulse = 0.55 + 0.45 * Math.sin(G.t * 12);
+    ctx.shadowColor = "#ffd75e"; ctx.shadowBlur = 18 + 14 * pulse;
+  }
+  ctx.scale(1, 1 - p * 0.93);
+  if (T.img.complete && T.img.naturalWidth) ctx.drawImage(T.img, -c.w / 2, -c.h, c.w, c.h);
+  else { ctx.fillStyle = T.bad ? "#d33" : "#eee"; rr(-c.w / 2, -c.h, c.w, c.h, 10); ctx.fill(); }
+  ctx.shadowBlur = 0;
+  if (p > 0) { // darken as it tips back
+    ctx.globalAlpha = p * 0.55; ctx.fillStyle = "#000";
+    rr(-c.w * 0.46, -c.h, c.w * 0.92, c.h, c.w * 0.3); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  if (c.bonus > 0 && p === 0) {
+    const s = Math.max(14, c.w * 0.3);
+    ctx.fillStyle = "#ffd75e"; ctx.strokeStyle = "#7a3b00"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(c.x + c.w * 0.36, c.base - c.h * 0.95, s * 0.62, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#7a1a00"; ctx.font = `800 ${Math.round(s * 0.62)}px system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("×2", c.x + c.w * 0.36, c.base - c.h * 0.95 + 1);
+  }
+}
+
+function drawCannon() {
+  const { cx, cy } = L, s = sights();
+  const a = Math.atan2(s.y - cy, s.x - cx), len = barrelLen(), bwid = len * 0.42;
+  // counter
+  const ct = L.by + L.bh;
+  const cg = ctx.createLinearGradient(0, ct, 0, H);
+  cg.addColorStop(0, "#5a1a10"); cg.addColorStop(1, "#2a0a06");
+  ctx.fillStyle = cg; ctx.fillRect(0, ct, W, H - ct);
+  ctx.fillStyle = "rgba(255,215,94,.35)"; ctx.fillRect(0, ct, W, 2);
+  // stand
+  ctx.fillStyle = "#3b2a20"; rr(cx - len * 0.55, cy + len * 0.08, len * 1.1, len * 0.55, 10); ctx.fill();
+  // barrel
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+  ctx.translate(-G.recoil * 10, 0);
+  const bg = ctx.createLinearGradient(0, -bwid / 2, 0, bwid / 2);
+  bg.addColorStop(0, "#8a6a26"); bg.addColorStop(0.35, "#ffe08a"); bg.addColorStop(1, "#6a4a16");
+  ctx.fillStyle = bg; rr(-len * 0.15, -bwid / 2, len * 1.15, bwid, bwid * 0.3); ctx.fill();
+  ctx.fillStyle = "#3a2608"; rr(len * 0.9, -bwid * 0.6, len * 0.14, bwid * 1.2, 4); ctx.fill();
+  ctx.fillStyle = "#c8a24a"; rr(len * 0.35, -bwid * 0.55, len * 0.08, bwid * 1.1, 3); ctx.fill();
+  ctx.restore();
+  // pivot hub
+  const hg = ctx.createRadialGradient(cx - 6, cy - 6, 2, cx, cy, len * 0.36);
+  hg.addColorStop(0, "#ff7a8a"); hg.addColorStop(1, "#8a0f22");
+  ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(cx, cy, len * 0.34, 0, 7); ctx.fill();
+  // ready light
+  ctx.fillStyle = G.reload > 0 ? "#6a2020" : "#7aff8a";
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = G.reload > 0 ? 0 : 10;
+  ctx.beginPath(); ctx.arc(cx, cy, len * 0.09, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+}
+
+function drawBalls() {
+  for (const b of G.balls) {
+    const t = b.t, e = 1 - Math.pow(1 - t, 1.6);
+    const x = b.sx + (b.tx - b.sx) * e, y = b.sy + (b.ty - b.sy) * e - Math.sin(Math.PI * t) * L.cw * 0.5;
+    drawBall(x, y, ballR(t));
+  }
+}
+function drawBall(x, y, r) {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(0.6, "#ffe9a8"); g.addColorStop(1, "#c79a3a");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+}
+
+function drawParts() {
+  for (const p of G.parts) {
+    const k = 1 - p.t / p.life;
+    if (p.kind === "puff") { ctx.globalAlpha = k * 0.5; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.kind === "ball") { ctx.globalAlpha = k; drawBall(p.x, p.y, p.r); }
+    else if (p.kind === "dust") { ctx.globalAlpha = k; ctx.fillStyle = "#cfc4a8"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.kind === "spark") { ctx.globalAlpha = k; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.kind === "confetti") {
+      ctx.globalAlpha = Math.min(1, k * 2); ctx.fillStyle = p.color;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPops() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) {
+    const k = p.t / 1.1, y = p.y - k * 50;
+    ctx.globalAlpha = 1 - k * k;
+    ctx.font = `800 ${Math.round(clamp(L.cw * 0.42, 22, 36))}px system-ui, sans-serif`;
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,.65)";
+    ctx.strokeText(p.text, p.x, y); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, y);
+    if (p.sub) {
+      ctx.font = "800 14px system-ui, sans-serif";
+      ctx.strokeText(p.sub, p.x, y + 24); ctx.fillText(p.sub, p.x, y + 24);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSights() {
+  if (G.state !== "play" && G.state !== "intro") return;
+  const s = sights(), r = clamp(L.cw * 0.22, 12, 22);
+  ctx.strokeStyle = G.reload > 0 ? "rgba(255,255,255,.45)" : "#7aff8a";
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+  ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s.x - r * 1.5, s.y); ctx.lineTo(s.x - r * 0.45, s.y);
+  ctx.moveTo(s.x + r * 0.45, s.y); ctx.lineTo(s.x + r * 1.5, s.y);
+  ctx.moveTo(s.x, s.y - r * 1.5); ctx.lineTo(s.x, s.y - r * 0.45);
+  ctx.moveTo(s.x, s.y + r * 0.45); ctx.lineTo(s.x, s.y + r * 1.5);
+  ctx.stroke(); ctx.shadowBlur = 0;
+}
+
+function drawHUD() {
+  const y = L.safeT + 29;
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.textAlign = "left";
+  ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif";
+  ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 30px system-ui, sans-serif";
+  ctx.fillText(String(G.score), W / 2, y + 2);
+  // lives as cannon balls
+  ctx.textAlign = "right";
+  for (let i = 0; i < LIVES; i++) {
+    const x = W - 18 - i * 24;
+    if (i < G.lives) drawBall(x, y, 9);
+    else { ctx.strokeStyle = "rgba(255,244,220,.3)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 8, 0, 7); ctx.stroke(); }
+  }
+  // clock bar
+  const bw = L.bw - 20, bx = L.bx + 10, by = L.hudH - 24;
+  const f = G.timeMax ? clamp(G.timeLeft / G.timeMax, 0, 1) : 1;
+  ctx.fillStyle = "rgba(255,244,220,.15)"; rr(bx, by - 4, bw, 8, 4); ctx.fill();
+  const low = G.timeLeft <= 5 && G.state === "play";
+  ctx.fillStyle = low ? (Math.floor(G.t * 6) % 2 ? "#ff5a5a" : "#ffb0b0") : "#7aff8a";
+  rr(bx, by - 4, Math.max(8, bw * f), 8, 4); ctx.fill();
+  ctx.font = "700 12px system-ui, sans-serif";
+  // clowns still standing
+  const left = G.clowns.filter(c => !TYPES[c.type].bad && c.state !== "falling" && c.state !== "down").length;
+  ctx.textAlign = "center"; ctx.fillStyle = "#cdb896";
+  ctx.fillText(Math.ceil(G.timeLeft) + "s  ·  " + left + " clown" + (left === 1 ? "" : "s") + " left", W / 2, by + 14);
+}
+
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "timeout"].includes(G.state)) return;
+  const t = G.stateT, k = clamp(t / 0.25, 0, 1), y = L.iy + L.ih * 0.38;
+  ctx.globalAlpha = k;
+  ctx.fillStyle = "rgba(20,4,10,.82)";
+  rr(W / 2 - Math.min(W - 32, 360) / 2, y - 56, Math.min(W - 32, 360), G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "40px Rye, Georgia, serif"; ctx.fillStyle = "#ffd75e";
+  ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 17px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc";
+  ctx.fillText(G.banner.small, W / 2, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#ff9a9a"; ctx.fillText(G.banner.note, W / 2, y + 52); }
+  ctx.globalAlpha = 1;
+}
+
+function drawHint() {
+  if (G.state !== "play" || G.round > 1 || G.stateT > 5) return;
+  ctx.globalAlpha = 0.85; ctx.fillStyle = "#fff4dc"; ctx.font = "600 13px system-ui, sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(isTouch ? "Drag anywhere to aim · lift to fire" : "Aim with the mouse · click to fire", W / 2, H - L.safeB - 12);
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawTent();
+  if (G.state === "title") return;
+  ctx.save();
+  if (G.shake > 0) ctx.translate(rand(-1, 1) * G.shake * 18, rand(-1, 1) * G.shake * 18);
+  drawBooth(); drawRows(); drawCannon(); drawBalls(); drawParts(); drawPops(); drawSights();
+  ctx.restore();
+  if (G.redFlash > 0) {
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.7);
+    g.addColorStop(0, "rgba(255,0,0,0)"); g.addColorStop(1, `rgba(255,30,30,${0.55 * G.redFlash})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  drawHUD(); drawBanner(); drawHint();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Input ----------
+let ptr = null;
+const keys = new Set();
+function clampAim() {
+  G.aim.x = clamp(G.aim.x, L.ix, L.ix + L.iw);
+  G.aim.y = clamp(G.aim.y, L.iy - 10, L.by + L.bh - 10);
+}
+const canAim = () => G.state === "play" || G.state === "intro";
+cv.addEventListener("pointerdown", e => {
+  audio();
+  if (!canAim()) return;
+  ptr = { id: e.pointerId, x: e.clientX, y: e.clientY, type: e.pointerType };
+  if (e.pointerType === "mouse") { G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim(); }
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+});
+cv.addEventListener("pointermove", e => {
+  if (!canAim()) return;
+  if (e.pointerType === "mouse") { G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim(); return; }
+  if (!ptr || ptr.id !== e.pointerId) return;
+  G.aim.x += (e.clientX - ptr.x) * 1.35; G.aim.y += (e.clientY - ptr.y) * 1.35;
+  ptr.x = e.clientX; ptr.y = e.clientY; clampAim();
+});
+const release = e => { if (!ptr || ptr.id !== e.pointerId) return; ptr = null; if (e.type === "pointerup") fire(); };
+cv.addEventListener("pointerup", release);
+cv.addEventListener("pointercancel", release);
+addEventListener("keydown", e => {
+  if (e.key.startsWith("Arrow")) { keys.add(e.key); e.preventDefault(); }
+  if (e.key === " " || e.key === "Enter") { audio(); if (G.state === "play") fire(); e.preventDefault(); }
+  if (e.key === "Escape" || e.key === "p") togglePause();
+});
+addEventListener("keyup", e => keys.delete(e.key));
+
+// ---------- Screens ----------
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (["intro", "play", "clear", "timeout"].includes(G.state)) {
+    G.pausedFrom = { state: G.state, t: G.stateT }; ptr = null;
+    G.state = "paused"; $("pauseScreen").classList.add("show");
+  }
+}
+function toMidway() { location.href = "../"; }
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause;
+$("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+function showBest() { $("bestLine").textContent = G.best ? "Best score: " + G.best : ""; }
+showBest();
+
+addEventListener("resize", layout);
+layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
