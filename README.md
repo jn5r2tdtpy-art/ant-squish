@@ -81,8 +81,8 @@ It works offline once it has been opened. High scores are saved on each device.
 - Rounds are 30 seconds. Reach the goal (200 points in round 1, 50 more each round) to move on. Rows get 12% faster each round and a third row joins in round 3.
 - Miss a goal and you lose one of 3 water drops and replay the round. Settings (`goalFor`, `rowsFor`, `speedFor`, `ROUND_TIME`) are near the top of the game code; the heads are in `img/`.
 
-**Sonny Knows Best** (`carnival/fortune-sonny/`): a fortune-teller machine with the Great Sonny behind the glass and a glowing crystal ball. Pick a topic (Love, Money, Family, Work, Friends, Future) or tap the crystal ball; Sonny gazes into the ball, says your fortune out loud (if the phone can speak; there is an on/off switch), and a fortune card comes out.
+**Sonny the Sorta Psychic** (`carnival/fortune-sonny/`): a fortune-teller machine. The machine picture is `img/machine.webp`; the bulbs twinkle, the lamps flicker and the crystal ball swirls on top of it. Pick a topic (Love, Money, Family, Work, Friends, Future), or tap INSERT COIN or the crystal ball for a surprise. Sonny's words show on the purple sign (and he says them out loud if the phone can speak; there is an on/off switch), then a fortune card comes out of the card slot.
 
-- His advice is cocky, selfish and terrible, and it is always about him. 48 fortunes in all; the game keeps track of how many you have collected and does not repeat one until you have seen them all in that topic.
-- The fortunes, his opening lines, lucky numbers and fine print are lists near the top of the game code (`FORTUNES`, `OPENERS`, `LUCKY`, `FINE`), easy to add to.
-- `img/sonny.webp` is cut out of his photo, with the left side of the hat brim filled in where the photo cut it off.
+- 600 fortunes (100 per topic) of cocky, selfish, thinks-he's-hilarious advice, always about him. They are in `fortunes.js`, along with his opening lines (`OPENERS`), lucky numbers (`LUCKY`) and fine print (`FINE`). To add one, copy a line in the right list and change the words.
+- The game counts how many you have collected and does not repeat one in a topic until you have seen them all.
+- `img/sonny.webp` (his head cut out of his photo) is used for the Midway menu card.
