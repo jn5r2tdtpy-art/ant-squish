@@ -142,10 +142,23 @@ function perform(lines, done) {
   const step = () => { if (i >= lines.length) { S.busy = false; S.laugh = 1; laugh(); done(); return; } const [who, line] = lines[i++]; say(who, line, step); };
   step();
 }
+// 1 coin buys 5 turns; a turn is one skit or one question, shared between both shows
+const TURNS_PER_COIN = 5;
+let turns = 0;
+function turnsLine() { return "🎟️ " + (turns === 1 ? "1 turn" : turns + " turns") + " left" + (turns ? "" : " · next turn costs 🪙 1 coin for " + TURNS_PER_COIN); }
+function useTurn() {
+  if (turns <= 0) {
+    if (!Coins.spend(1)) { $("count").innerHTML = "Out of turns and coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return false; }
+    turns = TURNS_PER_COIN; Coins.chime();
+  }
+  turns--; return true;
+}
 function play() {
   if (S.busy) return;
+  if (!useTurn()) return;
   $("goBtn").disabled = true; $("goBtn").textContent = "…";
-  perform(nextBit(), () => { seen++; $("count").textContent = "Jokes heard: " + seen + " of " + BITS.length; $("goBtn").disabled = false; $("goBtn").textContent = "Another one!"; });
+  $("count").textContent = turnsLine();
+  perform(nextBit(), () => { seen++; $("count").textContent = turnsLine(); $("goBtn").disabled = false; $("goBtn").textContent = turns ? "Another one!" : "Another one! (🪙 1 coin for 5 more)"; });
 }
 $("goBtn").onclick = play;
 
@@ -159,9 +172,10 @@ function newPair() {
 }
 function ask(k) {
   if (S.busy) return;
-  const item = QS[pair[k]]; S.question = item.q;
+  if (!useTurn()) return;
+  const item = QS[pair[k]]; S.question = item.q; $("count").textContent = turnsLine();
   $("q0").disabled = $("q1").disabled = true;
-  perform(item.a, () => { asked++; $("count").textContent = "Questions asked: " + asked; S.question = null; newPair(); });
+  perform(item.a, () => { asked++; $("count").textContent = turnsLine(); S.question = null; newPair(); });
 }
 $("q0").onclick = () => ask(0); $("q1").onclick = () => ask(1);
 
@@ -171,22 +185,17 @@ function setMode(m) {
   $("pick").hidden = m !== "pick"; $("showCtl").hidden = m !== "show"; $("askCtl").hidden = m !== "ask";
   $("switchBtn").hidden = m === "pick";
   $("switchBtn").textContent = m === "show" ? "🎤 Ask Sonny & Eddie instead" : "🎭 Watch the Show instead";
-  if (m === "show") { $("count").textContent = BITS.length + " jokes in the act"; }
-  if (m === "ask") { $("count").textContent = QS.length + " questions to ask"; newPair(); }
+  if (m === "show") { $("count").textContent = turnsLine(); $("goBtn").textContent = turns ? "Start the show!" : "Start the show! (🪙 1 coin for 5)"; }
+  if (m === "ask") { $("count").textContent = turnsLine(); newPair(); }
   if (m === "pick") { $("count").textContent = ""; showFee(); }
   layout();
 }
-// Getting in costs 1 Midway coin per visit (switching between the two shows is free once you're in)
-let paid = false;
 function showFee() {
   const n = Coins.get();
-  $("fee").innerHTML = n > 0 ? "🎟️ The show costs 🪙 1 coin. You have " + n + "." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
-  $("pickShow").disabled = $("pickAsk").disabled = n < 1 && !paid;
+  $("fee").innerHTML = n > 0 || turns > 0 ? "🎟️ 🪙 1 coin = 5 turns (questions or skits). You have " + n + " coins." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
+  $("pickShow").disabled = $("pickAsk").disabled = n < 1 && turns < 1;
 }
-function enter(m) {
-  if (!paid) { if (!Coins.spend(1)) { showFee(); return; } paid = true; Coins.chime(); }
-  setMode(m);
-}
+function enter(m) { setMode(m); }
 $("pickShow").onclick = () => enter("show");
 $("pickAsk").onclick = () => enter("ask");
 showFee();
