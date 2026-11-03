@@ -53,7 +53,7 @@
     <img class="hero" src="eddie.webp" alt="Eddie">
     <h1>Eddie’s Wedding<br>Ring Toss</h1>
     <div class="rules">
-      <p>Eddie “lost” his wedding rings again. Toss them onto the pegs. Land one over a peg for a <b>RINGER!</b></p>
+      <p>Eddie’s been married four times, so he’s got <b>plenty of wedding rings</b> to toss. Land one over a peg for a <b>RINGER!</b></p>
       <p><b>Tap once</b> to lock your aim as the marker slides across the board. <b>Tap again</b> to lock how far you throw as the marker slides up and down the rows.</p>
       <p>You get <b>5 rings</b> a round. Get enough ringers to beat the round. The <b>back rows</b> are worth more.</p>
       <p>Ring the 💎 <b>diamond peg</b> to win 🪙 +1. Miss the goal and you lose one of 3 tries.</p>
@@ -82,10 +82,14 @@ const distSpeed = n => 0.6 + 0.05 * (n - 1);
 const tolFor    = n => Math.max(0.24, 0.36 - 0.006 * (n - 1)); // how close to a peg counts as a ringer (share of the gap between pegs)
 const RING_COLORS = ["#ffd75e"];
 const LINES = {
-  start: ["That's my wedding ring! I didn't lose it. I hid it.", "Toss carefully. I told everyone these were real gold.", "If you find my ring, I was never here.", "I've lost this ring twelve times. Officially."],
-  ringer: ["Ringer! Okay, that one's definitely mine.", "Nice! Now I can tell everyone I never took it off.", "That's going right back on my finger. Eventually.", "Perfect! Don't tell anybody where it was."],
-  miss: ["Missed! See? That's how I lose them.", "Ha! It rolled under the table. Like always.", "That's okay, I've got a drawer full of these.", "Swing and a miss! Now I need a new excuse."],
-  diamond: ["The diamond one? That ring cost me a fortune! I'm lying. It was free."],
+  start: ["Four marriages, four wedding rings. Might as well get some use out of them.", "Toss carefully. Each one of these cost me a house.",
+    "Ring number one, ring number two, ring number three… I lose count.", "I keep the rings. They keep the house. Fair deal.",
+    "Step right up! I've got more wedding rings than a jewelry store.", "Wife number five, if you're out there, I've got the ring ready."],
+  ringer: ["Ringer! That's how I felt at all four weddings.", "Nice! That one's from wife number two. She had good taste. In rings.",
+    "Ringer! I said I do. Then I did it three more times.", "That one stuck. Unlike my marriages.", "Perfect! Put a ring on it. I always do."],
+  miss: ["Missed! Just like marriage number three.", "That one bounced. So did my second wife.", "Don't worry, I've got plenty more rings.",
+    "Swing and a miss! Still better than my track record.", "Ha! That ring never fit anything. Ask my first wife."],
+  diamond: ["The diamond one! That was for wife number four. She kept the dog.", "The diamond! Most expensive ring I own. And I own a lot of them."],
 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
