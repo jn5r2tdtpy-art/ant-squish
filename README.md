@@ -65,3 +65,11 @@ It works offline once it has been opened. High scores are saved on each device.
 - **Closing mouth:** her lips close in from top and bottom as the clock runs down (70% shut at zero, `MAX_CLOSE`), and shots that hit the lips bounce off. She shuts on time up and opens wide each new round.
 - Abby talks back: hit her nose for a honk, her glasses, or a gap in her teeth (she swallows the ball).
 - Same aiming, 3 cannon balls, time bonus and pause as Down the Clown. The art is cut from the cabinet picture: `img/face.webp` has a see-through mouth and the teeth (`img/tooth0–5.webp`) sit behind it.
+
+**Blow Up Sonny’s Big Ego Head** (`carnival/sonnys-big-head/`): a water-gun race. Hold your finger on your target to squirt it; every squirt that is on target blows Sonny’s head up a bit more, and the first head to pop wins.
+
+- You are the middle lane, racing two computer players: Lefty Lou (left) and Rapid Rita (right). They aim better each race.
+- From race 2 the targets slide side to side, faster and further each race, and every target gets a little smaller.
+- About 6 seconds of steady aim pops a head (`FILL_TIME`). The computer players take about 10 seconds in race 1, down to about 7½ by race 8.
+- Win a race for 100 × the race number. Lose a race and you lose one of 3 water drops (lives) and run that race again.
+- Sonny brags as his head grows. The head picture is `img/sonny.webp`. Race settings (`targetSize`, `targetSwing`, `targetSpeed`, `cpuWobble`, `yourWobble`) are near the top of the game code.
