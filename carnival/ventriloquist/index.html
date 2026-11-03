@@ -45,6 +45,7 @@
 <button id="backBtn">‹ Midway</button>
 <div id="panel">
   <div id="pick" class="mode">
+    <div class="askHead" id="fee"></div>
     <button class="btn" id="pickShow">🎭 Watch the Show</button>
     <button class="btn alt" id="pickAsk">🎤 Ask Sonny &amp; Eddie</button>
   </div>
@@ -58,6 +59,7 @@
   </div>
   <div id="row"><span id="count"></span><button class="link" id="switchBtn" hidden></button><button class="link" id="voiceBtn"></button></div>
 </div>
+<script src="../coins.js"></script>
 <script src="bits.js"></script>
 <script src="questions.js"></script>
 <script>
@@ -171,11 +173,23 @@ function setMode(m) {
   $("switchBtn").textContent = m === "show" ? "🎤 Ask Sonny & Eddie instead" : "🎭 Watch the Show instead";
   if (m === "show") { $("count").textContent = BITS.length + " jokes in the act"; }
   if (m === "ask") { $("count").textContent = QS.length + " questions to ask"; newPair(); }
-  if (m === "pick") $("count").textContent = "";
+  if (m === "pick") { $("count").textContent = ""; showFee(); }
   layout();
 }
-$("pickShow").onclick = () => setMode("show");
-$("pickAsk").onclick = () => setMode("ask");
+// Getting in costs 1 Midway coin per visit (switching between the two shows is free once you're in)
+let paid = false;
+function showFee() {
+  const n = Coins.get();
+  $("fee").innerHTML = n > 0 ? "🎟️ The show costs 🪙 1 coin. You have " + n + "." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
+  $("pickShow").disabled = $("pickAsk").disabled = n < 1 && !paid;
+}
+function enter(m) {
+  if (!paid) { if (!Coins.spend(1)) { showFee(); return; } paid = true; Coins.chime(); }
+  setMode(m);
+}
+$("pickShow").onclick = () => enter("show");
+$("pickAsk").onclick = () => enter("ask");
+showFee();
 $("switchBtn").onclick = () => { if (!S.busy) setMode(S.mode === "show" ? "ask" : "show"); };
 $("backBtn").onclick = () => { player.pause(); location.href = "../"; };
 // a little canned laugh and a rimshot
