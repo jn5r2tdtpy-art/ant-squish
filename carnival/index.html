@@ -31,6 +31,7 @@
   h1 { font-family: "Rye", Georgia, serif; font-weight: 400; font-size: clamp(40px, 12vw, 58px); line-height: 1; margin: 0;
     color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 8px 18px rgba(0,0,0,.6); }
   header p { margin: 10px 0 0; color: #f6e6c8; }
+  .game + .game { margin-top: 16px; }
   .game { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit;
     background: linear-gradient(135deg, #12224d, #0b1430); border: 3px solid #ffcf4a; border-radius: 18px;
     padding: 14px; box-shadow: 0 6px 0 #7a0c1e, 0 10px 24px rgba(0,0,0,.45); }
@@ -60,10 +61,21 @@
     </div>
   </a>
 
+  <a class="game" href="gabby-abby/">
+    <img src="gabby-abby/img/sign.webp" alt="" style="width:96px;border-radius:8px">
+    <div>
+      <h2>Gabby Abby</h2>
+      <p>Knock out all of Abby’s teeth with the air cannon before they grow back!</p>
+      <div class="best" id="gaBest"></div>
+    </div>
+  </a>
+
   <div class="soon">More games coming soon</div>
 </main>
 <script>
-  try { const b = +localStorage.getItem("ck-best"); if (b) document.getElementById("ckBest").textContent = "Best: " + b; } catch (e) {}
+  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"]]) {
+    try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
+  }
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>

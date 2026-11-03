@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Knock Down Gabby Abby</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c);
+    border: 0; border-radius: 999px; padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4);
+    cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(20,4,10,.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e;
+    text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); letter-spacing: .5px; }
+  h1 { font-size: clamp(30px, 9vw, 46px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .sign { width: min(100%, 340px); height: auto; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0;
+    cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <img class="sign" src="img/sign.webp" alt="">
+    <h1>Knock Down<br>Gabby Abby</h1>
+    <div class="rules">
+      <p>Fire the air cannon into Abby’s mouth and knock out <b>all 6 teeth</b> before the clock runs out. Each tooth is <b>10</b>.</p>
+      <p>From round 2 her teeth <b>grow back</b> if you’re too slow, and faster every round.</p>
+      <p>From round 3 some teeth wear <b>braces</b>: the first hit knocks the braces off, the second knocks the tooth out for <b>20</b>.</p>
+      <p>When the light on top flashes, the <b>gold tooth</b> is worth double.</p>
+      <p id="howTo" class="muted"></p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseScreen">
+  <div class="card">
+    <h2>Paused</h2>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <button class="btn ghost" id="restartBtn">Start over</button>
+    <button class="btn ghost" id="midwayBtn2">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="overScreen">
+  <div class="card">
+    <h2>Game Over</h2>
+    <div class="big" id="finalScore">0</div>
+    <p id="finalLine"></p>
+    <p class="muted" id="finalBest"></p>
+    <button class="btn" id="againBtn">Play again</button>
+    <button class="btn ghost" id="midwayBtn3">Back to the Midway</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3;
+const RELOAD = 0.34;        // seconds between shots
+const FLIGHT = 0.4;         // seconds a ball takes to reach Abby
+const TIME_BONUS = 5;       // points per second left when a round is cleared
+const TOOTH_PTS = 10, BRACES_PTS = 20, BRACES_OFF_PTS = 5;
+// Round settings (n = round number, starting at 1)
+const roundTime  = n => Math.max(7, 13 - (n - 1) * 0.5);                 // seconds, plus 1.5 per braces tooth
+const regrowTime = n => n < 2 ? 0 : Math.max(2.5, 9 - (n - 2) * 0.75);   // a knocked tooth pops back after this; 0 = never
+const bracesCount = n => n < 3 ? 0 : Math.min(3, Math.floor((n - 1) / 2));
+
+// Artwork: the face picture is 570 x 847 with a see-through mouth. Teeth sit behind it.
+const FACE_W = 570, FACE_H = 847;
+const MOUTH = { x: 73, y: 430, w: 430, h: 223 };
+const TEETH = [[120, 422, 45, 216], [182, 431, 43, 227], [242, 451, 43, 210], [303, 443, 42, 218], [364, 426, 43, 229], [425, 426, 43, 207]];
+const NOSE = { x: 275, y: 372, r: 34 };
+const GLASSES = { x: 96, y: 296, w: 376, h: 56 };
+
+const LINES = {
+  hit: ["Ow! That was my best one!", "Hey, I just had those cleaned!", "Right in the chompers!", "My dentist is gonna be thrilled!", "Thath not funny!", "Ooh, that smarts!"],
+  miss: ["Ha! Missed me!", "Is that all you got?", "Nice try, sweetie!", "Did I tell you about my cousin Gertie?", "Blah blah blah…", "You couldn’t hit the broad side of a barn!"],
+  gulp: ["Gulp! Tasty!", "Mmm, cannonball!", "Burp! ’Scuse me!"],
+  nose: ["HONK!", "Hey, watch the schnoz!"],
+  glasses: ["Watch the glasses!", "These are prescription!"],
+  braces: ["My braces!", "Those cost a fortune!"],
+  regrow: ["They grow back, honey!", "Ta-da! Good as new!"],
+  chatter: ["…and then SHE said…", "Step right up, big shot!", "Have you tried the corn dogs?", "Yak yak yak!", "Oh, I could talk all day!", "Did you hear about the bearded lady?"],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const isTouch = matchMedia("(pointer: coarse)").matches;
+$("howTo").textContent = isTouch
+  ? "Touch a tooth to aim (slide to adjust), lift your finger to fire."
+  : "Aim with the mouse and click to fire (or arrow keys and Space).";
+
+const img = src => { const i = new Image(); i.src = src; return i; };
+const faceImg = img("img/face.webp"), signImg = img("img/sign.webp");
+const toothImgs = TEETH.map((_, i) => img(`img/tooth${i}.webp`));
+let mouthMask = null; // low-res map of the see-through mouth, so shots that hit the lips bounce off
+faceImg.onload = () => {
+  try {
+    const mw = 143, mh = Math.round(mw * FACE_H / FACE_W);
+    const c = document.createElement("canvas"); c.width = mw; c.height = mh;
+    const x = c.getContext("2d"); x.drawImage(faceImg, 0, 0, mw, mh);
+    const d = x.getImageData(0, 0, mw, mh).data, a = new Uint8Array(mw * mh);
+    for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3] < 128 ? 1 : 0;
+    mouthMask = { w: mw, h: mh, a };
+  } catch (e) { /* opened from a file: use the mouth box instead */ }
+};
+function inMouth(fx, fy) {
+  if (fx < MOUTH.x || fx > MOUTH.x + MOUTH.w || fy < MOUTH.y || fy > MOUTH.y + MOUTH.h) return false;
+  if (!mouthMask) return true;
+  const u = clamp(Math.floor(fx / FACE_W * mouthMask.w), 0, mouthMask.w - 1);
+  const v = clamp(Math.floor(fy / FACE_H * mouthMask.h), 0, mouthMask.h - 1);
+  return !!mouthMask.a[v * mouthMask.w + u];
+}
+
+// ---------- Sound (synthesized) ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    } catch (e) { ac = null; }
+  }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function env(g, t, a, peak, dur) {
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+}
+function noise(dur, type, freq, peak, q = 1, delay = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  env(g, t, 0.005, peak, dur);
+  s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + dur + 0.05);
+}
+function tone(freq, dur, type = "sine", peak = 0.2, delay = 0, slideTo = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  env(g, t, 0.008, peak, dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+const sfx = {
+  fire()   { noise(0.22, "bandpass", 900, 0.5, 0.7); noise(0.08, "lowpass", 300, 0.5); },
+  clack()  { tone(1100, 0.06, "square", 0.12, 0, 700); noise(0.06, "highpass", 2500, 0.4); tone(520, 0.14, "triangle", 0.25, 0.03, 260); },
+  clank()  { [1250, 1870, 2630].forEach((f, i) => tone(f, 0.35, "triangle", 0.1, i * 0.01)); noise(0.05, "highpass", 4000, 0.3); },
+  bonus()  { [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.14, "square", 0.06, i * 0.06)); },
+  thud()   { tone(140, 0.12, "sine", 0.35, 0, 70); noise(0.06, "lowpass", 600, 0.3); },
+  gulp()   { tone(320, 0.22, "sine", 0.3, 0, 90); tone(160, 0.12, "sine", 0.2, 0.2, 80); },
+  honk()   { tone(233, 0.25, "sawtooth", 0.12); tone(247, 0.25, "sawtooth", 0.1); },
+  regrow() { tone(400, 0.12, "sine", 0.15, 0, 900); },
+  tick()   { tone(1400, 0.04, "square", 0.05); },
+  clear()  { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  timeup() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+  pop()    { tone(300, 0.12, "sine", 0.15, 0, 700); },
+};
+
+// ---------- Game state ----------
+const G = {
+  state: "title", // title | intro | play | clear | timeout | over | paused
+  round: 1, score: 0, lives: LIVES, best: +store.get("ga-best") || 0,
+  teeth: [], timeLeft: 0, timeMax: 0, stateT: 0, lastTick: 0,
+  balls: [], parts: [], pops: [], bubble: null, chatT: 3,
+  aim: { x: 0, y: 0 }, reload: 0, recoil: 0, shake: 0,
+  bonusT: 0, t: 0, banner: null, pausedFrom: null,
+};
+
+function startRound() {
+  const braces = bracesCount(G.round);
+  const order = [0, 1, 2, 3, 4, 5].sort(() => Math.random() - 0.5);
+  const withBraces = new Set(order.slice(0, braces));
+  G.teeth = TEETH.map(([x, y, w, h], i) => ({ i, x, y, w, h, state: "rising", t: -i * 0.06, braces: withBraces.has(i), hadBraces: withBraces.has(i), bonus: 0, downT: 0 }));
+  G.timeMax = roundTime(G.round) + braces * 1.5;
+  G.timeLeft = G.timeMax; G.balls = []; G.bonusT = rand(3, 5); G.chatT = rand(2, 4);
+  if (!G.aimSet) { const p = toScreen(MOUTH.x + MOUTH.w / 2, MOUTH.y + MOUTH.h / 2); G.aim.x = p.x; G.aim.y = p.y; G.aimSet = true; }
+  const bits = [];
+  const rg = regrowTime(G.round);
+  bits.push(rg ? "teeth grow back in " + rg.toFixed(rg % 1 ? 1 : 0) + "s" : "6 teeth");
+  if (braces) bits.push(braces === 1 ? "1 tooth with braces" : braces + " with braces");
+  G.banner = { big: "Round " + G.round, small: bits.join(" · ") };
+  setState("intro"); sfx.pop();
+}
+
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+
+function newGame() {
+  G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; G.bubble = null;
+  hideOverlays(); startRound();
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1;
+const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect();
+  L.safeT = pr.top; L.safeB = H - pr.bottom; L.safeL = pr.left; L.safeR = W - pr.right;
+  L.land = W > H * 1.15;
+  let areaX, areaY, areaW, areaH;
+  if (L.land) {
+    L.side = clamp(W * 0.17, 104, 180);
+    areaX = L.safeL + L.side; areaW = W - L.safeR - L.side - areaX;
+    areaY = L.safeT + 6; areaH = H - areaY - L.safeB - 6;
+    L.hudH = L.safeT; L.cannonH = L.side * 0.9;
+    L.cx = W - L.safeR - L.side / 2; L.cy = H - L.safeB - clamp(L.side * 0.4, 40, 60);
+  } else {
+    L.hudH = 76 + L.safeT;
+    L.cannonH = clamp(H * 0.18, 110, 180) + L.safeB;
+    areaX = 8; areaW = W - 16; areaY = L.hudH + 4; areaH = H - areaY - L.cannonH;
+    L.cx = W / 2; L.cy = H - L.safeB - clamp(L.cannonH * 0.32, 40, 62);
+  }
+  // Face panel, plus the sign above it when there is room
+  const pad = 10; // red cabinet edge
+  const SIGN_R = 240 / 570, FACE_R = FACE_H / FACE_W;
+  const wNoSign = Math.min(areaW - pad * 2, (areaH - pad * 2) / FACE_R, 560);
+  const wSign = Math.min(areaW - pad * 2, (areaH - pad * 2) / (FACE_R + SIGN_R), 560);
+  L.showSign = wSign >= wNoSign * 0.88;
+  const fw = L.showSign ? wSign : wNoSign;
+  L.fs = fw / FACE_W;
+  const total = fw * (FACE_R + (L.showSign ? SIGN_R : 0));
+  L.fx = areaX + (areaW - fw) / 2;
+  const top = areaY + (areaH - total) / 2;
+  L.signY = top; L.signH = L.showSign ? fw * SIGN_R : 0;
+  L.fy = top + L.signH;
+  L.fw = fw; L.fh = fw * FACE_R; L.pad = pad;
+  L.bx = L.fx - pad; L.bw = fw + pad * 2; L.by = top - pad; L.bh = total + pad * 2;
+  L.beacon = L.showSign ? { x: L.fx + 271 * L.fs, y: L.signY + 180 * L.fs, r: 26 * L.fs } : { x: L.fx + fw / 2, y: L.fy - 2, r: Math.max(8, 20 * L.fs) };
+  L.toothW = 43 * L.fs;
+}
+const toScreen = (fx, fy) => ({ x: L.fx + fx * L.fs, y: L.fy + fy * L.fs });
+const toFace = (x, y) => ({ x: (x - L.fx) / L.fs, y: (y - L.fy) / L.fs });
+
+// ---------- Shooting ----------
+function sway() {
+  const A = Math.min(12, 1.5 + (G.round - 1) * 0.7) * (L.toothW / 24);
+  const t = G.t;
+  return { x: A * (Math.sin(t * 2.1) + 0.5 * Math.sin(t * 5.3 + 1)), y: A * 0.7 * (Math.sin(t * 1.7 + 2) + 0.45 * Math.sin(t * 4.4)) };
+}
+function sights() { const s = sway(); return { x: G.aim.x + s.x, y: G.aim.y + s.y }; }
+const barrelLen = () => L.land ? clamp(L.side * 0.42, 44, 70) : clamp(L.cannonH * 0.48, 56, 84);
+function muzzle() {
+  const s = sights(), a = Math.atan2(s.y - L.cy, s.x - L.cx), len = barrelLen();
+  return { x: L.cx + Math.cos(a) * len, y: L.cy + Math.sin(a) * len, a };
+}
+
+function fire() {
+  if (G.state !== "play" || G.reload > 0) return;
+  const s = sights(), m = muzzle();
+  G.balls.push({ sx: m.x, sy: m.y, tx: s.x, ty: s.y, t: 0 });
+  G.reload = RELOAD; G.recoil = 1;
+  for (let i = 0; i < 8; i++) G.parts.push({ kind: "puff", x: m.x, y: m.y, vx: Math.cos(m.a) * rand(30, 90) + rand(-30, 30), vy: Math.sin(m.a) * rand(30, 90) + rand(-30, 30), r: rand(6, 12), life: rand(0.35, 0.6), t: 0 });
+  sfx.fire();
+}
+
+function say(kind, force) {
+  if (!force && G.bubble && G.bubble.t < 0.6) return;
+  G.bubble = { text: pick(LINES[kind]), t: 0, life: 1.8 };
+}
+
+function toothUp(th) { return th.state === "up" || (th.state === "rising" && th.t > 0.15); }
+
+function land(b) {
+  if (G.state !== "play") return;
+  const f = toFace(b.tx, b.ty);
+  const ballBits = () => G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-50, 50), vy: -80, r: ballR(1), life: 0.8, t: 0 });
+  if (inMouth(f.x, f.y)) {
+    const th = G.teeth.find(t => f.x >= t.x + 2 && f.x <= t.x + t.w - 2);
+    if (th && toothUp(th)) return hitTooth(th, b);
+    // into a gap or a tooth that is already out: down the hatch
+    sfx.gulp(); say("gulp");
+    G.parts.push({ kind: "swallow", x: b.tx, y: b.ty, r: ballR(1), life: 0.35, t: 0 });
+    return;
+  }
+  if (f.x < 0 || f.x > FACE_W || f.y < -40 || f.y > FACE_H) { sfx.thud(); ballBits(); return; }
+  ballBits(); sfx.thud();
+  if (Math.hypot(f.x - NOSE.x, f.y - NOSE.y) < NOSE.r) { sfx.honk(); say("nose", true); G.shake = 0.12; return; }
+  if (f.x > GLASSES.x && f.x < GLASSES.x + GLASSES.w && f.y > GLASSES.y && f.y < GLASSES.y + GLASSES.h) { say("glasses", true); return; }
+  say("miss");
+}
+
+function hitTooth(th, b) {
+  const p = toScreen(th.x + th.w / 2, MOUTH.y + MOUTH.h * 0.45);
+  if (th.braces) {
+    th.braces = false; th.wob = 0.4;
+    G.score += BRACES_OFF_PTS;
+    G.pops.push({ x: p.x, y: p.y, text: "+" + BRACES_OFF_PTS, sub: "Braces off!", color: "#d8e4f0", t: 0 });
+    for (let i = 0; i < 12; i++) G.parts.push({ kind: "spark", x: b.tx, y: b.ty, vx: rand(-170, 170), vy: rand(-220, 20), r: rand(1.5, 3), color: "#e8f0ff", life: rand(0.3, 0.6), t: 0 });
+    sfx.clank(); say("braces", true);
+    return;
+  }
+  const mult = th.bonus > 0 ? 2 : 1, pts = (th.hadBraces ? BRACES_PTS : TOOTH_PTS) * mult;
+  G.score += pts;
+  th.state = "falling"; th.t = 0; th.downT = 0; th.bonus = 0; th.hadBraces = false;
+  G.pops.push({ x: p.x, y: p.y, text: "+" + pts, sub: mult > 1 ? "GOLD TOOTH!" : "", color: mult > 1 ? "#ffd75e" : "#fff4dc", t: 0 });
+  // a chip of tooth flies out
+  G.parts.push({ kind: "tooth", x: b.tx, y: b.ty, vx: rand(-120, 120), vy: rand(-260, -160), r: L.toothW * 0.5, rot: 0, life: 1.1, t: 0, gold: mult > 1 });
+  const cols = ["#ffd75e", "#ff5a7a", "#5ad1ff", "#8dff7a", "#fff4dc"];
+  for (let i = 0; i < 12; i++) G.parts.push({ kind: "confetti", x: b.tx, y: b.ty, vx: rand(-160, 160), vy: rand(-230, -40), r: rand(3, 6), color: cols[i % cols.length], rot: rand(0, 6), life: rand(0.6, 1.0), t: 0 });
+  sfx.clack(); if (mult > 1) sfx.bonus();
+  say("hit");
+  if (G.teeth.every(t => t.state === "falling" || t.state === "down")) roundCleared();
+}
+
+function roundCleared() {
+  const bonus = Math.ceil(G.timeLeft) * TIME_BONUS;
+  G.score += bonus;
+  const nb = bracesCount(G.round + 1) > bracesCount(G.round);
+  G.banner = { big: "Toothless!", small: "Time bonus +" + bonus, note: nb ? "Next round: more braces" : (regrowTime(G.round + 1) ? "Next round: teeth grow back faster" : "") };
+  G.bubble = { text: "Hey! I’m gonna need dentures!", t: 0, life: 2.4 };
+  setState("clear"); sfx.clear();
+}
+
+function timeUp() {
+  G.lives--; G.balls = [];
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Time’s up!", small: G.lives === 1 ? "1 cannon ball left" : G.lives + " cannon balls left", note: "Try that round again" };
+  G.bubble = { text: "Ha ha! Still got my teeth!", t: 0, life: 2.4 };
+  setState("timeout"); sfx.timeup();
+}
+
+function gameOver() {
+  setState("over"); sfx.timeup();
+  G.bubble = { text: "Come back anytime, sweetie!", t: 0, life: 3 };
+  const newBest = G.score > G.best;
+  if (newBest) { G.best = G.score; store.set("ga-best", String(G.best)); }
+  $("finalScore").textContent = G.score;
+  $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const FALL = 0.22, RISE = 0.3;
+function update(dt) {
+  G.t += dt;
+  if (G.state === "paused" || G.state === "title") return;
+  G.stateT += dt;
+  G.reload = Math.max(0, G.reload - dt);
+  G.recoil = Math.max(0, G.recoil - dt * 5);
+  G.shake = Math.max(0, G.shake - dt);
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
+
+  if (G.state === "intro" && G.stateT > 1.7) setState("play");
+  if (G.state === "clear" && G.stateT > 2.4) { G.round++; startRound(); }
+  if (G.state === "timeout" && G.stateT > 2.4) startRound();
+
+  if (G.state === "play") {
+    G.timeLeft -= dt;
+    if (G.timeLeft <= 5 && Math.ceil(G.timeLeft) !== G.lastTick) { G.lastTick = Math.ceil(G.timeLeft); if (G.timeLeft > 0) sfx.tick(); }
+    if (G.timeLeft <= 0) { G.timeLeft = 0; timeUp(); }
+    G.bonusT -= dt;
+    if (G.bonusT <= 0) {
+      G.bonusT = rand(5, 8);
+      const pool = G.teeth.filter(t => t.state === "up" && !t.braces);
+      if (pool.length > 1) pool[Math.floor(Math.random() * pool.length)].bonus = 3;
+    }
+    G.chatT -= dt;
+    if (G.chatT <= 0) { G.chatT = rand(4, 7); if (!G.bubble) say("chatter"); }
+    if (keys.size) {
+      const sp = L.toothW * 6 * dt;
+      if (keys.has("ArrowLeft")) G.aim.x -= sp;
+      if (keys.has("ArrowRight")) G.aim.x += sp;
+      if (keys.has("ArrowUp")) G.aim.y -= sp;
+      if (keys.has("ArrowDown")) G.aim.y += sp;
+      clampAim();
+    }
+  }
+
+  const rg = regrowTime(G.round);
+  for (const th of G.teeth) {
+    th.t += dt; th.bonus = Math.max(0, th.bonus - dt); th.wob = Math.max(0, (th.wob || 0) - dt);
+    if (th.state === "falling" && th.t >= FALL) { th.state = "down"; th.t = 0; }
+    else if (th.state === "down" && rg && G.state === "play" && th.t >= rg) { th.state = "rising"; th.t = 0; sfx.regrow(); say("regrow"); }
+    else if (th.state === "rising" && th.t >= RISE) { th.state = "up"; th.t = 0; }
+  }
+
+  for (const b of G.balls) b.t += dt / FLIGHT;
+  const landed = G.balls.filter(b => b.t >= 1);
+  G.balls = G.balls.filter(b => b.t < 1);
+  landed.forEach(land);
+
+  for (const p of G.parts) {
+    p.t += dt;
+    if (p.kind === "swallow") continue;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.kind === "puff") { p.vx *= 0.9; p.vy *= 0.9; p.r += dt * 30; }
+    else p.vy += 700 * dt;
+    if (p.rot !== undefined) p.rot += dt * 10;
+  }
+  G.parts = G.parts.filter(p => p.t < p.life);
+  for (const p of G.pops) p.t += dt;
+  G.pops = G.pops.filter(p => p.t < 1.1);
+}
+
+// ---------- Drawing ----------
+const ballR = t => clamp(L.toothW * 0.42, 7, 15) * (1 - 0.5 * t);
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function drawTent() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#3a0a18"); g.addColorStop(1, "#16040a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.18; ctx.fillStyle = "#f2e2c4";
+  const sw = 38;
+  for (let x = -sw; x < W + sw; x += sw * 2) ctx.fillRect(x, 0, sw, H);
+  ctx.globalAlpha = 1;
+}
+
+function drawCabinet() {
+  // red cabinet behind the art
+  ctx.fillStyle = "rgba(0,0,0,.35)"; rr(L.bx + 6, L.by + 8, L.bw, L.bh, 12); ctx.fill();
+  const g = ctx.createLinearGradient(L.bx, 0, L.bx + L.bw, 0);
+  g.addColorStop(0, "#8a0f22"); g.addColorStop(0.5, "#d0243a"); g.addColorStop(1, "#8a0f22");
+  ctx.fillStyle = g; rr(L.bx, L.by, L.bw, L.bh, 12); ctx.fill();
+  // dark mouth cavity (shows through the see-through mouth)
+  const m = toScreen(MOUTH.x, MOUTH.y), mw = MOUTH.w * L.fs, mh = MOUTH.h * L.fs;
+  const cg = ctx.createRadialGradient(m.x + mw / 2, m.y + mh * 0.55, 4, m.x + mw / 2, m.y + mh * 0.55, mw * 0.55);
+  cg.addColorStop(0, "#000"); cg.addColorStop(0.7, "#1a0306"); cg.addColorStop(1, "#3a0a10");
+  ctx.fillStyle = cg; ctx.fillRect(m.x, m.y, mw, mh);
+}
+
+function drawTeeth() {
+  for (const th of G.teeth) {
+    if (th.state === "down" || (th.state === "rising" && th.t < 0)) continue;
+    let p = 0;
+    if (th.state === "falling") p = clamp(th.t / FALL, 0, 1);
+    else if (th.state === "rising") p = 1 - clamp(th.t / RISE, 0, 1);
+    const s = toScreen(th.x, th.y), w = th.w * L.fs, h = th.h * L.fs;
+    ctx.save();
+    ctx.translate(s.x + w / 2, s.y);
+    if (th.wob > 0) ctx.translate(Math.sin(th.wob * 60) * th.wob * 6, 0);
+    ctx.scale(1, 1 - p * 0.9); // swings back on its top hinge
+    const im = toothImgs[th.i];
+    if (im.complete && im.naturalWidth) ctx.drawImage(im, -w / 2, 0, w, h);
+    else { ctx.fillStyle = "#f4efe4"; ctx.fillRect(-w / 2, 0, w, h); }
+    if (th.bonus > 0) {
+      ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = "#ffc21a"; ctx.fillRect(-w / 2, 0, w, h);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.25 + 0.25 * Math.sin(G.t * 14); ctx.fillStyle = "#fff3b0"; ctx.fillRect(-w / 2, 0, w, h); ctx.globalAlpha = 1;
+    }
+    if (th.braces) {
+      const by = (MOUTH.y + MOUTH.h * 0.48 - th.y) * L.fs;
+      const band = Math.max(4, w * 0.2), bs = w * 0.62;
+      ctx.fillStyle = "#9aa6b4"; ctx.fillRect(-w / 2 - 2, by - band / 2, w + 4, band);
+      ctx.fillStyle = "#e8eef5"; ctx.fillRect(-w / 2 - 2, by - band / 2, w + 4, band * 0.35);
+      const bg = ctx.createLinearGradient(0, by - bs / 2, 0, by + bs / 2);
+      bg.addColorStop(0, "#ffffff"); bg.addColorStop(1, "#6d7a89");
+      ctx.fillStyle = bg; ctx.strokeStyle = "#4a5562"; ctx.lineWidth = 1;
+      rr(-bs / 2, by - bs / 2, bs, bs, 3); ctx.fill(); ctx.stroke();
+    }
+    if (p > 0) { ctx.globalAlpha = p * 0.7; ctx.fillStyle = "#000"; ctx.fillRect(-w / 2, 0, w, h); ctx.globalAlpha = 1; }
+    ctx.restore();
+  }
+}
+
+function drawFace() {
+  if (faceImg.complete && faceImg.naturalWidth) ctx.drawImage(faceImg, L.fx, L.fy, L.fw, L.fh);
+  if (L.showSign && signImg.complete && signImg.naturalWidth) ctx.drawImage(signImg, L.fx, L.signY, L.fw, L.signH);
+  // beacon: flashes while a gold tooth is lit
+  const gold = G.teeth.some(t => t.bonus > 0) && G.state === "play";
+  const on = gold && Math.floor(G.t * 8) % 2 === 0;
+  const b = L.beacon;
+  if (!L.showSign) {
+    ctx.fillStyle = "#3a3a40"; rr(b.x - b.r * 1.1, b.y - b.r * 0.3, b.r * 2.2, b.r * 0.6, 3); ctx.fill();
+    ctx.fillStyle = on ? "#ff4030" : "#8a1a14";
+    ctx.beginPath(); ctx.arc(b.x, b.y - b.r * 0.3, b.r * 0.8, Math.PI, 0); ctx.fill();
+  }
+  if (on) {
+    const g = ctx.createRadialGradient(b.x, b.y, 2, b.x, b.y, b.r * 4);
+    g.addColorStop(0, "rgba(255,80,50,.85)"); g.addColorStop(1, "rgba(255,40,20,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 4, 0, 7); ctx.fill();
+  }
+}
+
+function drawBubble() {
+  const bb = G.bubble; if (!bb || !L.fs) return;
+  const k = Math.min(1, bb.t / 0.12, (bb.life - bb.t) / 0.2);
+  if (k <= 0) return;
+  const fs = clamp(L.fw * 0.045, 13, 18);
+  ctx.font = `700 ${fs}px system-ui, sans-serif`;
+  const words = bb.text.split(" "), maxW = L.fw * 0.62, lines = [];
+  let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+  lines.push(cur);
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.25;
+  const bw = tw + 22, bh = lines.length * lh + 14;
+  const ax = L.fx + L.fw * 0.84, ay = L.fy + L.fh * 0.3; // near her mouth corner
+  const x = clamp(ax - bw * 0.7, L.fx + 4, L.fx + L.fw - bw - 4), y = Math.max(L.fy + 4, L.fy + L.fh * 0.12);
+  ctx.globalAlpha = k;
+  ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5;
+  rr(x, y, bw, bh, 12); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + bw * 0.55, y + bh - 1); ctx.lineTo(x + bw * 0.4, y + bh + 14); ctx.lineTo(x + bw * 0.38, y + bh - 1); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#fffdf5"; ctx.fillRect(x + bw * 0.385, y + bh - 4, bw * 0.16, 5);
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, x + bw / 2, y + 7 + lh * (i + 0.5)));
+  ctx.globalAlpha = 1;
+}
+
+function drawCannon() {
+  const { cx, cy } = L, s = sights();
+  const a = Math.atan2(s.y - cy, s.x - cx), len = barrelLen(), bwid = len * 0.42;
+  const ct = L.land ? cy - len * 0.9 : L.by + L.bh + 4, cl = L.land ? L.bx + L.bw + 6 : 0;
+  const cg = ctx.createLinearGradient(0, ct, 0, H);
+  cg.addColorStop(0, "#5a1a10"); cg.addColorStop(1, "#2a0a06");
+  ctx.fillStyle = cg; ctx.fillRect(cl, ct, W - cl, H - ct);
+  ctx.fillStyle = "rgba(255,215,94,.35)"; ctx.fillRect(cl, ct, W - cl, 2);
+  ctx.fillStyle = "#3b2a20"; rr(cx - len * 0.55, cy + len * 0.08, len * 1.1, len * 0.55, 10); ctx.fill();
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+  ctx.translate(-G.recoil * 10, 0);
+  const bg = ctx.createLinearGradient(0, -bwid / 2, 0, bwid / 2);
+  bg.addColorStop(0, "#8a6a26"); bg.addColorStop(0.35, "#ffe08a"); bg.addColorStop(1, "#6a4a16");
+  ctx.fillStyle = bg; rr(-len * 0.15, -bwid / 2, len * 1.15, bwid, bwid * 0.3); ctx.fill();
+  ctx.fillStyle = "#3a2608"; rr(len * 0.9, -bwid * 0.6, len * 0.14, bwid * 1.2, 4); ctx.fill();
+  ctx.fillStyle = "#c8a24a"; rr(len * 0.35, -bwid * 0.55, len * 0.08, bwid * 1.1, 3); ctx.fill();
+  ctx.restore();
+  const hg = ctx.createRadialGradient(cx - 6, cy - 6, 2, cx, cy, len * 0.36);
+  hg.addColorStop(0, "#ff7a8a"); hg.addColorStop(1, "#8a0f22");
+  ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(cx, cy, len * 0.34, 0, 7); ctx.fill();
+  ctx.fillStyle = G.reload > 0 ? "#6a2020" : "#7aff8a";
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = G.reload > 0 ? 0 : 10;
+  ctx.beginPath(); ctx.arc(cx, cy, len * 0.09, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+}
+
+function drawBall(x, y, r) {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(0.6, "#ffe9a8"); g.addColorStop(1, "#c79a3a");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+}
+function drawBalls() {
+  for (const b of G.balls) {
+    const t = b.t, e = 1 - Math.pow(1 - t, 1.6);
+    const x = b.sx + (b.tx - b.sx) * e, y = b.sy + (b.ty - b.sy) * e - Math.sin(Math.PI * t) * L.toothW * 1.6;
+    drawBall(x, y, ballR(t));
+  }
+}
+
+function drawParts() {
+  for (const p of G.parts) {
+    const k = 1 - p.t / p.life;
+    if (p.kind === "puff") { ctx.globalAlpha = k * 0.5; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.kind === "ball") { ctx.globalAlpha = k; drawBall(p.x, p.y, p.r); }
+    else if (p.kind === "swallow") { ctx.globalAlpha = k; drawBall(p.x, p.y + (1 - k) * 10, p.r * k); }
+    else if (p.kind === "spark") { ctx.globalAlpha = k; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+    else if (p.kind === "confetti") {
+      ctx.globalAlpha = Math.min(1, k * 2); ctx.fillStyle = p.color;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); ctx.restore();
+    } else if (p.kind === "tooth") {
+      ctx.globalAlpha = Math.min(1, k * 2);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      const w = p.r, h = p.r * 1.3;
+      ctx.fillStyle = p.gold ? "#ffd75e" : "#fbf6ea"; ctx.strokeStyle = "#5a4a3a"; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -h / 2); ctx.quadraticCurveTo(0, -h * 0.7, w / 2, -h / 2);
+      ctx.lineTo(w * 0.35, h / 2); ctx.lineTo(w * 0.1, h * 0.25); ctx.lineTo(-w * 0.1, h * 0.25); ctx.lineTo(-w * 0.35, h / 2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPops() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) {
+    const k = p.t / 1.1, y = p.y - k * 50;
+    ctx.globalAlpha = 1 - k * k;
+    ctx.font = `800 ${Math.round(clamp(L.fw * 0.08, 22, 36))}px system-ui, sans-serif`;
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,.65)";
+    ctx.strokeText(p.text, p.x, y); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, y);
+    if (p.sub) { ctx.font = "800 14px system-ui, sans-serif"; ctx.strokeText(p.sub, p.x, y + 24); ctx.fillText(p.sub, p.x, y + 24); }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSights() {
+  if (G.state !== "play" && G.state !== "intro") return;
+  const s = sights(), r = clamp(L.toothW * 0.55, 10, 20);
+  ctx.strokeStyle = G.reload > 0 ? "rgba(255,255,255,.45)" : "#7aff8a";
+  ctx.lineWidth = 2.5; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+  ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s.x - r * 1.5, s.y); ctx.lineTo(s.x - r * 0.45, s.y);
+  ctx.moveTo(s.x + r * 0.45, s.y); ctx.lineTo(s.x + r * 1.5, s.y);
+  ctx.moveTo(s.x, s.y - r * 1.5); ctx.lineTo(s.x, s.y - r * 0.45);
+  ctx.moveTo(s.x, s.y + r * 0.45); ctx.lineTo(s.x, s.y + r * 1.5);
+  ctx.stroke(); ctx.shadowBlur = 0;
+}
+
+function teethLeft() { return G.teeth.filter(t => t.state !== "falling" && t.state !== "down").length; }
+function drawClock(x, y, w) {
+  const f = G.timeMax ? clamp(G.timeLeft / G.timeMax, 0, 1) : 1;
+  ctx.fillStyle = "rgba(255,244,220,.15)"; rr(x, y - 4, w, 8, 4); ctx.fill();
+  const low = G.timeLeft <= 5 && G.state === "play";
+  ctx.fillStyle = low ? (Math.floor(G.t * 6) % 2 ? "#ff5a5a" : "#ffb0b0") : "#7aff8a";
+  rr(x, y - 4, Math.max(8, w * f), 8, 4); ctx.fill();
+}
+function drawLives(x, y, centered) {
+  for (let i = 0; i < LIVES; i++) {
+    const bx = centered ? x + (i - 1) * 24 : x - i * 24;
+    if (i < G.lives) drawBall(bx, y, 9);
+    else { ctx.strokeStyle = "rgba(255,244,220,.3)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(bx, y, 8, 0, 7); ctx.stroke(); }
+  }
+}
+function drawHUD() {
+  ctx.textBaseline = "middle";
+  const left = teethLeft();
+  if (L.land) {
+    const x = L.safeL + L.side / 2, w = L.side - 24;
+    let y = L.safeT + 74;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND " + G.round, x, y);
+    y += 34; ctx.fillStyle = "#ffd75e"; ctx.font = "800 30px system-ui, sans-serif"; ctx.fillText(String(G.score), x, y);
+    y += 32; drawLives(x, y, true);
+    y += 28; drawClock(x - w / 2, y, w);
+    ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif";
+    ctx.fillText(Math.ceil(G.timeLeft) + " seconds", x, y + 20);
+    ctx.fillText(left + " teeth left", x, y + 38);
+    return;
+  }
+  const y = L.safeT + 29;
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.textAlign = "left";
+  ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 30px system-ui, sans-serif";
+  ctx.fillText(String(G.score), W / 2, y + 2);
+  drawLives(W - 18, y, false);
+  const by = L.hudH - 24;
+  drawClock(12, by, W - 24);
+  ctx.textAlign = "center"; ctx.fillStyle = "#cdb896"; ctx.font = "700 12px system-ui, sans-serif";
+  ctx.fillText(Math.ceil(G.timeLeft) + "s  ·  " + left + (left === 1 ? " tooth" : " teeth") + " left", W / 2, by + 14);
+}
+
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "timeout"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.fy + L.fh * 0.55;
+  const bw = Math.min(W - 32, 360);
+  ctx.globalAlpha = k;
+  ctx.fillStyle = "rgba(20,4,10,.85)";
+  rr(W / 2 - bw / 2 + (L.land ? (L.fx + L.fw / 2 - W / 2) : 0), y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  const cx = L.land ? L.fx + L.fw / 2 : W / 2;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "38px Rye, Georgia, serif"; ctx.fillStyle = "#ffd75e"; ctx.fillText(G.banner.big, cx, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, cx, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#ff9a9a"; ctx.fillText(G.banner.note, cx, y + 52); }
+  ctx.globalAlpha = 1;
+}
+
+function drawHint() {
+  if (G.state !== "play" || G.round > 1 || G.stateT > 5) return;
+  ctx.globalAlpha = 0.85; ctx.fillStyle = "#fff4dc"; ctx.font = "600 13px system-ui, sans-serif"; ctx.textAlign = "center";
+  if (L.land) {
+    const x = L.safeL + L.side / 2, y = H - L.safeB - 60;
+    ["Touch a tooth", "to aim,", "lift to fire"].forEach((t, i) => ctx.fillText(t, x, y + i * 18));
+  } else ctx.fillText(isTouch ? "Touch a tooth to aim · lift to fire" : "Aim with the mouse · click to fire", W / 2, H - L.safeB - 12);
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawTent();
+  if (G.state === "title") return;
+  ctx.save();
+  if (G.shake > 0) ctx.translate(rand(-1, 1) * G.shake * 14, rand(-1, 1) * G.shake * 14);
+  drawCabinet(); drawTeeth(); drawFace(); drawCannon(); drawBubble(); drawBalls(); drawParts(); drawPops(); drawSights();
+  ctx.restore();
+  drawHUD(); drawBanner(); drawHint();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Input ----------
+let ptr = null;
+const keys = new Set();
+function clampAim() {
+  G.aim.x = clamp(G.aim.x, L.fx, L.fx + L.fw);
+  G.aim.y = clamp(G.aim.y, L.fy, L.fy + L.fh);
+}
+const canAim = () => G.state === "play" || G.state === "intro";
+cv.addEventListener("pointerdown", e => {
+  audio();
+  if (!canAim()) return;
+  ptr = { id: e.pointerId };
+  G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim();
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+});
+cv.addEventListener("pointermove", e => {
+  if (!canAim()) return;
+  if (e.pointerType !== "mouse" && (!ptr || ptr.id !== e.pointerId)) return;
+  G.aim.x = e.clientX; G.aim.y = e.clientY; clampAim();
+});
+const release = e => { if (!ptr || ptr.id !== e.pointerId) return; ptr = null; if (e.type === "pointerup") fire(); };
+cv.addEventListener("pointerup", release);
+cv.addEventListener("pointercancel", release);
+addEventListener("keydown", e => {
+  if (e.key.startsWith("Arrow")) { keys.add(e.key); e.preventDefault(); }
+  if (e.key === " " || e.key === "Enter") { audio(); if (G.state === "play") fire(); e.preventDefault(); }
+  if (e.key === "Escape" || e.key === "p") togglePause();
+});
+addEventListener("keyup", e => keys.delete(e.key));
+
+// ---------- Screens ----------
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (["intro", "play", "clear", "timeout"].includes(G.state)) {
+    G.pausedFrom = { state: G.state, t: G.stateT }; ptr = null;
+    G.state = "paused"; $("pauseScreen").classList.add("show");
+  }
+}
+function toMidway() { location.href = "../"; }
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause;
+$("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : "";
+
+addEventListener("resize", layout);
+layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>

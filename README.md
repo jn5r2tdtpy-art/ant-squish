@@ -57,3 +57,10 @@ It works offline once it has been opened. High scores are saved on each device.
 - **Clock:** rounds 1–6 are 5 seconds shorter than the base clock, rounds 7–12 are 10 seconds shorter, rounds 13–20 are 15 seconds shorter, and round 21 on use the base clock (`timeCut` near the top of the game code).
 - Clear a round to get 5 points for every second left. Run out of time and you lose one of 3 cannon balls and replay the round.
 - The clown pictures are in `carnival/down-the-clown/img/`. To change who is on the shelf, replace those files (transparent background, about 260 px wide) and their point values in `TYPES` near the top of the game code.
+
+**Gabby Abby** (`carnival/gabby-abby/`): fire the air cannon into Abby’s mouth and knock out all 6 teeth before the clock runs out.
+
+- **Points:** a tooth is 10. A gold tooth (the light on top flashes) is double. A tooth with braces takes two hits: 5 for knocking the braces off, 20 for the tooth.
+- **Rounds:** from round 2, knocked-out teeth grow back (after 9 seconds, then faster each round, down to 2.5). From round 3, 1 tooth has braces, then 2 from round 5 and 3 from round 7. The clock starts at 13 seconds and loses half a second each round (never under 7), plus 1½ seconds per braces tooth. These are `roundTime`, `regrowTime` and `bracesCount` near the top of the game code.
+- Abby talks back: hit her nose for a honk, her glasses, or a gap in her teeth (she swallows the ball).
+- Same aiming, 3 cannon balls, time bonus and pause as Down the Clown. The art is cut from the cabinet picture: `img/face.webp` has a see-through mouth and the teeth (`img/tooth0–5.webp`) sit behind it.
