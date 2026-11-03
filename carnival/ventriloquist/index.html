@@ -48,9 +48,9 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const img = s => { const i = new Image(); i.src = s; return i; };
-const I = { sonny: img("img/sonny.webp"), top: img("img/eddie-top.webp"), jaw: img("img/eddie-jaw.webp"), hat: img("img/hat.webp") };
+const I = { sonny: img("img/sonny.webp"), top: img("img/eddie-top.webp"), jaw: img("img/eddie-jaw.webp") };
 // sizes of the pictures and where Eddie's mouth is
-const EW = 360, EH = 560, MOUTH_Y = 383, JAW_L = 129, JAW_R = 241, SW = 420, SH = 480, HW = 420, HH = 240;
+const EW = 400, EH = 505, MOUTH_Y = 386, JAW_L = 152, JAW_R = 256, SW = 420, SH = 480, HW = 420, HH = 240;
 
 // ---------- Voices ----------
 let voiceOn = store.get("ve-voice") !== "off";
@@ -226,17 +226,14 @@ function drawEddie(son) {
   ctx.strokeStyle = "#2a2a30"; ctx.lineWidth = u * 0.22; ctx.beginPath(); ctx.moveTo(x - u * 0.68, ty + u * 0.4); ctx.lineTo(x - u * 0.8, base - u * 0.3); ctx.stroke();
   ctx.fillStyle = "#e9b08e"; ctx.beginPath(); ctx.arc(x - u * 0.8, base - u * 0.25, u * 0.13, 0, 7); ctx.fill();
   // head: top part, dark mouth gap, then the jaw that drops; dummy lines down from the corners
-  const hw = u * 1.4, s = hw / EW, hh = EH * s, hx = x - hw / 2, hy = ty - hh * 0.86;
+  const hw = u * 1.65, s = hw / EW, hh = EH * s, hx = x - hw / 2, hy = ty - hh * 0.9;
   const drop = S.jaw * u * 0.42;
   ctx.save(); ctx.translate(x, ty); ctx.rotate(turn); ctx.translate(-x, -ty);
   ctx.fillStyle = "#2a0a0e"; ctx.fillRect(hx + JAW_L * s, hy + MOUTH_Y * s - 2, (JAW_R - JAW_L) * s, drop + 4);
   if (I.jaw.complete && I.jaw.naturalWidth) ctx.drawImage(I.jaw, hx, hy + drop, hw, hh);
   if (I.top.complete && I.top.naturalWidth) ctx.drawImage(I.top, hx, hy, hw, hh);
   ctx.strokeStyle = "rgba(60,25,15,.55)"; ctx.lineWidth = 1.2;
-  for (const jx of [JAW_L, JAW_R]) { ctx.beginPath(); ctx.moveTo(hx + jx * s, hy + MOUTH_Y * s + drop); ctx.lineTo(hx + jx * s, hy + (MOUTH_Y + 95) * s + drop); ctx.stroke(); }
-  // Sonny's top hat on Eddie, sized to his head
-  const hatW = hw * 1.18, hatH = hatW * HH / HW;
-  if (I.hat.complete && I.hat.naturalWidth) ctx.drawImage(I.hat, x - hatW * 0.5, hy - hatH * 0.62, hatW, hatH);
+  for (const jx of [JAW_L, JAW_R]) { ctx.beginPath(); ctx.moveTo(hx + jx * s, hy + MOUTH_Y * s + drop); ctx.lineTo(hx + jx * s, hy + (MOUTH_Y + 85) * s + drop); ctx.stroke(); }
   ctx.restore();
   return { x, hy };
 }
