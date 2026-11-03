@@ -127,8 +127,8 @@ function layout() {
   const top = $("backBtn").getBoundingClientRect().bottom + 6, bottom = L.side ? H - 6 : H - $("panel").getBoundingClientRect().height - 4;
   L.top = top; L.bottom = bottom;
   const sw = L.side ? W * 0.66 : W, h = bottom - top, w = Math.min(sw, h * 0.95);
-  L.u = Math.min(w / 10, h / 12);           // one unit of the stage
-  L.cx = sw / 2; L.floor = bottom - L.u * 0.6;
+  L.u = Math.min(w / 6, h / 8.2);           // close-up: one unit of the stage
+  L.cx = sw / 2 - L.u * 0.15; L.floor = bottom + L.u * 2.2;
 }
 addEventListener("resize", layout);
 
@@ -156,7 +156,7 @@ function drawStage() {
   ctx.fillText("THE SONNY & EDDIE SHOW", W / 2, vy + vh * 0.48);
   // spotlight and wooden stage
   const sp = ctx.createRadialGradient(L.cx, L.floor, 10, L.cx, L.floor - L.u * 3, L.u * 7);
-  sp.addColorStop(0, "rgba(255,240,200,.35)"); sp.addColorStop(1, "rgba(255,240,200,0)"); ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
+  sp.addColorStop(0, "rgba(255,240,200,.18)"); sp.addColorStop(1, "rgba(255,240,200,0)"); ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = "#5a3418"; ctx.fillRect(0, L.floor, W, H - L.floor);
   ctx.fillStyle = "#7a4a26"; ctx.fillRect(0, L.floor, W, 6);
   // stool
@@ -260,13 +260,36 @@ function drawEddie(son) {
   return { x, hy };
 }
 
+// Stage lighting: spotlights on the faces, suits fading into shadow, dark edges, a little film grain
+let grain = null;
+function drawLight(son, ed) {
+  const u = L.u;
+  const sh = ctx.createLinearGradient(0, son.ty + u * 0.2, 0, L.bottom);
+  sh.addColorStop(0, "rgba(8,2,4,0)"); sh.addColorStop(0.55, "rgba(8,2,4,.72)"); sh.addColorStop(1, "rgba(8,2,4,.96)");
+  ctx.fillStyle = sh; ctx.fillRect(0, son.ty + u * 0.2, W, L.bottom - son.ty);
+  ctx.fillStyle = "rgb(8,2,4)"; ctx.fillRect(0, L.bottom, W, H - L.bottom);
+  const vg = ctx.createRadialGradient(L.cx, son.ty - u * 0.4, u * 1.6, L.cx, son.ty, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.78)");
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalCompositeOperation = "soft-light";
+  for (const [px, py, r] of [[son.x, son.ty - u * 1.3, u * 1.9], [ed.x, ed.hy + u * 0.8, u * 1.4]]) {
+    const g = ctx.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, "rgba(255,235,200,.55)"); g.addColorStop(1, "rgba(255,235,200,0)");
+    ctx.fillStyle = g; ctx.fillRect(px - r, py - r, r * 2, r * 2);
+  }
+  ctx.restore();
+  if (!grain) { grain = document.createElement("canvas"); grain.width = grain.height = 160; const g = grain.getContext("2d"), d = g.createImageData(160, 160);
+    for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - 0.5) * 60; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 22; } g.putImageData(d, 0, 0); }
+  ctx.save(); ctx.globalCompositeOperation = "overlay"; ctx.fillStyle = ctx.createPattern(grain, "repeat"); ctx.translate((S.t * 397) % 160, (S.t * 211) % 160); ctx.fillRect(-160, -160, W + 320, H + 320); ctx.restore();
+}
+
 function drawBubble(px, py, text, left) {
   const fs = clamp(L.u * 0.36, 13, 19); ctx.font = `700 ${fs}px system-ui, sans-serif`;
   const maxW = Math.min(W * 0.62, 320), words = text.split(" "), lines = []; let cur = "";
   for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 24 && cur) { lines.push(cur); cur = w; } else cur = t; }
   lines.push(cur);
   const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.28, bw = tw + 26, bh = lines.length * lh + 14;
-  const bx = clamp(left ? px - bw * 0.85 : px - bw * 0.2, 8, W - bw - 8), by = Math.max(L.top + L.u * 1.4, py - bh - 18);
+  const bx = clamp(left ? px - bw * 0.85 : px - bw * 0.6, 8, (L.side ? W * 0.66 : W) - bw - 8), by = Math.max(L.top + 52, py - bh - 18);
+  if (py < by + bh + 8) py = by + bh + 14;
   ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5; rr(bx, by, bw, bh, 14); ctx.fill(); ctx.stroke();
   const tx = clamp(px, bx + 20, bx + bw - 20);
   ctx.beginPath(); ctx.moveTo(tx - 9, by + bh - 1); ctx.lineTo(px, py - 4); ctx.lineTo(tx + 9, by + bh - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -277,10 +300,10 @@ function drawBubble(px, py, text, left) {
 
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  drawStage(); const son = drawSonny(); const ed = drawEddie(son);
+  drawStage(); const son = drawSonny(); const ed = drawEddie(son); drawLight(son, ed);
   if (S.talker && S.line) {
     if (S.talker === "E") drawBubble(ed.x, ed.hy - L.u * 0.5, S.line, true);
-    else drawBubble(son.x + L.u * 0.4, son.ty - L.u * 2.5, S.line, false);
+    else drawBubble(son.x - L.u * 0.2, son.ty - L.u * 2.45, S.line, false);
   }
   if (S.laugh > 0) {
     ctx.globalAlpha = Math.min(1, S.laugh * 2); ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center";
