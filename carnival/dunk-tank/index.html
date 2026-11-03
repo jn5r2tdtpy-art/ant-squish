@@ -107,10 +107,10 @@ const powerSpeed = n => 0.6 + 0.13 * (n - 1);                       // power met
 const bullseye   = n => Math.max(0.055, 0.1 - 0.006 * (n - 1));    // bullseye size, as a share of the board width
 const windFor    = n => n < 4 ? 0 : Math.min(0.22, 0.06 + 0.03 * (n - 4)); // most the wind can push, share of board width
 const WHO = [
-  { id: "bald", name: "Goatee", src: "img/bald.webp", aspect: 467 / 300, shirt: "#2a5aa8", shorts: "#3a3f4a" },
-  { id: "glasses", name: "Glasses", src: "img/glasses.webp", aspect: 437 / 300, shirt: "#b0304a", shorts: "#2d3a5a" },
-  { id: "bandana", name: "Bandana", src: "img/bandana.webp", aspect: 473 / 300, shirt: "#222428", shorts: "#4a5060" },
-  { id: "sonny", name: "Sonny", src: "../fortune-sonny/img/sonny.webp", aspect: 497 / 360, shirt: "#1f5a3a", shorts: "#3a3f4a", wide: 1.15 },
+  { id: "bald", name: "Eddie", src: "img/bald.webp", aspect: 467 / 300, shirt: "#2a5aa8", shorts: "#3a3f4a" },
+  { id: "glasses", name: "Abby", src: "img/glasses.webp", aspect: 437 / 300, shirt: "#b0304a", shorts: "#2d3a5a" },
+  { id: "bandana", name: "Sonny", sonny: true, src: "img/bandana.webp", aspect: 473 / 300, shirt: "#222428", shorts: "#4a5060" },
+  { id: "sonny", name: "Top Hat Sonny", sonny: true, src: "../fortune-sonny/img/sonny.webp", aspect: 497 / 360, shirt: "#1f5a3a", shorts: "#3a3f4a", wide: 1.15 },
 ];
 const TAUNTS = {
   miss: ["You throw like a wet noodle!", "Is that all you’ve got?", "I’m not even damp!", "My grandma throws harder than that!", "Ha! Missed me!",
@@ -118,9 +118,21 @@ const TAUNTS = {
   close: ["Whoa! That was close!", "Hey, easy now…", "Missed me by a hair!", "Okay, that one scared me."],
   start: ["Come on, dunk me if you can!", "I’ve got a dry towel and nowhere to be!", "Nobody’s dunked me all day!", "Step right up and try your luck!"],
   dunk: ["AAAH! Cold! Cold!", "Blub blub blub!", "No fair! I wasn’t ready!", "That’s it, I’m calling my lawyer!", "Okay, okay, nice throw!"],
-  sonny: ["I’m too good to get wet!", "Back in my day, people could throw!", "You couldn’t dunk me with a fire hose!", "This hat stays dry, pal!"],
+  sonny: ["I’m too good to get wet!", "Back in my day, people could throw!", "You couldn’t dunk me with a fire hose!", "I’ve had a raw deal my whole life, and now this?",
+    "I work harder than anybody here, and this is the thanks I get?", "Hurry up, my Harley’s double-parked!", "Nobody in my family can hit a target either!"],
+  bandana: ["Watch the bandana, pal!", "These sunglasses cost more than your car!"],
+  sonnyhat: ["This hat stays dry, pal!", "The hat is not getting wet. Understood?"],
+  glasses: ["…and then I said to her… oh, are you throwing?", "Did I ever tell you about my cousin? No? Okay, so…", "Blah blah blah, you’ll never hit me!",
+    "Careful, these are my good glasses!", "I could talk all day. I usually do!"],
+  bald: ["Is that all you’ve got, buddy?", "Come on, I’ve got a game to watch!", "My hair’s dry. All of it. Both of them.", "Eddie’s staying dry today!"],
 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
+// lines for whoever is in the tank, mixed with the general ones
+function mine() {
+  const own = (TAUNTS[who.id] || []).concat(who.id === "sonny" ? TAUNTS.sonnyhat : []).concat(who.sonny ? TAUNTS.sonny : []);
+  return own;
+}
+function taunt(kind) { const own = mine(); return own.length && Math.random() < 0.5 ? pick(own) : pick(TAUNTS[kind]); }
 
 // ---------- Helpers ----------
 const $ = id => document.getElementById(id);
@@ -188,7 +200,7 @@ const G = {
   stateT: 0, t: 0, aimPhase: 0, powerPhase: 0, aimX: 0, power: 0, goal: 0.6, wind: 0,
   ball: null, parts: [], pops: [], bubble: null, dunkT: 0, banner: null, pausedFrom: null,
 };
-function startRound() { G.balls = BALLS; newBall(); G.banner = { big: "Round " + G.round, small: windFor(G.round) ? "Watch the wind!" : "3 balls · hit the bullseye" }; setState("intro"); say(pick(who.id === "sonny" ? TAUNTS.start.concat(TAUNTS.sonny) : TAUNTS.start)); }
+function startRound() { G.balls = BALLS; newBall(); G.banner = { big: "Round " + G.round, small: windFor(G.round) ? "Watch the wind!" : "3 balls · hit the bullseye" }; setState("intro"); say(taunt("start")); }
 function newBall() {
   G.aimPhase = rand(0, 6.28); G.powerPhase = rand(0, 1); G.ball = null;
   G.goal = rand(0.45, 0.8);                      // where the green zone sits on the power meter this throw
@@ -244,7 +256,7 @@ function land() {
   G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-30, 30), vy: -40, r: ballR(1), life: 0.9, t: 0 });
   const close = d <= L.R * 2.2;
   G.pops.push({ x: b.tx, y: b.ty - 20, text: close ? "So close!" : onBoard ? "Miss!" : "Way off!", color: close ? "#ffd75e" : "#ffffff", t: 0 });
-  say(pick(close ? TAUNTS.close : who.id === "sonny" && Math.random() < 0.4 ? TAUNTS.sonny : TAUNTS.miss));
+  say(close ? pick(TAUNTS.close) : taunt("miss"));
   setState("result");
 }
 function dunk() {
@@ -261,7 +273,7 @@ function outOfBalls() {
   G.lives--;
   if (G.lives <= 0) { gameOver(); return; }
   G.banner = { big: "Out of balls!", small: G.lives === 1 ? "1 try left" : G.lives + " tries left", note: "Try that round again" };
-  say(pick(who.id === "sonny" ? TAUNTS.sonny : TAUNTS.miss));
+  say(taunt("miss"));
   setState("fail"); sfx.lose();
 }
 function gameOver() {
