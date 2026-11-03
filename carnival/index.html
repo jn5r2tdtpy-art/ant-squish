@@ -91,6 +91,15 @@
     </div>
   </a>
 
+  <a class="game" href="dunk-tank/">
+    <img src="fortune-sonny/img/sonny.webp" alt="" style="width:64px">
+    <div>
+      <h2>Dunk Tank</h2>
+      <p>Time your aim and power to hit the bullseye and drop Sonny in the water!</p>
+      <div class="best" id="dtBest"></div>
+    </div>
+  </a>
+
   <a class="game" href="fortune-sonny/">
     <img src="fortune-sonny/img/sonny.webp" alt="">
     <div>
@@ -107,7 +116,7 @@
 <script>
   { const n = Coins.get(); document.getElementById("purse").textContent = "🪙 You have " + Coins.label(n) + " · win rounds in any game to earn more"; }
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}
-  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"]]) {
+  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
   }
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
