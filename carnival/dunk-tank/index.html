@@ -124,7 +124,11 @@ const TAUNTS = {
   sonnyhat: ["This hat stays dry, pal!", "The hat is not getting wet. Understood?"],
   glasses: ["…and then I said to her… oh, are you throwing?", "Did I ever tell you about my cousin? No? Okay, so…", "Blah blah blah, you’ll never hit me!",
     "Careful, these are my good glasses!", "I could talk all day. I usually do!"],
-  bald: ["Is that all you’ve got, buddy?", "Come on, I’ve got a game to watch!", "My hair’s dry. All of it. Both of them.", "Eddie’s staying dry today!"],
+  bald: ["Psst. I loosened the seat. Just kidding. Or am I?", "That target’s broken. I checked. Trust me.", "I’m not even sitting here. You’re imagining it.",
+    "I’ve never been dunked. Ever. Don’t ask anyone.", "That one hit me. I’m just not falling. House rules.", "I didn’t move the target. Why would you think that?",
+    "Missed me! And if you didn’t, nobody saw.", "I’m allowed five misses. Says so on the sign. Somewhere.", "Throw it over there, it works better. Honest."],
+  baldDunk: ["That didn’t count. I slipped.", "I meant to do that. I was hot.", "I’m not wet. This is sweat.", "Nobody saw that. Right? Right?",
+    "That never happened. I was here dry the whole time.", "The seat was rigged! By me. Against me. Long story."],
 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 // lines for whoever is in the tank, mixed with the general ones
@@ -265,7 +269,7 @@ function dunk() {
   const coins = Coins.forRound(G.round) + (G.balls === BALLS - 1 ? Coins.BONUS : 0);
   Coins.add(coins); Coins.chime(); showCoins();
   sfx.clang(); setTimeout(sfx.splash, 200);
-  G.dunkT = 0.0001; say(pick(TAUNTS.dunk));
+  G.dunkT = 0.0001; say(TAUNTS[who.id + "Dunk"] && Math.random() < 0.7 ? pick(TAUNTS[who.id + "Dunk"]) : pick(TAUNTS.dunk));
   G.banner = { big: "DUNKED!", small: "+" + pts + " points · 🪙 +" + Coins.label(coins), note: G.balls === BALLS - 1 ? "First ball! Bonus coin" : "Next round: faster meters, smaller bullseye", win: true };
   setState("dunk"); setTimeout(sfx.win, 900);
 }
