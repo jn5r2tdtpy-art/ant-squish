@@ -1409,7 +1409,7 @@ GAMES.simon={
   name:'Flip’s kit memory',
   help:'Flip’s kit lights up one drum. Tap the same drum. Then it lights up two, then three. Repeat the whole pattern each time. One wrong drum and the game is over. Best played with your phone turned sideways.',
   view(){
-    if(W/H>1.4){const L=Math.min(170,W*.2),s=Math.min((W-L-12)/VIEW.w,(H-10)/VIEW.h);
+    if(W/H>1.4){const L=Math.min(140,W*.16),s=Math.min((W-L-12)/VIEW.w,(H-10)/VIEW.h);
       return{s,wide:true,L,ox:L+(W-L)/2-(VIEW.x+VIEW.w/2)*s,oy:H/2-(VIEW.y+VIEW.h/2)*s}}
     const s=Math.min(W/VIEW.w,(H-110)/VIEW.h);return{s,ox:W/2-(VIEW.x+VIEW.w/2)*s,oy:H*.56-(VIEW.y+VIEW.h/2)*s}},
   hitSound(i){const h=HEADS[i];if(h.s){snd(h.s);return}
@@ -1464,10 +1464,12 @@ GAMES.simon={
       const y0=Math.max(70,H*.2);
       cx.fillStyle='rgba(12,9,16,.55)';cx.fillRect(0,0,v.L,H);
       txt(`ROUND ${len}`,16,y0,18,C.head,'display','left');
-      if(msg)txt(msg.toUpperCase(),16,y0+34,Math.min(30,v.L*.19),mcol,'display','left');
-      txt('SCORE',16,y0+72,10,C.muted,'mono','left');txt(String(score),16,y0+98,34,C.head,'display','left');
-      if(G.st==='input')txt(`${G.pos} of ${G.seq.length}`,16,y0+136,14,C.brass,'mono','left');
-      if(G.st==='wrong'){txt('It was the',16,y0+136,12,C.head,'mono','left');txt(HEADS[G.wrong].n.toLowerCase(),16,y0+154,12,C.head,'mono','left')}
+      if(msg)txt(msg.toUpperCase(),16,y0+34,Math.min(28,v.L*.19),mcol,'display','left');
+      // score block sits at the bottom of the column
+      const yb=H-22;
+      txt('SCORE',16,yb-92,10,C.muted,'mono','left');txt(String(score),16,yb-62,34,C.head,'display','left');
+      if(G.st==='input')txt(`${G.pos} of ${G.seq.length}`,16,yb-18,14,C.brass,'mono','left');
+      if(G.st==='wrong'){txt('It was the',16,yb-24,12,C.head,'mono','left');txt(HEADS[G.wrong].n.toLowerCase(),16,yb-6,12,C.head,'mono','left')}
     }else{
       txt(`ROUND ${len}`,16,34,16,C.head,'display','left');
       txt(String(score),W/2,38,42,C.head);
