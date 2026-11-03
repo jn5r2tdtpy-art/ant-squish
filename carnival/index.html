@@ -134,6 +134,15 @@
     </div>
   </a>
 
+  <a class="game" href="ring-toss/">
+    <img src="ring-toss/eddie.webp" alt="" style="width:64px">
+    <div>
+      <h2>Eddie’s Wedding Ring Toss</h2>
+      <p>Eddie “lost” his wedding rings again. Toss them onto the pegs for a RINGER!</p>
+      <div class="best" id="rtBest"></div>
+    </div>
+  </a>
+
   <a class="game" href="ventriloquist/">
     <img src="ventriloquist/img/card.webp" alt="" style="width:78px;border-radius:12px">
     <div>
@@ -167,7 +176,7 @@
   showPurse();
   addEventListener("pageshow", showPurse);
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}
-  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"], ["kc-best", "kcBest"]]) {
+  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"], ["kc-best", "kcBest"], ["rt-best", "rtBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
   }
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});

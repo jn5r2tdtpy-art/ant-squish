@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Eddie's Wedding Ring Toss</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(28px, 9vw, 44px); line-height: 1.08; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .hero { height: 96px; width: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <img class="hero" src="eddie.webp" alt="Eddie">
+    <h1>Eddie’s Wedding<br>Ring Toss</h1>
+    <div class="rules">
+      <p>Eddie “lost” his wedding rings again. Toss them onto the pegs. Land one over a peg for a <b>RINGER!</b></p>
+      <p><b>Tap once</b> to lock your aim as the marker slides across the board. <b>Tap again</b> to lock how far you throw as the marker slides up and down the rows.</p>
+      <p>You get <b>5 rings</b> a round. Get enough ringers to beat the round. The <b>back rows</b> are worth more.</p>
+      <p>Ring the 💎 <b>diamond peg</b> to win 🪙 +1. Miss the goal and you lose one of 3 tries.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, RINGS = 5, NROWS = 6, NPEGS = 7;
+const ROW_PTS = [10, 15, 20, 30, 40, 50];                  // front row to back row
+const goalFor   = n => Math.min(3, 1 + Math.floor((n - 1) / 4)); // ringers needed to beat round n (out of 5)
+const aimSpeed  = n => 1.5 + 0.12 * (n - 1);
+const distSpeed = n => 0.6 + 0.05 * (n - 1);
+const tolFor    = n => Math.max(0.24, 0.36 - 0.006 * (n - 1)); // how close to a peg counts as a ringer (share of the gap between pegs)
+const RING_COLORS = ["#ffd75e"];
+const LINES = {
+  start: ["That's my wedding ring! I didn't lose it. I hid it.", "Toss carefully. I told everyone these were real gold.", "If you find my ring, I was never here.", "I've lost this ring twelve times. Officially."],
+  ringer: ["Ringer! Okay, that one's definitely mine.", "Nice! Now I can tell everyone I never took it off.", "That's going right back on my finger. Eventually.", "Perfect! Don't tell anybody where it was."],
+  miss: ["Missed! See? That's how I lose them.", "Ha! It rolled under the table. Like always.", "That's okay, I've got a drawer full of these.", "Swing and a miss! Now I need a new excuse."],
+  diamond: ["The diamond one? That ring cost me a fortune! I'm lying. It was free."],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const eddie = new Image(); eddie.src = "eddie.webp";
+
+// ---------- Sound ----------
+let ac = null;
+function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } } if (ac && ac.state === "suspended") ac.resume(); return ac; }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  lock() { tone(880, 0.06, "square", 0.06); },
+  toss() { tone(500, 0.25, "sine", 0.06, 0, 900); },
+  ringer() { [1568, 2093, 2637].forEach((f, i) => tone(f, 0.45, "triangle", 0.1, i * 0.05)); },
+  clink() { tone(2400, 0.08, "triangle", 0.08); tone(1800, 0.1, "triangle", 0.06, 0.07); tone(1300, 0.12, "triangle", 0.05, 0.16); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, lives: LIVES, rings: RINGS, ringers: 0, best: +store.get("rt-best") || 0,
+  stateT: 0, t: 0, aimPhase: 0, dPhase: 0, aimU: 0, dist: 0, toss: null, landed: [], loose: [], pops: [], bubble: null, diamond: null, banner: null, pausedFrom: null };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function say(t) { G.bubble = { text: t, t: 0, life: 2.4 }; }
+function startRound() {
+  G.rings = RINGS; G.ringers = 0; G.landed = []; G.loose = [];
+  G.diamond = { r: 2 + Math.floor(Math.random() * (NROWS - 2)), i: Math.floor(Math.random() * NPEGS) };
+  newToss(); G.banner = { big: "Round " + G.round, small: "Get " + goalFor(G.round) + (goalFor(G.round) === 1 ? " ringer" : " ringers") + " with 5 rings" };
+  setState("intro"); say(pick(LINES.start));
+}
+function newToss() { G.aimPhase = rand(0, 6.28); G.dPhase = rand(0, 1); G.toss = null; }
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; hideOverlays(); layout(); startRound();
+}
+
+// ---------- Layout: a stepped board seen from the front, back rows higher and narrower ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 60 + L.safeT; L.foot = (W > H ? 46 : 80) + L.safeB;
+  const top = L.hudH + 6, bottom = H - L.foot, h = bottom - top, w = Math.min(W - 16, h * 0.95, 640);
+  L.x = (W - w) / 2; L.y = top; L.w = w; L.h = h; L.cx = W / 2;
+  L.signH = h * 0.2;
+  L.frontY = L.y + h * 0.86; L.backY = L.y + L.signH + h * 0.1;       // y of the front row and back row pegs
+  L.frontW = w * 0.86; L.backW = w * 0.62;                             // width the pegs span on the front and back rows
+}
+function rowY(r) { return L.frontY + (L.backY - L.frontY) * (r / (NROWS - 1)); }
+function rowW(r) { return L.frontW + (L.backW - L.frontW) * (r / (NROWS - 1)); }
+function rowS(r) { return 1 - 0.32 * (r / (NROWS - 1)); }              // things look smaller farther back
+function pegX(r, i) { return L.cx + (i - (NPEGS - 1) / 2) * rowW(r) / (NPEGS - 1); }
+
+// ---------- Tossing ----------
+const aimNow = () => Math.sin(G.aimPhase) * 0.5;                        // -0.55..0.55 across the board (in peg widths of the row: -3..3 is the pegs)
+const dNow = () => { const p = G.dPhase % 2; return p < 1 ? p : 2 - p; }; // 0 = short (front), 1 = long (back)
+const rowFromD = d => -0.6 + d * (NROWS - 1 + 1.2);                     // rows as a number; below 0 is short, above the back row is long
+function screenAt(u, rf) { // u: -0.5..0.5 across, rf: row number (can be between rows)
+  const r = clamp(rf, -0.6, NROWS - 0.4), t = r / (NROWS - 1), w = L.frontW + (L.backW - L.frontW) * t, y = L.frontY + (L.backY - L.frontY) * t;
+  return { x: L.cx + u * w * (NPEGS) / (NPEGS - 1), y, s: 1 - 0.32 * t };
+}
+function tap() {
+  audio();
+  if (G.state === "aim") { G.aimU = aimNow(); sfx.lock(); setState("dist"); }
+  else if (G.state === "dist") { G.dist = dNow(); sfx.lock(); toss(); }
+}
+function toss() {
+  const rf = rowFromD(G.dist), u = G.aimU, end = screenAt(u, rf);
+  G.toss = { sx: W / 2, sy: H - L.foot * 0.3, ex: end.x, ey: end.y, es: end.s, u, rf, t: 0, spin: rand(-6, 6) };
+  G.rings--; sfx.toss(); setState("flying");
+}
+function land() {
+  const T = G.toss, tol = tolFor(G.round);
+  const r = Math.round(T.rf), uPeg = T.u * NPEGS / (NPEGS - 1) * (NPEGS - 1) + (NPEGS - 1) / 2; // peg index as a number
+  const i = Math.round(uPeg), dr = Math.abs(T.rf - r), di = Math.abs(uPeg - i);
+  const onBoard = r >= 0 && r < NROWS && i >= 0 && i < NPEGS;
+  const taken = G.landed.some(l => l.r === r && l.i === i);
+  if (onBoard && !taken && dr < tol * 1.1 && di < tol) {
+    G.landed.push({ r, i, wob: 1 }); G.ringers++;
+    const pts = ROW_PTS[r]; G.score += pts; sfx.ringer();
+    const p = { x: pegX(r, i), y: rowY(r) };
+    G.pops.push({ x: p.x, y: p.y - 30, text: "RINGER! +" + pts, color: "#ffd75e", t: 0 });
+    if (G.diamond && G.diamond.r === r && G.diamond.i === i) { Coins.add(1); Coins.chime(); showCoins(); G.pops.push({ x: p.x, y: p.y - 56, text: "💎 🪙 +1", color: "#9fe8ff", t: 0 }); say(pick(LINES.diamond)); }
+    else say(pick(LINES.ringer));
+  } else {
+    // bounced off a peg or the board, rolls away
+    sfx.clink();
+    G.loose.push({ x: T.ex, y: T.ey, s: T.es, vx: rand(-80, 80), vy: rand(-140, -60), rot: 0, vr: rand(-8, 8), t: 0 });
+    const why = !onBoard ? (T.rf < -0.3 ? "Too short!" : T.rf > NROWS - 0.6 ? "Too far!" : "Off the side!") : taken ? "Already ringed!" : "Close!";
+    G.pops.push({ x: T.ex, y: T.ey - 20, text: why, color: "#fff", t: 0 }); say(pick(LINES.miss));
+  }
+  setState("result");
+}
+function afterToss() {
+  const goal = goalFor(G.round);
+  if (G.rings > 0) { newToss(); setState("aim"); return; }
+  if (G.ringers >= goal) {
+    const bonus = 50 * G.round * (G.ringers - goal + 1); G.score += bonus;
+    G.banner = { big: G.ringers === RINGS ? "5 for 5!" : "Round clear!", small: G.ringers + " ringers · +" + bonus + " points", note: "Next round: faster markers, pickier pegs", win: true };
+    setState("clear"); sfx.win(); return;
+  }
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Not enough ringers", small: G.ringers + " of " + goal + " · " + (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Try that round again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("rt-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const FLY = 0.75;
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
+  if (G.state === "intro" && G.stateT > 1.5) setState("aim");
+  if (G.state === "aim") G.aimPhase += dt * aimSpeed(G.round);
+  if (G.state === "dist") G.dPhase += dt * distSpeed(G.round) * 2;
+  if (G.state === "flying") { G.toss.t += dt / FLY; if (G.toss.t >= 1) land(); }
+  if (G.state === "result" && G.stateT > 1.0) afterToss();
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  for (const l of G.landed) l.wob = Math.max(0, l.wob - dt * 2);
+  for (const r of G.loose) { r.t += dt; r.x += r.vx * dt; r.y += r.vy * dt; r.vy += 700 * dt; r.rot += r.vr * dt; }
+  G.loose = G.loose.filter(r => r.t < 1.6);
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.1);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawScene() {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#2f5a2a"); g.addColorStop(1, "#16301a"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(0, 0, W, H * 0.3);
+  // striped skirt below the board
+  const sy = L.frontY + L.h * 0.08;
+  for (let x = L.x, k = 0; x < L.x + L.w; x += 12, k++) { ctx.fillStyle = k % 2 ? "#f6f1ea" : "#d42a36"; ctx.fillRect(x, sy, 12, H - sy); }
+  // back sign with Eddie
+  const bx = L.x + L.w * 0.12, bw = L.w * 0.76, by = L.y, bh = L.signH;
+  ctx.fillStyle = "#c81e2c"; rr(bx, by, bw, bh + L.h * 0.12, 18); ctx.fill();
+  ctx.fillStyle = "#fff4ea"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const eh = bh * 0.95, ew = eddie.naturalWidth ? eh * eddie.naturalWidth / eddie.naturalHeight : eh * 0.75;
+  if (eddie.complete && eddie.naturalWidth) ctx.drawImage(eddie, bx + bw * 0.03, by + bh * 0.04, ew, eh);
+  const tx0 = bx + bw * 0.03 + ew + 6, tw = bx + bw - tx0 - 10, tcx = tx0 + tw / 2;
+  let fs = Math.round(bh * 0.3); ctx.font = `${fs}px Rye, Georgia, serif`;
+  while (ctx.measureText("EDDIE'S").width > tw && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.fillText("EDDIE'S", tcx, by + bh * 0.3); ctx.fillText("RING TOSS", tcx, by + bh * 0.62);
+  ctx.font = `italic 600 ${Math.max(10, Math.round(fs * 0.42))}px Georgia, serif`; ctx.fillStyle = "#ffd75e"; ctx.fillText("Wedding Ring Edition", tcx, by + bh * 0.88);
+  // side walls of the board
+  ctx.fillStyle = "#a8141f";
+  ctx.beginPath(); ctx.moveTo(L.x, L.frontY + 14); ctx.lineTo(L.x + L.w * 0.12, L.backY - 18); ctx.lineTo(L.x + L.w * 0.16, L.backY - 18); ctx.lineTo(L.x + L.w * 0.05, L.frontY + 14); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(L.x + L.w, L.frontY + 14); ctx.lineTo(L.x + L.w * 0.88, L.backY - 18); ctx.lineTo(L.x + L.w * 0.84, L.backY - 18); ctx.lineTo(L.x + L.w * 0.95, L.frontY + 14); ctx.fill();
+  // stepped rows (back first), each a red riser with a white step
+  for (let r = NROWS - 1; r >= 0; r--) {
+    const y = rowY(r), w = rowW(r) * 1.12, s = rowS(r), step = 16 * s * (L.h / 600) + 8;
+    ctx.fillStyle = "#d42a36"; ctx.fillRect(L.cx - w / 2, y - step * 1.6, w, step * 1.6);
+    ctx.fillStyle = "#fbf7f0"; ctx.fillRect(L.cx - w / 2, y, w, step); ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(L.cx - w / 2, y + step - 2, w, 2);
+  }
+  // front box with RINGER!
+  const fy = L.frontY + L.h * 0.035, fh = L.h * 0.09;
+  ctx.fillStyle = "#c81e2c"; rr(L.x + L.w * 0.02, fy, L.w * 0.96, fh, 8); ctx.fill();
+  ctx.fillStyle = "#fff4ea"; ctx.font = `${Math.round(fh * 0.62)}px Rye, Georgia, serif`; ctx.fillText("RINGER!", L.cx, fy + fh * 0.55);
+}
+function drawPeg(r, i) {
+  const x = pegX(r, i), y = rowY(r), s = rowS(r), ph = 40 * s * (L.h / 600) + 12, pw = Math.max(7, 13 * s * (L.w / 400));
+  const dia = G.diamond && G.diamond.r === r && G.diamond.i === i;
+  const g = ctx.createLinearGradient(x - pw / 2, 0, x + pw / 2, 0); g.addColorStop(0, "#8a0f1a"); g.addColorStop(0.5, "#e23a46"); g.addColorStop(1, "#8a0f1a");
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(x + pw * 0.3, y + 2, pw * 0.8, pw * 0.25, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = g; rr(x - pw / 2, y - ph, pw, ph, pw / 2); ctx.fill();
+  ctx.fillStyle = "#f06a74"; ctx.beginPath(); ctx.ellipse(x, y - ph + pw * 0.15, pw * 0.42, pw * 0.2, 0, 0, 7); ctx.fill();
+  if (dia) {
+    const tw = 0.6 + 0.4 * Math.sin(G.t * 6 + i);
+    ctx.save(); ctx.translate(x, y - ph - pw * 0.4); ctx.fillStyle = `rgba(190,245,255,${tw})`; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -pw * 1.1); ctx.lineTo(pw * 0.9, -pw * 0.2); ctx.lineTo(0, pw * 0.9); ctx.lineTo(-pw * 0.9, -pw * 0.2); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  return { x, y, ph };
+}
+function ring(x, y, rw, rh, rot, back) { // a gold wedding ring seen at an angle; back = draw only the far half
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+  const g = ctx.createLinearGradient(-rw, -rh, rw, rh); g.addColorStop(0, "#fff3b0"); g.addColorStop(0.4, "#f0b928"); g.addColorStop(1, "#a8701a");
+  ctx.strokeStyle = g; ctx.lineWidth = Math.max(2.5, rw * 0.22);
+  ctx.beginPath(); if (back === true) ctx.ellipse(0, 0, rw, rh, 0, Math.PI, Math.PI * 2); else if (back === false) ctx.ellipse(0, 0, rw, rh, 0, 0, Math.PI); else ctx.ellipse(0, 0, rw, rh, 0, 0, Math.PI * 2);
+  ctx.stroke(); ctx.restore();
+}
+function drawBoard() {
+  for (let r = NROWS - 1; r >= 0; r--) {
+    for (let i = 0; i < NPEGS; i++) {
+      const s = rowS(r), lr = G.landed.find(l => l.r === r && l.i === i), x = pegX(r, i), y = rowY(r);
+      const rw = 20 * s * (L.w / 400) + 5, rh = rw * 0.35, ry = y - 8 * s + Math.sin(G.t * 30) * (lr ? lr.wob * 3 : 0);
+      if (lr) ring(x, ry, rw, rh, 0, true);       // far half behind the peg
+      drawPeg(r, i);
+      if (lr) ring(x, ry, rw, rh, 0, false);      // near half in front
+    }
+  }
+}
+function drawMarkers() {
+  if (!["aim", "dist", "flying", "result"].includes(G.state)) return;
+  const u = G.state === "aim" ? aimNow() : G.aimU;
+  const front = screenAt(u, -0.35), back = screenAt(u, NROWS - 0.7);
+  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.85)" : "rgba(122,255,138,.9)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.moveTo(front.x, front.y + 10); ctx.lineTo(back.x, back.y - 10); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = G.state === "aim" ? "#fff" : "#7aff8a";
+  ctx.beginPath(); ctx.moveTo(front.x, front.y + 14); ctx.lineTo(front.x - 11, front.y + 32); ctx.lineTo(front.x + 11, front.y + 32); ctx.fill();
+  if (G.state !== "aim") {
+    const rf = rowFromD(G.state === "dist" ? dNow() : G.dist), p = screenAt(u, rf);
+    ring(p.x, p.y - 6 * p.s, (16 * p.s * (L.w / 400) + 4) * 1.15, (16 * p.s * (L.w / 400) + 4) * 0.4, 0);
+    // distance scale on the right edge
+    const x = L.x + L.w - 10, y0 = rowY(-0.6), y1 = rowY(NROWS - 0.4), py = rowY(clamp(rf, -0.6, NROWS - 0.4));
+    ctx.fillStyle = "rgba(20,4,10,.6)"; rr(x - 7, y1 - 6, 14, y0 - y1 + 12, 7); ctx.fill();
+    const gg = ctx.createLinearGradient(0, y0, 0, y1); gg.addColorStop(0, "#3a7af0"); gg.addColorStop(1, "#e0242e"); ctx.fillStyle = gg; rr(x - 4, y1, 8, y0 - y1, 4); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 8, py); ctx.lineTo(x - 22, py - 8); ctx.lineTo(x - 22, py + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+function drawToss() {
+  const T = G.toss; if (!T || G.state !== "flying") return;
+  const t = T.t, x = T.sx + (T.ex - T.sx) * t, y = T.sy + (T.ey - T.sy) * t - Math.sin(Math.PI * t) * L.h * 0.25, s = 2.2 - (2.2 - T.es) * t;
+  const rw = (16 * s * (L.w / 400) + 4), tilt = 0.35 + 0.65 * Math.abs(Math.cos(t * T.spin));
+  ring(x, y, rw, rw * tilt, t * T.spin * 0.3);
+}
+function drawLoose() { for (const r of G.loose) { ctx.globalAlpha = clamp(1.6 - r.t, 0, 1); const rw = 16 * r.s * (L.w / 400) + 4; ring(r.x, r.y, rw, rw * 0.5, r.rot); } ctx.globalAlpha = 1; }
+function drawBubble() {
+  const bb = G.bubble; if (!bb) return; const k = Math.min(1, bb.t / 0.12, (bb.life - bb.t) / 0.2); if (k <= 0) return;
+  const fs = clamp(L.w * 0.034, 12, 16); ctx.font = `700 ${fs}px system-ui, sans-serif`;
+  const maxW = Math.min(L.w * 0.7, W - 24), words = bb.text.split(" "), lines = []; let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 22 && cur) { lines.push(cur); cur = w; } else cur = t; } lines.push(cur);
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.25, bw = tw + 22, bh = lines.length * lh + 12;
+  const x = clamp(L.x + L.w * 0.25, 8, W - bw - 8), y = L.y + L.signH + 8;
+  ctx.globalAlpha = k; ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5; rr(x, y, bw, bh, 12); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 14, y + 1); ctx.lineTo(x + 6, y - 12); ctx.lineTo(x + 30, y + 1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#fffdf5"; ctx.fillRect(x + 12, y, 20, 4);
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; lines.forEach((l, i) => ctx.fillText(l, x + bw / 2, y + 6 + lh * (i + 0.5))); ctx.globalAlpha = 1;
+}
+function drawHUD() {
+  const y = L.safeT + 30; ctx.fillStyle = "rgba(20,4,10,.75)"; ctx.fillRect(0, 0, W, L.hudH - 6);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Rings left: " + G.rings + "   Ringers: " + G.ringers + "/" + goalFor(G.round) + "   Tries: " + G.lives, W / 2, y + 18);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  const label = G.state === "aim" ? "TAP to lock your aim" : G.state === "dist" ? "TAP to lock how far you throw" : "";
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+  ctx.fillText(label, W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0;
+}
+function drawPops() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = 1 - (p.t / 1.1) ** 2; ctx.font = "800 20px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    ctx.strokeText(p.text, p.x, p.y - p.t * 40); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y - p.t * 40); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.y + L.h * 0.48, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.88)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawScene(); drawBoard(); drawMarkers(); drawLoose(); drawToss(); drawBubble(); drawPops(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
+addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { tap(); e.preventDefault(); } if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Ring the 💎 diamond peg to win +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
