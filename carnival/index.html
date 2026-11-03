@@ -154,7 +154,7 @@
 </script>
 <script src="coins.js"></script>
 <script>
-  function showPurse() { document.getElementById("purse").textContent = "🪙 You have " + Coins.label(Coins.get()) + " · win rounds in any game to earn more"; }
+  function showPurse() { document.getElementById("purse").textContent = "🪙 You have " + Coins.label(Coins.get()) + " · each game costs 1 coin, hit the +1 targets to earn more"; }
   showPurse();
   addEventListener("pageshow", showPurse);
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}

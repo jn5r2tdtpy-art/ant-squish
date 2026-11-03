@@ -199,7 +199,7 @@ function startRace() {
   setState("ready");
 }
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); if (s !== "race") setSpray(false); }
-function newGame() { G.race = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; hideOverlays(); startRace(); }
+function newGame() { if (!Coins.spend(1)) { showCoins(true); const fl = document.getElementById("finalLine"); if (fl) fl.innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; } G.race = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; hideOverlays(); startRace(); }
 
 // ---------- Layout ----------
 let W = 0, H = 0, DPR = 1;
@@ -329,8 +329,8 @@ function raceOver(ln) {
   const me = G.lanes[1], acc = me.shots ? Math.round(me.hits / me.shots * 100) : 0;
   if (!ln.cpu) {
     const pts = 100 * G.race; G.score += pts; G.bubble = null;
-    const coins = Coins.forRound(G.race); Coins.add(coins); Coins.chime(); showCoins();
-    G.banner = { big: "You win!", small: "+" + pts + " points · 🪙 +" + Coins.label(coins), note: "Next race: the others get better", win: true };
+    Coins.add(1); Coins.chime(); showCoins();
+    G.banner = { big: "You win!", small: "+" + pts + " points · 🪙 +1 coin", note: "Next race: the others get better", win: true };
     sfx.bell(); setTimeout(() => sfx.win(), 250);
   } else {
     G.lives--;
@@ -348,7 +348,7 @@ function gameOver() {
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to race " + G.race + ".";
   $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
-  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
+  $("finalBest").textContent += " · 🪙 You have " + Coins.get() + " coins"; showCoins();
   $("overScreen").classList.add("show");
 }
 
@@ -683,7 +683,11 @@ $("pauseBtn").onclick = togglePause;
 ["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
 document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
 
-function showCoins() { const n = Coins.get(); document.getElementById("coinLine").textContent = "🪙 Your coins: " + n + " · win rounds to earn more for Sonny the Sorta Psychic"; }
+function showCoins(broke) {
+  const n = Coins.get(), el = document.getElementById("coinLine");
+  el.innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"
+    : "🪙 A game costs 1 coin. You have " + n + ". Win a race to win +1.";
+}
 showCoins();
 $("bestLine").textContent = G.best ? "Best score: " + G.best : "";
 

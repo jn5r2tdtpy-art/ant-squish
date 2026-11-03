@@ -68,7 +68,7 @@
       <p>Hit the <b>bullseye</b> to drop them in the water. You get <b>3 balls</b> a round.</p>
       <p><b>Tap once</b> to lock your aim as the marker sweeps across the board. <b>Tap again</b> to lock your power. Stop it in the <b>green zone</b> or the ball goes too low or too high.</p>
       <p>Each round the meters get faster and the bullseye gets smaller. From round 4, watch the <b>wind</b> flag.</p>
-      <p>Miss all 3 balls and you lose one of 3 tries. Dunk them to earn 🪙 coins.</p>
+      <p>Miss all 3 balls and you lose one of 3 tries. A game costs 🪙 1 coin; dunk them on your first ball to win 🪙 +1.</p>
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
     <p class="muted" id="bestLine"></p>
@@ -216,7 +216,7 @@ function newBall() {
   const wmax = windFor(G.round); G.wind = wmax ? rand(-wmax, wmax) : 0;
 }
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
-function newGame() { G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; G.dunkT = 0; hideOverlays(); layout(); startRound(); }
+function newGame() { if (!Coins.spend(1)) { showCoins(true); const fl = document.getElementById("finalLine"); if (fl) fl.innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; } G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; G.dunkT = 0; hideOverlays(); layout(); startRound(); }
 function say(text) { G.bubble = { text, t: 0, life: 2.2 }; }
 
 // ---------- Layout ----------
@@ -271,11 +271,11 @@ function land() {
 function dunk() {
   const ballBonus = G.balls + 1;                   // 3 for the first ball, 2 for the second, 1 for the last
   const pts = 100 * ballBonus * G.round; G.score += pts;
-  const coins = Coins.forRound(G.round) + (G.balls === BALLS - 1 ? Coins.BONUS : 0);
-  Coins.add(coins); Coins.chime(); showCoins();
+  const coins = G.balls === BALLS - 1 ? Coins.BONUS : 0; // +1 coin only for a dunk on the first ball
+  if (coins) { Coins.add(coins); Coins.chime(); } showCoins();
   sfx.clang(); setTimeout(sfx.splash, 200);
   G.dunkT = 0.0001; say(TAUNTS[who.id + "Dunk"] && Math.random() < 0.7 ? pick(TAUNTS[who.id + "Dunk"]) : pick(TAUNTS.dunk));
-  G.banner = { big: "DUNKED!", small: "+" + pts + " points · 🪙 +" + Coins.label(coins), note: G.balls === BALLS - 1 ? "First ball! Bonus coin" : "Next round: faster meters, smaller bullseye", win: true };
+  G.banner = { big: "DUNKED!", small: "+" + pts + " points" + (coins ? " · 🪙 +1 coin" : ""), note: G.balls === BALLS - 1 ? "First ball! You win a coin" : "Next round: faster meters, smaller bullseye", win: true };
   setState("dunk"); setTimeout(sfx.win, 900);
 }
 function outOfBalls() {
@@ -292,7 +292,7 @@ function gameOver() {
   $("finalScore").textContent = G.score;
   $("finalLine").textContent = "You made it to round " + G.round + ".";
   $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
-  { const c = Coins.GAME_OVER; Coins.add(c); showCoins(); $("finalBest").textContent += " · 🪙 +" + Coins.label(c) + " for playing (you have " + Coins.get() + ")"; }
+  $("finalBest").textContent += " · 🪙 You have " + Coins.get() + " coins"; showCoins();
   setTimeout(() => $("overScreen").classList.add("show"), 900);
 }
 
@@ -538,7 +538,11 @@ function togglePause() {
   if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
 }
 function toMidway() { location.href = "../"; }
-function showCoins() { $("coinLine").textContent = "🪙 Your coins: " + Coins.get() + " · dunk them to earn more for Sonny the Sorta Psychic"; }
+function showCoins(broke) {
+  const n = Coins.get(), el = document.getElementById("coinLine");
+  el.innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"
+    : "🪙 A game costs 1 coin. You have " + n + ". Dunk them on your first ball to win +1.";
+}
 $("playBtn").onclick = () => { audio(); newGame(); };
 $("againBtn").onclick = () => { audio(); newGame(); };
 $("restartBtn").onclick = () => newGame();
