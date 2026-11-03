@@ -79,10 +79,19 @@
     </div>
   </a>
 
+  <a class="game" href="duck-duck-splash/">
+    <img src="duck-duck-splash/img/bald.webp" alt="">
+    <div>
+      <h2>Duck Duck Splash</h2>
+      <p>Squirt the heads as they float back and forth on the waves!</p>
+      <div class="best" id="ddBest"></div>
+    </div>
+  </a>
+
   <div class="soon">More games coming soon</div>
 </main>
 <script>
-  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"]]) {
+  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
   }
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
