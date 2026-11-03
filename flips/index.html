@@ -124,6 +124,7 @@ table.win{border-collapse:collapse;font-size:14px;width:100%}
 table.win td,table.win th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
 table.win td{font-family:var(--mono);font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--brass)}
+.tempohint{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px;color:var(--head)}
 .calres{font-family:var(--mono);font-size:14px;color:var(--brass)}
 #mini{position:absolute;inset:0;z-index:30;background:var(--stage);display:grid;grid-template-rows:auto 1fr;touch-action:none}
 .minibar{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px))}
@@ -194,7 +195,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
     <div class="topbar"><button class="back" data-go="title">‹ Back</button><h2>The set</h2></div>
     <ol class="tracks" id="tracks"></ol>
     <div class="setup">
-      <div class="field"><span class="lbl">Tempo</span><div class="stepper" id="bpmStep"></div></div>
+      <div class="field"><span class="lbl">Tempo <span class="tempohint">· Too fast? Tap −5 to slow the song down.</span></span><div class="stepper" id="bpmStep"></div></div>
       <div class="field"><span class="lbl">Difficulty (timing window)</span><div class="pills" id="diffPills"></div></div>
       <label class="toggle"><input type="checkbox" id="optGuide"> Guide drums: hear the part played quietly</label>
       <label class="toggle"><input type="checkbox" id="optClick"> Click track on quarter notes</label>
@@ -275,11 +276,12 @@ input[type=range]{width:100%;accent-color:var(--brass)}
       <h3>Timing windows</h3>
       <table class="win">
         <tr><th></th><th>Perfect</th><th>Great</th><th>Good</th></tr>
+        <tr><th>Easy</th><td>±60 ms</td><td>±110 ms</td><td>±160 ms</td></tr>
         <tr><th>Casual</th><td>±45 ms</td><td>±85 ms</td><td>±130 ms</td></tr>
         <tr><th>Session</th><td>±32 ms</td><td>±62 ms</td><td>±105 ms</td></tr>
         <tr><th>Pro</th><td>±22 ms</td><td>±45 ms</td><td>±85 ms</td></tr>
       </table>
-      <p class="fine">Casual also thins out sixteenth-note parts and fills.</p>
+      <p class="fine">Easy has one note at a time, only on the beat (1, 2, 3, 4), with no fills and no ghost notes. Casual keeps hi-hats and ride on the beat and thins out sixteenth-note parts and fills.</p>
     </div>
     <p class="fine">If every hit reads late, run Calibrate in Settings. Wired headphones or the device speaker give the lowest lag. On iPhone, turn off silent mode to hear sound.</p>
   </div>
@@ -330,11 +332,14 @@ const LI=Object.fromEntries(LANES.map((l,i)=>[l.id,i]));
 const KEYMAP={};LANES.forEach((l,i)=>l.keys.forEach(k=>KEYMAP[k]=i));
 
 const DIFFS={
+  easy:{name:'Easy',p:.06,g:.11,ok:.16,pass:.65},
   casual:{name:'Casual',p:.045,g:.085,ok:.13,pass:.7},
   session:{name:'Session',p:.032,g:.062,ok:.105,pass:.78},
   pro:{name:'Pro',p:.022,g:.045,ok:.085,pass:.85},
 };
 const settings=Object.assign({diff:'session',guide:false,click:false,offset:0,vol:.85,gapBars:2,tradeBpm:88,saysBpm:70,gapBpm:100,track:'lot',bpms:{}},store.get('settings',{}));
+// first run after Easy was added: start everyone on Easy
+if(!settings.easyV){settings.easyV=1;settings.diff='easy';try{localStorage.setItem('flips.settings',JSON.stringify(settings))}catch(e){}}
 const saveSettings=()=>store.set('settings',settings);
 
 /* ---------- The set ---------- */
@@ -386,7 +391,7 @@ function buildChart(tr,bpm,diff,seed,opts={}){
   for(let b=0;b<BARS;b++){
     const bt=t0+b*bar,last=b===BARS-1;
     let fillFrom=S;
-    if(b%4===3)fillFrom=(b%8===7&&!last&&diff!=='casual'&&rng()<.6)?0:S/2;
+    if(b%4===3&&diff!=='easy')fillFrom=(b%8===7&&!last&&diff!=='casual'&&rng()<.6)?0:S/2;
     const kicks=[];
     for(const lane of ['hh','sn','kk','tm','cy']){
       const row=tr.p[lane];if(!row)continue;
@@ -394,6 +399,8 @@ function buildChart(tr,bpm,diff,seed,opts={}){
       for(let s=0;s<fillFrom;s++){
         const c=row[s];if(c==='.')continue;
         if(diff==='casual'&&(c==='g'||(dense&&s%2)))continue;
+        if(diff==='easy'&&(c==='g'||s%(S/4)!==0))continue;
+        if(diff==='casual'&&(lane==='hh'||lane==='cy')&&s%(S/4)!==0)continue;
         if(b%4===0&&s===0&&(lane==='hh'||lane==='cy'))continue;
         if(lane==='kk')kicks.push(s);
         add(bt+s*sd,lane,c,c==='g');
@@ -420,6 +427,12 @@ function buildChart(tr,bpm,diff,seed,opts={}){
   music.push({t:end,k:'pad',notes:CH[tr.prog[0][1]].map(x=>tr.key+24+x),dur:2.4});
   music.push({t:end,k:'bass',m:tr.key,dur:1.8});
   notes.sort((a,c)=>a.t-c.t);
+  if(diff==='easy'){
+    // one note at a time: keep the most important drum on each beat (crash, then snare, kick, tom, hi-hat/ride)
+    const rank=n=>n.lane===LI.cy&&n.v==='c'?0:n.lane===LI.sn?1:n.lane===LI.kk?2:n.lane===LI.tm?3:4;
+    const keep=[];for(const n of notes){const last=keep[keep.length-1];if(last&&Math.abs(last.t-n.t)<.001){if(rank(n)<rank(last))keep[keep.length-1]=n}else keep.push(n)}
+    notes.length=0;notes.push(...keep);
+  }
   if(opts.guide)notes.forEach(n=>music.push({t:n.t,k:'drum',lane:LANES[n.lane].id,v:n.v,vel:n.ghost?.1:.28}));
   music.sort((a,c)=>a.t-c.t);
   return{notes,music,spb,end,t0,S};
@@ -831,7 +844,8 @@ cv.addEventListener('pointerdown',e=>{if(!G.running)return;e.preventDefault();co
 
 function rr(x,y,w,h,r){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.rect(x,y,w,h)}
 function drawHighway(notes,vt,spb,showMiss){
-  const hitY=H-26,look=3.2*spb,pps=(hitY-60)/look;
+  // notes move the same distance per beat whatever the screen size, so an upright phone isn't faster than a sideways one
+  const hitY=H-26,pxBeat=72,pps=pxBeat/spb,look=(hitY-60)/pps;
   // lanes
   laneGeo.forEach((g,i)=>{
     cx.fillStyle=i%2?'rgba(255,255,255,.025)':'rgba(255,255,255,.045)';cx.fillRect(g.x,0,g.w,H);
@@ -1404,12 +1418,12 @@ const HEADS=[ // drum heads on the back-view photo (837x478): x,y,rx,ry, name, c
   {x:661,y:368,rx:89,ry:72,n:'Big floor tom',c:'#ff9f43',f:118},
   {x:143,y:390,rx:47,ry:40,n:'Pad',c:'#e3b04b',s:'kick'},
 ];
-const VIEW={x:92,y:112,w:665,h:332};
+const VIEW={x:0,y:0,w:837,h:478}; // the whole back-view photo
 GAMES.simon={
   name:'Flip’s kit memory',
   help:'Flip’s kit lights up one drum. Tap the same drum. Then it lights up two, then three. Repeat the whole pattern each time. One wrong drum and the game is over. Best played with your phone turned sideways.',
   view(){
-    if(W/H>1.4){const L=Math.min(140,W*.16),s=Math.min((W-L-12)/VIEW.w,(H-10)/VIEW.h);
+    if(W/H>1.4){const L=Math.min(84,W*.1),s=Math.min((W-L-12)/VIEW.w,(H-10)/VIEW.h);
       return{s,wide:true,L,ox:L+(W-L)/2-(VIEW.x+VIEW.w/2)*s,oy:H/2-(VIEW.y+VIEW.h/2)*s}}
     const s=Math.min(W/VIEW.w,(H-110)/VIEW.h);return{s,ox:W/2-(VIEW.x+VIEW.w/2)*s,oy:H*.56-(VIEW.y+VIEW.h/2)*s}},
   hitSound(i){const h=HEADS[i];if(h.s){snd(h.s);return}
@@ -1461,15 +1475,17 @@ GAMES.simon={
     const mcol=G.st==='input'?C.brass:G.st==='wrong'?C.bad:G.st==='good'?C.good:C.head;
     if(v.wide){
       // sideways: everything in a column on the left so the kit can fill the screen
-      const y0=Math.max(70,H*.2);
+      // narrow column: every line is shrunk to fit, and the status words stack (YOUR above TURN)
+      // the phone's camera sits in the middle of this edge, so text keeps to the top and bottom with extra side room
+      const px=14,mw=v.L-px-6;
+      const fit=(t,y,size,col,font)=>{cx.font=font==='mono'?`700 ${size}px "JetBrains Mono",monospace`:`900 ${size}px "Big Shoulders Display",Impact,sans-serif`;const w=cx.measureText(t).width;txt(t,px,y,w>mw?size*mw/w:size,col,font,'left')};
       cx.fillStyle='rgba(12,9,16,.55)';cx.fillRect(0,0,v.L,H);
-      txt(`ROUND ${len}`,16,y0,18,C.head,'display','left');
-      if(msg)txt(msg.toUpperCase(),16,y0+34,Math.min(28,v.L*.19),mcol,'display','left');
-      // score block sits at the bottom of the column
-      const yb=H-22;
-      txt('SCORE',16,yb-92,10,C.muted,'mono','left');txt(String(score),16,yb-62,34,C.head,'display','left');
-      if(G.st==='input')txt(`${G.pos} of ${G.seq.length}`,16,yb-18,14,C.brass,'mono','left');
-      if(G.st==='wrong'){txt('It was the',16,yb-24,12,C.head,'mono','left');txt(HEADS[G.wrong].n.toLowerCase(),16,yb-6,12,C.head,'mono','left')}
+      fit('ROUND',62,14,C.muted,'display');fit(String(len),84,24,C.head,'display');
+      if(msg)msg.toUpperCase().split(' ').forEach((w,k)=>fit(w,116+k*24,24,mcol,'display'));
+      const yb=H-8;
+      fit('SCORE',yb-92,10,C.muted,'mono');fit(String(score),yb-62,34,C.head,'display');
+      if(G.st==='input')fit(`${G.pos} of ${G.seq.length}`,yb-18,13,C.brass,'mono');
+      if(G.st==='wrong'){fit('It was',yb-30,11,C.head,'mono');fit(HEADS[G.wrong].n.toLowerCase(),yb-12,11,C.head,'mono')}
     }else{
       txt(`ROUND ${len}`,16,34,16,C.head,'display','left');
       txt(String(score),W/2,38,42,C.head);
