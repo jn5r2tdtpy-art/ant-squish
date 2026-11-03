@@ -281,7 +281,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
         <tr><th>Session</th><td>±32 ms</td><td>±62 ms</td><td>±105 ms</td></tr>
         <tr><th>Pro</th><td>±22 ms</td><td>±45 ms</td><td>±85 ms</td></tr>
       </table>
-      <p class="fine">Easy only has notes on the beat (1, 2, 3, 4), with no fills and no ghost notes. Casual thins out sixteenth-note parts and fills.</p>
+      <p class="fine">Easy has one note at a time, only on the beat (1, 2, 3, 4), with no fills and no ghost notes. Casual keeps hi-hats and ride on the beat and thins out sixteenth-note parts and fills.</p>
     </div>
     <p class="fine">If every hit reads late, run Calibrate in Settings. Wired headphones or the device speaker give the lowest lag. On iPhone, turn off silent mode to hear sound.</p>
   </div>
@@ -400,6 +400,7 @@ function buildChart(tr,bpm,diff,seed,opts={}){
         const c=row[s];if(c==='.')continue;
         if(diff==='casual'&&(c==='g'||(dense&&s%2)))continue;
         if(diff==='easy'&&(c==='g'||s%(S/4)!==0))continue;
+        if(diff==='casual'&&(lane==='hh'||lane==='cy')&&s%(S/4)!==0)continue;
         if(b%4===0&&s===0&&(lane==='hh'||lane==='cy'))continue;
         if(lane==='kk')kicks.push(s);
         add(bt+s*sd,lane,c,c==='g');
@@ -426,6 +427,12 @@ function buildChart(tr,bpm,diff,seed,opts={}){
   music.push({t:end,k:'pad',notes:CH[tr.prog[0][1]].map(x=>tr.key+24+x),dur:2.4});
   music.push({t:end,k:'bass',m:tr.key,dur:1.8});
   notes.sort((a,c)=>a.t-c.t);
+  if(diff==='easy'){
+    // one note at a time: keep the most important drum on each beat (crash, then snare, kick, tom, hi-hat/ride)
+    const rank=n=>n.lane===LI.cy&&n.v==='c'?0:n.lane===LI.sn?1:n.lane===LI.kk?2:n.lane===LI.tm?3:4;
+    const keep=[];for(const n of notes){const last=keep[keep.length-1];if(last&&Math.abs(last.t-n.t)<.001){if(rank(n)<rank(last))keep[keep.length-1]=n}else keep.push(n)}
+    notes.length=0;notes.push(...keep);
+  }
   if(opts.guide)notes.forEach(n=>music.push({t:n.t,k:'drum',lane:LANES[n.lane].id,v:n.v,vel:n.ghost?.1:.28}));
   music.sort((a,c)=>a.t-c.t);
   return{notes,music,spb,end,t0,S};
