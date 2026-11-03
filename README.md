@@ -69,7 +69,8 @@ It works offline once it has been opened. High scores are saved on each device.
 **Blow Up Sonny’s Big Ego Head** (`carnival/sonnys-big-head/`): a water-gun race. Hold your finger on your target to squirt it; every squirt that is on target blows Sonny’s head up a bit more, and the first head to pop wins.
 
 - You are the middle lane, racing two computer players: Lefty Lou (left) and Rapid Rita (right). They aim better each race.
-- From race 2 the targets slide side to side, faster and further each race, and every target gets a little smaller.
+- From race 2 the targets slide side to side, faster and further each race, and every target gets a little smaller. After race 5 they speed up a lot more each race.
 - About 6 seconds of steady aim pops a head (`FILL_TIME`). The computer players take about 10 seconds in race 1, down to about 7½ by race 8.
 - Win a race for 100 × the race number. Lose a race and you lose one of 3 water drops (lives) and run that race again.
+- On a touch screen, a magnifier bubble floats above your finger while you squirt, showing where your water is going (green edge = on target).
 - Sonny brags as his head grows. The head picture is `img/sonny.webp`. Race settings (`targetSize`, `targetSwing`, `targetSpeed`, `cpuWobble`, `yourWobble`) are near the top of the game code.
