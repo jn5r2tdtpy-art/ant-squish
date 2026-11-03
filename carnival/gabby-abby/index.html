@@ -62,6 +62,7 @@
       <p>From round 2 her teeth <b>grow back</b> if you’re too slow, and faster every round.</p>
       <p>From round 3 some teeth wear <b>braces</b>: the first hit knocks the braces off, the second knocks the tooth out for <b>20</b>.</p>
       <p>When the light on top flashes, the <b>gold tooth</b> is worth double.</p>
+      <p>Hurry: her <b>mouth slowly closes</b> as the clock runs down.</p>
       <p id="howTo" class="muted"></p>
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
@@ -108,6 +109,23 @@ const FACE_W = 570, FACE_H = 847;
 const MOUTH = { x: 73, y: 430, w: 430, h: 223 };
 const TEETH = [[120, 422, 45, 216], [182, 431, 43, 227], [242, 451, 43, 210], [303, 443, 42, 218], [364, 426, 43, 229], [425, 426, 43, 207]];
 const NOSE = { x: 275, y: 372, r: 34 };
+// Inner edge of the lips (face picture px): [x, top, bottom]. Used to close her mouth as time runs down.
+const LIP_EDGE = [[73, 434, 550], [97, 430, 582], [121, 430, 604], [145, 430, 618], [169, 433, 633], [193, 442, 642], [217, 452, 648],
+  [241, 459, 652], [265, 464, 653], [289, 464, 653], [313, 458, 652], [337, 453, 652], [361, 444, 648], [385, 438, 641], [409, 434, 633],
+  [433, 434, 621], [457, 434, 606], [481, 434, 586], [503, 442, 560]];
+const MAX_CLOSE = 0.7; // how far her lips close when the clock hits zero (1 = shut)
+function lipAt(x) {
+  const e = LIP_EDGE; if (x <= e[0][0]) return { top: e[0][1], bot: e[0][2] };
+  for (let i = 1; i < e.length; i++) if (x <= e[i][0]) {
+    const k = (x - e[i - 1][0]) / (e[i][0] - e[i - 1][0]);
+    return { top: e[i - 1][1] + (e[i][1] - e[i - 1][1]) * k, bot: e[i - 1][2] + (e[i][2] - e[i - 1][2]) * k };
+  }
+  const l = e[e.length - 1]; return { top: l[1], bot: l[2] };
+}
+function openEdges(x) { // where the closing lips are now
+  const l = lipAt(x), mid = (l.top + l.bot) / 2, c = G.close;
+  return { top: l.top + (mid - l.top) * c, bot: l.bot - (l.bot - mid) * c };
+}
 const GLASSES = { x: 96, y: 296, w: 376, h: 56 };
 
 const LINES = {
@@ -116,6 +134,7 @@ const LINES = {
   gulp: ["Gulp! Tasty!", "Mmm, cannonball!", "Burp! ’Scuse me!"],
   nose: ["HONK!", "Hey, watch the schnoz!"],
   glasses: ["Watch the glasses!", "These are prescription!"],
+  lips: ["Mmmph!", "My lips are sealed!", "Can’t talk, closing up shop!"],
   braces: ["My braces!", "Those cost a fortune!"],
   regrow: ["They grow back, honey!", "Ta-da! Good as new!"],
   chatter: ["…and then SHE said…", "Step right up, big shot!", "Have you tried the corn dogs?", "Yak yak yak!", "Oh, I could talk all day!", "Did you hear about the bearded lady?"],
@@ -214,7 +233,7 @@ const G = {
   teeth: [], timeLeft: 0, timeMax: 0, stateT: 0, lastTick: 0,
   balls: [], parts: [], pops: [], bubble: null, chatT: 3,
   aim: { x: 0, y: 0 }, reload: 0, recoil: 0, shake: 0,
-  bonusT: 0, t: 0, banner: null, pausedFrom: null,
+  bonusT: 0, t: 0, banner: null, pausedFrom: null, close: 0,
 };
 
 function startRound() {
@@ -318,6 +337,8 @@ function land(b) {
   const f = toFace(b.tx, b.ty);
   const ballBits = () => G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-50, 50), vy: -80, r: ballR(1), life: 0.8, t: 0 });
   if (inMouth(f.x, f.y)) {
+    const o = openEdges(f.x);
+    if (f.y < o.top || f.y > o.bot) { ballBits(); sfx.thud(); say("lips"); return; }
     const th = G.teeth.find(t => f.x >= t.x + 2 && f.x <= t.x + t.w - 2);
     if (th && toothUp(th)) return hitTooth(th, b);
     // into a gap or a tooth that is already out: down the hatch
@@ -360,7 +381,7 @@ function roundCleared() {
   G.score += bonus;
   const nb = bracesCount(G.round + 1) > bracesCount(G.round);
   G.banner = { big: "Toothless!", small: "Time bonus +" + bonus, note: nb ? "Next round: more braces" : (regrowTime(G.round + 1) ? "Next round: teeth grow back faster" : "") };
-  G.bubble = { text: "Hey! I’m gonna need dentures!", t: 0, life: 2.4 };
+  G.bubble = null;
   setState("clear"); sfx.clear();
 }
 
@@ -368,7 +389,7 @@ function timeUp() {
   G.lives--; G.balls = [];
   if (G.lives <= 0) { gameOver(); return; }
   G.banner = { big: "Time’s up!", small: G.lives === 1 ? "1 cannon ball left" : G.lives + " cannon balls left", note: "Try that round again" };
-  G.bubble = { text: "Ha ha! Still got my teeth!", t: 0, life: 2.4 };
+  G.bubble = null;
   setState("timeout"); sfx.timeup();
 }
 
@@ -393,6 +414,11 @@ function update(dt) {
   G.recoil = Math.max(0, G.recoil - dt * 5);
   G.shake = Math.max(0, G.shake - dt);
   if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
+  // lips close as the clock runs down, snap shut on time up, open wide between rounds
+  let closeTo = 0;
+  if (G.state === "play" && G.timeMax) closeTo = MAX_CLOSE * (1 - G.timeLeft / G.timeMax);
+  else if (G.state === "timeout" || G.state === "over") closeTo = 1;
+  G.close += (closeTo - G.close) * Math.min(1, dt * (G.state === "play" ? 8 : 5));
 
   if (G.state === "intro" && G.stateT > 1.7) setState("play");
   if (G.state === "clear" && G.stateT > 2.4) { G.round++; startRound(); }
@@ -506,6 +532,33 @@ function drawTeeth() {
     if (p > 0) { ctx.globalAlpha = p * 0.7; ctx.fillStyle = "#000"; ctx.fillRect(-w / 2, 0, w, h); ctx.globalAlpha = 1; }
     ctx.restore();
   }
+}
+
+function drawLips() {
+  if (G.close < 0.01) return;
+  ctx.save(); ctx.globalAlpha = Math.min(1, G.close * 10);
+  const fs = L.fs, step = 6, x0 = LIP_EDGE[0][0] - 4, x1 = LIP_EDGE[LIP_EDGE.length - 1][0] + 4;
+  const skin = "#fdb47c", lip = "#c8182a";
+  for (const upper of [true, false]) {
+    ctx.beginPath();
+    const edge = [];
+    for (let x = x0; x <= x1 + 0.1; x += step) { const o = openEdges(x); edge.push([x, upper ? o.top : o.bot]); }
+    const far = upper ? MOUTH.y - 20 : MOUTH.y + MOUTH.h + 20;
+    let p = toScreen(x0, far); ctx.moveTo(p.x, p.y);
+    for (const [x, y] of edge) { p = toScreen(x, y); ctx.lineTo(p.x, p.y); }
+    p = toScreen(x1, far); ctx.lineTo(p.x, p.y); ctx.closePath();
+    const a = toScreen(0, far), b = toScreen(0, upper ? openEdges(288).top : openEdges(288).bot);
+    const g = ctx.createLinearGradient(0, a.y, 0, b.y);
+    g.addColorStop(0, skin); g.addColorStop(0.8, "#f6a56c"); g.addColorStop(1, "#e88a58");
+    ctx.fillStyle = g; ctx.fill();
+    // red lip line along the closing edge
+    ctx.beginPath();
+    edge.forEach(([x, y], i) => { const q = toScreen(x, y); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); });
+    ctx.strokeStyle = lip; ctx.lineWidth = Math.max(3, 14 * fs); ctx.lineJoin = "round"; ctx.stroke();
+    ctx.strokeStyle = "rgba(255,200,200,.55)"; ctx.lineWidth = Math.max(1, 3 * fs);
+    ctx.save(); ctx.translate(0, (upper ? -3 : 3) * fs); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
 }
 
 function drawFace() {
@@ -688,7 +741,7 @@ function drawHUD() {
 
 function drawBanner() {
   if (!G.banner || !["intro", "clear", "timeout"].includes(G.state)) return;
-  const k = clamp(G.stateT / 0.25, 0, 1), y = L.fy + L.fh * 0.55;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.fy + Math.max(62, L.fh * 0.2);
   const bw = Math.min(W - 32, 360);
   ctx.globalAlpha = k;
   ctx.fillStyle = "rgba(20,4,10,.85)";
@@ -717,7 +770,7 @@ function draw() {
   if (G.state === "title") return;
   ctx.save();
   if (G.shake > 0) ctx.translate(rand(-1, 1) * G.shake * 14, rand(-1, 1) * G.shake * 14);
-  drawCabinet(); drawTeeth(); drawFace(); drawCannon(); drawBubble(); drawBalls(); drawParts(); drawPops(); drawSights();
+  drawCabinet(); drawTeeth(); drawLips(); drawFace(); drawCannon(); drawBubble(); drawBalls(); drawParts(); drawPops(); drawSights();
   ctx.restore();
   drawHUD(); drawBanner(); drawHint();
 }

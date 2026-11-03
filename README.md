@@ -62,5 +62,6 @@ It works offline once it has been opened. High scores are saved on each device.
 
 - **Points:** a tooth is 10. A gold tooth (the light on top flashes) is double. A tooth with braces takes two hits: 5 for knocking the braces off, 20 for the tooth.
 - **Rounds:** from round 2, knocked-out teeth grow back (after 9 seconds, then faster each round, down to 2.5). From round 3, 1 tooth has braces, then 2 from round 5 and 3 from round 7. The clock starts at 13 seconds and loses half a second each round (never under 7), plus 1½ seconds per braces tooth. These are `roundTime`, `regrowTime` and `bracesCount` near the top of the game code.
+- **Closing mouth:** her lips close in from top and bottom as the clock runs down (70% shut at zero, `MAX_CLOSE`), and shots that hit the lips bounce off. She shuts on time up and opens wide each new round.
 - Abby talks back: hit her nose for a honk, her glasses, or a gap in her teeth (she swallows the ball).
 - Same aiming, 3 cannon balls, time bonus and pause as Down the Clown. The art is cut from the cabinet picture: `img/face.webp` has a see-through mouth and the teeth (`img/tooth0–5.webp`) sit behind it.
