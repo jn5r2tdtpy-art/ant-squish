@@ -101,5 +101,6 @@ It works offline once it has been opened. High scores are saved on each device.
 
 **The Sonny & Eddie Show** (`carnival/ventriloquist/`): a ventriloquist act on a curtained stage, built on the photo of Sonny (the ventriloquist) with his little brother Eddie as the dummy (`img/photo.webp`). Tap for the next joke and the brothers roast each other.
 
+- Two ways to watch, picked before the show starts: **Watch the Show** (the act) and **Ask Sonny & Eddie** (you get two funny questions, tap one, and both brothers answer; 36 questions in `questions.js`). When Sonny talks, his lower lip and beard move a little like normal talking; when Eddie talks, his dummy jaw drops.
 - 40 bits in `bits.js`, each a list of lines marked `"S"` (Sonny) or `"E"` (Eddie). Copy one to add more.
 - Every line is pre-recorded in `voice/`: Sonny in the Joe voice, Eddie in the Ryan voice. When Eddie talks, the part of his chin between his painted dummy lines drops in time with his voice (the outline is `JAW` near the top of the game code). New lines without a recording use the phone’s voice.

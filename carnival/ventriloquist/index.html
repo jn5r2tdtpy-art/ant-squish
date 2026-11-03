@@ -26,6 +26,14 @@
     padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 220px; }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
   .btn:disabled { opacity: .5; }
+  .btn.alt { background: linear-gradient(#f4f0ff, #cdbcf5); box-shadow: 0 4px 0 #6a50a8, 0 6px 14px rgba(0,0,0,.4); }
+  .mode { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  .mode[hidden] { display: none; }
+  .askHead { font: 700 14px system-ui, sans-serif; color: #ffd75e; }
+  .qbtn { width: min(100%, 460px); font: 700 16px/1.3 system-ui, sans-serif; color: #2a0812; background: #fffdf5; border: 3px solid #ffd75e; border-radius: 16px;
+    padding: 11px 14px; cursor: pointer; text-align: center; box-shadow: 0 4px 0 #a8661a; }
+  .qbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .qbtn:disabled { opacity: .45; }
   #row { display: flex; gap: 14px; align-items: center; justify-content: center; font-size: 13px; color: #cdb896; flex-wrap: wrap; }
   body.side #panel { left: auto; right: 0; top: 0; width: 34%; justify-content: center; }
   body.side .btn { min-width: 0; width: 100%; }
@@ -36,10 +44,22 @@
 <canvas id="cv"></canvas>
 <button id="backBtn">‹ Midway</button>
 <div id="panel">
-  <button class="btn" id="goBtn">Start the show!</button>
-  <div id="row"><span id="count"></span><button class="link" id="voiceBtn"></button></div>
+  <div id="pick" class="mode">
+    <button class="btn" id="pickShow">🎭 Watch the Show</button>
+    <button class="btn alt" id="pickAsk">🎤 Ask Sonny &amp; Eddie</button>
+  </div>
+  <div id="showCtl" class="mode" hidden>
+    <button class="btn" id="goBtn">Start the show!</button>
+  </div>
+  <div id="askCtl" class="mode" hidden>
+    <div class="askHead">Pick a question for the boys:</div>
+    <button class="qbtn" id="q0"></button>
+    <button class="qbtn" id="q1"></button>
+  </div>
+  <div id="row"><span id="count"></span><button class="link" id="switchBtn" hidden></button><button class="link" id="voiceBtn"></button></div>
 </div>
 <script src="bits.js"></script>
+<script src="questions.js"></script>
 <script>
 "use strict";
 const BITS = window.BITS;
@@ -53,6 +73,23 @@ const I = { photo: img("img/photo.webp") };
 // The photo is 1119 x 1406. Eddie's jaw is the part between his painted dummy lines, below his mouth.
 const PW = 1119, PH = 1406;
 const JAW = [[305, 556], [362, 553], [419, 552], [420, 626], [392, 640], [362, 643], [332, 640], [304, 630]];
+// Sonny's lower lip and beard: a soft-edged piece that moves down a little when he talks (no hard lines).
+const SONNY_LIP = { x: 590, y: 420, w: 190, h: 120, mouthY: 424, cx: 679 };
+let sonnyPiece = null;
+function buildSonnyPiece() {
+  const { x, y, w, h, mouthY, cx } = SONNY_LIP, c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"); g.drawImage(I.photo, x, y, w, h, 0, 0, w, h);
+  g.globalCompositeOperation = "destination-in";
+  const m = document.createElement("canvas"); m.width = w; m.height = h; const mg = m.getContext("2d");
+  const r = mg.createRadialGradient(cx - x, mouthY - y, 10, cx - x, mouthY - y + 10, h * 0.95);
+  r.addColorStop(0, "rgba(0,0,0,1)"); r.addColorStop(0.55, "rgba(0,0,0,1)"); r.addColorStop(1, "rgba(0,0,0,0)");
+  mg.fillStyle = r; mg.fillRect(0, 0, w, h);
+  mg.globalCompositeOperation = "destination-in";
+  const v = mg.createLinearGradient(0, mouthY - y - 1, 0, mouthY - y + 3); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,1)");
+  mg.fillStyle = v; mg.fillRect(0, 0, w, h);
+  g.drawImage(m, 0, 0); sonnyPiece = c;
+}
+I.photo.addEventListener("load", () => { try { buildSonnyPiece(); } catch (e) { sonnyPiece = null; } });
 const JAW_TOP = 552, EDDIE_MOUTH = [362, 556], SONNY_MOUTH = [690, 410], EDDIE_HAT = [345, 250], SONNY_HAT = [700, 40];
 
 // ---------- Voices ----------
@@ -96,18 +133,50 @@ function nextBit() {
   if (!order.length) order = BITS.map((_, i) => i).sort(() => Math.random() - 0.5);
   return BITS[order.pop()];
 }
-function play() {
-  if (S.busy) return;
+// run a list of [who, line] and call done at the end
+function perform(lines, done) {
   hookAnalyser(); if (acx && acx.state === "suspended") acx.resume();
-  S.busy = true; $("goBtn").disabled = true; $("goBtn").textContent = "…";
-  const bit = nextBit(); let i = 0;
-  const step = () => {
-    if (i >= bit.length) { S.busy = false; S.laugh = 1; laugh(); seen++; $("count").textContent = "Jokes heard: " + seen + " of " + BITS.length; $("goBtn").disabled = false; $("goBtn").textContent = "Another one!"; return; }
-    const [who, line] = bit[i++]; say(who, line, step);
-  };
+  S.busy = true; let i = 0;
+  const step = () => { if (i >= lines.length) { S.busy = false; S.laugh = 1; laugh(); done(); return; } const [who, line] = lines[i++]; say(who, line, step); };
   step();
 }
+function play() {
+  if (S.busy) return;
+  $("goBtn").disabled = true; $("goBtn").textContent = "…";
+  perform(nextBit(), () => { seen++; $("count").textContent = "Jokes heard: " + seen + " of " + BITS.length; $("goBtn").disabled = false; $("goBtn").textContent = "Another one!"; });
+}
 $("goBtn").onclick = play;
+
+// ---------- Ask Sonny & Eddie ----------
+const QS = window.QUESTIONS; let qOrder = [], pair = [], asked = 0;
+function nextQ() { if (!qOrder.length) qOrder = QS.map((_, i) => i).sort(() => Math.random() - 0.5); return qOrder.pop(); }
+function newPair() {
+  let a = nextQ(), b = nextQ(); if (b === a) b = nextQ();
+  pair = [a, b]; $("q0").textContent = QS[a].q; $("q1").textContent = QS[b].q;
+  $("q0").disabled = $("q1").disabled = false; layout();
+}
+function ask(k) {
+  if (S.busy) return;
+  const item = QS[pair[k]]; S.question = item.q;
+  $("q0").disabled = $("q1").disabled = true;
+  perform(item.a, () => { asked++; $("count").textContent = "Questions asked: " + asked; S.question = null; newPair(); });
+}
+$("q0").onclick = () => ask(0); $("q1").onclick = () => ask(1);
+
+// ---------- Choosing a show ----------
+function setMode(m) {
+  S.mode = m;
+  $("pick").hidden = m !== "pick"; $("showCtl").hidden = m !== "show"; $("askCtl").hidden = m !== "ask";
+  $("switchBtn").hidden = m === "pick";
+  $("switchBtn").textContent = m === "show" ? "🎤 Ask Sonny & Eddie instead" : "🎭 Watch the Show instead";
+  if (m === "show") { $("count").textContent = BITS.length + " jokes in the act"; }
+  if (m === "ask") { $("count").textContent = QS.length + " questions to ask"; newPair(); }
+  if (m === "pick") $("count").textContent = "";
+  layout();
+}
+$("pickShow").onclick = () => setMode("show");
+$("pickAsk").onclick = () => setMode("ask");
+$("switchBtn").onclick = () => { if (!S.busy) setMode(S.mode === "show" ? "ask" : "show"); };
 $("backBtn").onclick = () => { player.pause(); location.href = "../"; };
 // a little canned laugh and a rimshot
 function laugh() {
@@ -192,6 +261,18 @@ function drawPhoto() {
     ctx.strokeStyle = "rgba(20,5,5,.5)"; ctx.lineWidth = 1.2; ctx.beginPath();
     JAW.slice(0, 3).forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y + drop) : ctx.moveTo(X, Y + drop); }); ctx.stroke();
   }
+  // Sonny talks normally: his lower lip and beard move down a little, showing a dark mouth between his lips
+  let sOpen = 0;
+  if (S.talker === "S") { const l = loudness(); sOpen = l == null ? (0.5 + 0.5 * Math.sin(S.lineT * 18)) : clamp((l - 0.012) * 8, 0, 1); }
+  S.sjaw = (S.sjaw || 0) + (sOpen - (S.sjaw || 0)) * 0.45;
+  const sd = S.sjaw * 7 * s;
+  if (sonnyPiece && sd > 0.3) {
+    const [mx, my] = P(SONNY_LIP.cx, SONNY_LIP.mouthY);
+    ctx.save(); ctx.filter = "blur(" + Math.max(0.5, s * 1.5) + "px)";
+    ctx.fillStyle = "rgba(35,10,10,.9)"; ctx.beginPath(); ctx.ellipse(mx, my + sd * 0.45, 36 * s, sd * 0.6 + 1, 0, 0, 7); ctx.fill(); ctx.restore();
+    const [ox, oy] = P(SONNY_LIP.x, SONNY_LIP.y);
+    ctx.drawImage(sonnyPiece, ox, oy + sd, SONNY_LIP.w * s, SONNY_LIP.h * s);
+  }
   // a soft glow on whoever is talking
   if (S.talker) {
     const [gx, gy] = S.talker === "E" ? P(355, 460) : P(690, 330), r = (S.talker === "E" ? 190 : 230) * s;
@@ -224,6 +305,12 @@ function draw() {
     if (S.talker === "E") { const [x, y] = P(EDDIE_HAT[0], EDDIE_HAT[1]); drawBubble(x, y, S.line, true); }
     else { const [x, y] = P(SONNY_HAT[0], SONNY_HAT[1]); drawBubble(x, y, S.line, false); }
   }
+  if (S.question) {
+    const fs = clamp(L.pw * 0.045, 13, 18); ctx.font = `800 ${fs}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const t = "Q: " + S.question, tw = Math.min(ctx.measureText(t).width + 28, L.pw), y = L.py + L.ph - fs * 1.6;
+    ctx.fillStyle = "rgba(42,8,18,.85)"; rr(L.px + L.pw / 2 - tw / 2, y - fs, tw, fs * 2, fs); ctx.fill();
+    ctx.fillStyle = "#ffd75e"; ctx.fillText(t, L.px + L.pw / 2, y, L.pw - 24);
+  }
   if (S.laugh > 0) {
     ctx.globalAlpha = Math.min(1, S.laugh * 2); ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center";
     ctx.font = `${Math.round(clamp(L.u * 0.6, 20, 34))}px Rye, Georgia, serif`;
@@ -232,7 +319,7 @@ function draw() {
 }
 let last = performance.now();
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; S.t += dt; S.lineT += dt; S.laugh = Math.max(0, S.laugh - dt * 0.6); draw(); requestAnimationFrame(frame); }
-voiceLabel(); $("count").textContent = BITS.length + " jokes in the act";
+voiceLabel(); setMode("pick");
 layout(); if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").then(layout).catch(() => {});
 requestAnimationFrame(frame);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
