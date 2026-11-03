@@ -83,7 +83,7 @@ It works offline once it has been opened. High scores are saved on each device.
 - Rounds are 30 seconds. Reach the goal (200 points in round 1, 50 more each round) to move on. Rows get 12% faster each round and a third row joins in round 3.
 - Miss a goal and you lose one of 3 water drops and replay the round. Settings (`goalFor`, `rowsFor`, `speedFor`, `ROUND_TIME`) are near the top of the game code; the heads are in `img/`.
 
-**Dunk Tank** (`carnival/dunk-tank/`): hit the bullseye to drop someone in the water. Pick who’s in the tank (Sonny, Top Hat, Glasses or Baldy; it reuses the head pictures from Sonny the Sorta Psychic and Duck Duck Splash).
+**Dunk Tank** (`carnival/dunk-tank/`): hit the bullseye to drop someone in the water. Before the game, pick who to dunk: Goatee, Glasses, Bandana or Sonny. Their heads (in `img/`, Sonny’s is shared with the fortune teller) sit on a drawn body in a t-shirt and shorts. There is no fence, so you can see them.
 
 - No tapping on the target: tap once to lock your aim as a marker sweeps across the board, then tap again to lock your power. The power meter has a green zone; too little power and the ball goes low, too much and it goes high.
 - 3 balls a round. Each round the aim marker and power meter move faster, and the bullseye gets smaller. From round 4 a wind flag shows the ball getting pushed left or right, so you have to aim off the bullseye.
