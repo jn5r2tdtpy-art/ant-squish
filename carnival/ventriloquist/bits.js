@@ -12,7 +12,7 @@ window.BITS = [
   [["S", "Eddie, did you take my sandwich?"], ["E", "No."], ["S", "There's mustard on your face."], ["E", "That's paint. I'm a dummy. I'm painted."]],
   [["S", "Eddie never tells the truth."], ["E", "That's true!"], ["S", "See?"]],
   [["S", "Eddie, what did you do this weekend?"], ["E", "Won the lottery, climbed a mountain, and fixed your Harley."], ["S", "Really?"], ["E", "No. I sat in a suitcase. You never let me out."]],
-  [["S", "Eddie, be nice. Mom's watching."], ["E", "Mom stopped watching you in nineteen eighty-two."]],
+  [["S", "Eddie, be nice. Mom's watching."], ["E", "Then you better behave. She's the only one who can still ground you."]],
   [["S", "Eddie, what's two plus two?"], ["E", "Depends. Are you borrowing it?"]],
   [["S", "I do all the talking around here, Eddie."], ["E", "I noticed. Your mouth's moving more than mine."]],
   [["S", "Eddie, wave to the crowd."], ["E", "I can't. You've got your hand in my back. Again."]],
