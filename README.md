@@ -100,5 +100,5 @@ It works offline once it has been opened. High scores are saved on each device.
 **The Sonny & Eddie Show** (`carnival/ventriloquist/`): a ventriloquist act on a curtained stage. Sonny, the ventriloquist, sits on a stool in a suit; his dummy is his little brother Eddie, in a checkered jacket, bow tie and Sonny’s top hat, sitting on Sonny’s knee. Tap for the next joke and the brothers roast each other.
 
 - 40 bits in `bits.js`, each a list of lines marked `"S"` (Sonny) or `"E"` (Eddie). Copy one to add more.
-- Every line is pre-recorded in `voice/`: Sonny in the Joe voice, Eddie in a higher, squeakier dummy voice. Eddie’s jaw is cut out of his picture (`img/eddie-top.webp` and `img/eddie-jaw.webp`) and drops in time with how loud his voice is. New lines without a recording use the phone’s voice.
+- Every line is pre-recorded in `voice/`: Sonny in the Joe voice, Eddie in the Ryan voice. Eddie’s jaw is cut out of his picture (`img/eddie-top.webp` and `img/eddie-jaw.webp`) and drops in time with how loud his voice is. New lines without a recording use the phone’s voice.
 - Eddie’s picture is a photo of him in a top hat like Sonny’s.
