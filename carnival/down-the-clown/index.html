@@ -111,6 +111,8 @@ const LIVES = 3;
 const RELOAD = 0.36;        // seconds between shots
 const FLIGHT = 0.42;        // seconds a ball takes to reach the shelf
 const TIME_BONUS = 5;       // points per second left when a round is cleared
+const TIME_CUT = 10;        // seconds taken off every round's clock
+const MIN_PER_CLOWN = 1.5;  // but never less than this many seconds per clown to knock down
 
 const TYPES = {
   glasses: { pts: 10, src: "img/glasses.webp", aspect: 458 / 260 },
@@ -234,7 +236,8 @@ function startRound() {
     state: "rising", t: rand(0, 0.25) - 0.25, wob: 0, bonus: 0,
   }));
   const good = cells.length - s.red;
-  G.timeMax = (6 + good * 2.5) * (s.over ? Math.max(0.55, 1 - 0.06 * s.over) : 1);
+  const full = (6 + good * 2.5) * (s.over ? Math.max(0.55, 1 - 0.06 * s.over) : 1);
+  G.timeMax = Math.max(full - TIME_CUT, good * MIN_PER_CLOWN);
   G.timeLeft = G.timeMax;
   G.balls = []; G.bonusT = 4;
   placeClowns();
