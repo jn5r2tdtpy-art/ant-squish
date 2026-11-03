@@ -74,3 +74,9 @@ It works offline once it has been opened. High scores are saved on each device.
 - Win a race for 100 × the race number. Lose a race and you lose one of 3 water drops (lives) and run that race again.
 - On a touch screen, a magnifier bubble floats above your finger while you squirt, showing where your water is going (green edge = on target).
 - Sonny brags as his head grows. The head picture is `img/sonny.webp`. Race settings (`targetSize`, `targetSwing`, `targetSpeed`, `cpuWobble`, `yourWobble`) are near the top of the game code.
+
+**Duck Duck Splash** (`carnival/duck-duck-splash/`): a water-gun shooting gallery. The three heads (glasses 10, top hat 20, bald 30) float back and forth on the waves in rows that go opposite ways; squirt them to knock them over. Swinging bullseyes at the top are 50.
+
+- Touch to aim and lift to squirt; a bubble above your finger shows what you’re aiming at (green edge = in your sights). Mouse: aim and click.
+- Rounds are 30 seconds. Reach the goal (200 points in round 1, 50 more each round) to move on. Rows get 12% faster each round and a third row joins in round 3.
+- Miss a goal and you lose one of 3 water drops and replay the round. Settings (`goalFor`, `rowsFor`, `speedFor`, `ROUND_TIME`) are near the top of the game code; the heads are in `img/`.
