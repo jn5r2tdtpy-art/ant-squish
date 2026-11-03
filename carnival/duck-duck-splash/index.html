@@ -205,7 +205,7 @@ function buildRows() {
 function placeHeads() {
   G.heads = [];
   for (const row of G.rows) {
-    const gap = L.headW * 1.5, count = Math.ceil((W + L.headW * 4) / gap);
+    const gap = L.headW * (L.land ? 1.5 : 1.9), count = Math.ceil((W + L.headW * 4) / gap);
     row.span = count * gap;
     for (let k = 0; k < count; k++) G.heads.push({ row: row.r, x: -L.headW * 2 + k * gap + rand(-0.15, 0.15) * gap, type: pickType(), state: "up", t: 0, phase: rand(0, 6.28) });
   }
@@ -231,7 +231,7 @@ function layout() {
   L.targetZone = ph * (L.land ? 0.3 : 0.24);
   const n = rowsFor(G.round);
   L.rowH = (ph - L.targetZone) / n;
-  L.headW = Math.min(W * 0.24, 120, L.rowH * 0.95 / 1.33);
+  L.headW = Math.min(W * (L.land ? 0.24 : 0.21), 120, L.rowH * 0.95 / 1.33);
   L.rowBase = r => L.top + L.targetZone + L.rowH * (r + 1) - L.rowH * 0.12; // wave line for row r
   L.tR = clamp(Math.min(W / 3, L.targetZone) * 0.2, 14, 34);
   L.gx = W / 2; L.gy = H - L.safeB - L.gunH * 0.42;
