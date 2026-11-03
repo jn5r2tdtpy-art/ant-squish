@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Blow Up Sonny’s Big Ego Head</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c);
+    border: 0; border-radius: 999px; padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4);
+    cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(20,4,10,.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e;
+    text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); letter-spacing: .5px; }
+  h1 { font-size: clamp(28px, 8.5vw, 42px); line-height: 1.08; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .hero { width: 130px; height: auto; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0;
+    cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <img class="hero" src="img/sonny.webp" alt="Sonny">
+    <h1>Blow Up Sonny’s<br>Big Ego Head</h1>
+    <div class="rules">
+      <p>Squirt your water gun into the <b>target</b> to blow up Sonny’s head. The first head to <b>POP</b> wins the race!</p>
+      <p>You’re racing <b>Lefty Lou</b> on the left and <b>Rapid Rita</b> on the right. They get better every race.</p>
+      <p>From race 2 the targets <b>move</b>, and they get smaller as you go.</p>
+      <p>Win a race for <b>100 × the race number</b>. Lose 3 races and it’s game over.</p>
+      <p id="howTo" class="muted"></p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseScreen">
+  <div class="card">
+    <h2>Paused</h2>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <button class="btn ghost" id="restartBtn">Start over</button>
+    <button class="btn ghost" id="midwayBtn2">Back to the Midway</button>
+  </div>
+</div>
+
+<div class="overlay" id="overScreen">
+  <div class="card">
+    <h2>Game Over</h2>
+    <div class="big" id="finalScore">0</div>
+    <p id="finalLine"></p>
+    <p class="muted" id="finalBest"></p>
+    <button class="btn" id="againBtn">Play again</button>
+    <button class="btn ghost" id="midwayBtn3">Back to the Midway</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3;
+const FILL_TIME = 6;        // seconds of perfect aim to pop a head
+const DROPS_PER_SEC = 45;
+const DROP_FLIGHT = 0.28;   // seconds for water to reach the target
+const RACERS = [
+  { name: "Lefty Lou", color: "#3a8ee6", cpu: true },
+  { name: "YOU", color: "#ffd75e", cpu: false },
+  { name: "Rapid Rita", color: "#e8508a", cpu: true },
+];
+// Race settings (n = race number, starting at 1)
+const targetSize = n => Math.max(0.1, 0.16 - 0.01 * (n - 1));            // hit zone radius, as a share of the lane width
+const targetSwing = n => n < 2 ? 0 : Math.min(0.26, 0.08 + 0.04 * (n - 2)); // how far the targets slide side to side
+const targetSpeed = n => 0.9 + 0.15 * n;
+const cpuWobble = n => Math.max(0.55, 0.75 - 0.04 * (n - 1));             // computer aim wobble (smaller = better shots)
+const yourWobble = n => Math.min(0.35, 0.1 + 0.03 * (n - 1));           // your water pressure wobble
+
+const EGO = [[0.25, "Ooh, I feel important!"], [0.5, "Is it me, or is my head getting bigger?"], [0.75, "I’m the greatest!"], [0.9, "Somebody stop me!"]];
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const isTouch = matchMedia("(pointer: coarse)").matches;
+$("howTo").textContent = isTouch
+  ? "Hold your finger on your target to squirt, and follow it when it moves."
+  : "Hold the mouse button to squirt and aim at your target (or arrow keys and hold Space).";
+const head = new Image(); head.src = "img/sonny.webp";
+const HEAD_R = 584 / 482;
+
+// ---------- Sound (synthesized) ----------
+let ac = null, noiseBuf = null, sprayGain = null;
+function audio() {
+  if (!ac) {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      // looping hiss for your water gun
+      const s = ac.createBufferSource(), f = ac.createBiquadFilter(); sprayGain = ac.createGain();
+      s.buffer = noiseBuf; s.loop = true; f.type = "bandpass"; f.frequency.value = 2600; f.Q.value = 0.6; sprayGain.gain.value = 0;
+      s.connect(f).connect(sprayGain).connect(ac.destination); s.start();
+    } catch (e) { ac = null; }
+  }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function env(g, t, a, peak, dur) {
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+}
+function noise(dur, type, freq, peak, q = 1, delay = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  env(g, t, 0.005, peak, dur);
+  s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + dur + 0.05);
+}
+function tone(freq, dur, type = "sine", peak = 0.2, delay = 0, slideTo = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  env(g, t, 0.008, peak, dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+function setSpray(on) { if (sprayGain && ac) sprayGain.gain.setTargetAtTime(on ? 0.09 : 0, ac.currentTime, 0.03); }
+const sfx = {
+  beep(hi) { tone(hi ? 1320 : 660, hi ? 0.4 : 0.15, "square", 0.08); },
+  stretch(f) { tone(200 + f * 500, 0.12, "triangle", 0.12, 0, 260 + f * 560); },
+  pop()    { noise(0.35, "lowpass", 3000, 0.9); tone(90, 0.25, "sine", 0.5, 0, 40); },
+  win()    { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.09)); },
+  lose()   { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+  bell()   { [1568, 2093].forEach((f, i) => tone(f, 0.8, "triangle", 0.15, i * 0.02)); },
+};
+
+// ---------- Game state ----------
+const G = {
+  state: "title", // title | ready | race | result | over | paused
+  race: 1, score: 0, lives: LIVES, best: +store.get("sb-best") || 0,
+  lanes: [], drops: [], parts: [], pops: [], frags: [], bubble: null,
+  stateT: 0, t: 0, raceT: 0, winner: -1, banner: null, pausedFrom: null,
+  finger: { x: 0, y: 0, down: false }, aim: { x: 0, y: 0 },
+};
+
+function startRace() {
+  G.lanes = RACERS.map((r, i) => ({
+    ...r, i, fill: 0, popped: false, emit: 0, err: { x: gauss() * 0.5, y: gauss() * 0.5 }, react: rand(0.15, 0.45),
+    phase: rand(0, 6.28), dir: Math.random() < 0.5 ? 1 : -1, hits: 0, shots: 0, ego: 0, lastSq: 0,
+  }));
+  G.drops = []; G.frags = []; G.winner = -1; G.bubble = null; G.raceT = 0;
+  layout();
+  const me = G.lanes[1]; G.aim.x = me.tx; G.aim.y = me.ty;
+  if (!G.finger.down) { G.finger.x = me.tx; G.finger.y = me.ty; }
+  setState("ready");
+}
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); if (s !== "race") setSpray(false); }
+function newGame() { G.race = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; hideOverlays(); startRace(); }
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1;
+const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect();
+  L.safeT = pr.top; L.safeB = H - pr.bottom; L.safeL = pr.left; L.safeR = W - pr.right;
+  L.land = W > H * 1.15;
+  L.hudH = (L.land ? 52 : 62) + L.safeT;
+  L.gunH = (L.land ? clamp(H * 0.22, 64, 100) : clamp(H * 0.17, 96, 150)) + L.safeB;
+  L.boothW = Math.min(W - L.safeL - L.safeR - 8, 900);
+  L.boothX = (W - L.boothW) / 2;
+  L.laneW = L.boothW / 3;
+  L.top = L.hudH + (L.land ? 22 : 30); // under the sign
+  L.bottom = H - L.gunH;
+  const ph = L.bottom - L.top;
+  L.unit = Math.min(L.laneW, ph * 0.5); // targets are sized from this so they fit a short sideways screen
+  const rMax = L.unit * targetSize(G.race);
+  L.targetY = L.bottom - rMax * 1.55 - 10;
+  L.neckY = Math.min(L.top + ph * 0.6, L.targetY - rMax * 1.55 - 18);
+  L.headMaxW = Math.min(L.laneW * 1.15, (L.neckY - L.top - 8) / HEAD_R);
+  L.gunY = H - L.safeB - L.gunH * 0.42;
+  for (const ln of G.lanes) placeLane(ln);
+}
+function placeLane(ln) {
+  ln.cx = L.boothX + L.laneW * (ln.i + 0.5);
+  ln.r = L.unit * targetSize(G.race);
+  const sw = L.laneW * targetSwing(G.race);
+  ln.tx = ln.cx + Math.sin(G.raceT * targetSpeed(G.race) * ln.dir + ln.phase) * sw;
+  ln.ty = L.targetY;
+  ln.gx = ln.cx; ln.gy = L.gunY;
+}
+function targetAt(ln, t) { // where this lane's target will be t seconds from now
+  const sw = L.laneW * targetSwing(G.race);
+  return { x: ln.cx + Math.sin((G.raceT + t) * targetSpeed(G.race) * ln.dir + ln.phase) * sw, y: ln.ty };
+}
+
+// ---------- Squirting ----------
+function squirt(ln, ax, ay) {
+  ln.emit += 1;
+  const a = Math.atan2(ay - ln.gy, ax - ln.gx), len = gunLen();
+  const sx = ln.gx + Math.cos(a) * len, sy = ln.gy + Math.sin(a) * len;
+  // a squirt counts if it leaves the gun aimed inside the target; the drop then flies to where the target will be
+  const hit = Math.hypot(ax - ln.tx, ay - ln.ty) < ln.r;
+  const end = hit ? targetAt(ln, DROP_FLIGHT) : { x: ax, y: ay };
+  const ox = hit ? ax - ln.tx : 0, oy = hit ? ay - ln.ty : 0;
+  G.drops.push({ ln: ln.i, sx, sy, tx: end.x + ox + rand(-2, 2), ty: end.y + oy + rand(-2, 2), t: 0, hit });
+  ln.shots++;
+}
+const gunLen = () => clamp(L.gunH * 0.45, 34, 62);
+
+function cpuAim(ln, dt) {
+  // the computer aims where the target is going, with a wandering error
+  const s = cpuWobble(G.race), k = 2.2, sig = s * Math.sqrt(2 * k);
+  ln.err.x += -k * ln.err.x * dt + sig * Math.sqrt(dt) * gauss();
+  ln.err.y += -k * ln.err.y * dt + sig * Math.sqrt(dt) * gauss();
+  const p = targetAt(ln, 0);
+  return { x: p.x + ln.err.x * ln.r, y: p.y + ln.err.y * ln.r };
+}
+
+function updateRace(dt) {
+  G.raceT += dt;
+  for (const ln of G.lanes) placeLane(ln);
+  // your aim follows your finger, with a little water-pressure wobble
+  const me = G.lanes[1];
+  G.aim.x += (G.finger.x - G.aim.x) * Math.min(1, dt * 12);
+  G.aim.y += (G.finger.y - G.aim.y) * Math.min(1, dt * 12);
+  const wob = yourWobble(G.race) * me.r;
+  const ax = G.aim.x + wob * (Math.sin(G.t * 3.1) + 0.6 * Math.sin(G.t * 7.3 + 1));
+  const ay = G.aim.y + wob * 0.7 * (Math.sin(G.t * 2.3 + 2) + 0.5 * Math.sin(G.t * 6.1));
+  me.ax = ax; me.ay = ay;
+  const spraying = G.finger.down || keys.has(" ");
+  setSpray(spraying);
+  const per = 1 / DROPS_PER_SEC;
+  for (const ln of G.lanes) {
+    ln.acc = (ln.acc || 0) + dt;
+    if (ln.cpu) { const a = cpuAim(ln, dt); ln.ax = a.x; ln.ay = a.y; }
+    const on = ln.cpu ? G.raceT > ln.react : spraying;
+    ln.spraying = on;
+    while (ln.acc >= per) { ln.acc -= per; if (on) squirt(ln, ln.ax, ln.ay); }
+  }
+}
+
+function dropLands(d) {
+  const ln = G.lanes[d.ln];
+  if (d.hit && G.state === "race" && !ln.popped) {
+    ln.hits++;
+    const before = ln.fill;
+    ln.fill = Math.min(1, ln.fill + 1 / (DROPS_PER_SEC * FILL_TIME));
+    if (Math.floor(before * 10) !== Math.floor(ln.fill * 10) && !ln.cpu) sfx.stretch(ln.fill);
+    if (!ln.cpu) for (const [f, text] of EGO) if (before < f && ln.fill >= f) G.bubble = { text, t: 0, life: 1.8 };
+    if (Math.random() < 0.3) G.parts.push({ kind: "spark", x: d.tx, y: d.ty, vx: rand(-60, 60), vy: rand(-120, -30), r: rand(1.5, 3), color: "#ffffff", life: 0.35, t: 0 });
+    if (ln.fill >= 1) popHead(ln);
+  } else {
+    G.parts.push({ kind: "splash", x: d.tx, y: d.ty, vx: rand(-40, 40), vy: rand(-60, 10), r: rand(2, 4), life: 0.4, t: 0 });
+  }
+}
+
+function headBox(ln) {
+  const f = ln.fill;
+  const w = L.headMaxW * (0.3 + 0.7 * Math.pow(f, 0.85));
+  const wob = f > 0.7 ? Math.sin(G.t * 30 + ln.i) * (f - 0.7) * 0.06 : 0;
+  const ww = w * (1 + wob), hh = w * HEAD_R * (1 - wob);
+  return { x: ln.cx - ww / 2, y: L.neckY - hh, w: ww, h: hh };
+}
+
+function popHead(ln) {
+  ln.popped = true;
+  const b = headBox(ln), n = 4, m = 5;
+  for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
+    const cx = b.x + (i + 0.5) * b.w / n, cy = b.y + (j + 0.5) * b.h / m;
+    const a = Math.atan2(cy - (b.y + b.h / 2), cx - ln.cx);
+    G.frags.push({ sx: i / n, sy: j / m, sw: 1 / n, sh: 1 / m, x: cx, y: cy, w: b.w / n, h: b.h / m, vx: Math.cos(a) * rand(150, 380), vy: Math.sin(a) * rand(150, 380) - 120, rot: 0, vr: rand(-8, 8), t: 0 });
+  }
+  const cols = ["#ffd75e", "#ff5a7a", "#5ad1ff", "#8dff7a", "#fff4dc"];
+  for (let i = 0; i < 30; i++) G.parts.push({ kind: "confetti", x: ln.cx, y: b.y + b.h / 2, vx: rand(-260, 260), vy: rand(-320, -40), r: rand(3, 7), color: cols[i % cols.length], rot: rand(0, 6), life: rand(0.8, 1.4), t: 0 });
+  G.pops.push({ x: ln.cx, y: b.y + b.h / 2, text: "POP!", t: 0 });
+  sfx.pop();
+  if (G.winner < 0) raceOver(ln);
+}
+
+function raceOver(ln) {
+  G.winner = ln.i; G.drops = []; setSpray(false);
+  const me = G.lanes[1], acc = me.shots ? Math.round(me.hits / me.shots * 100) : 0;
+  if (!ln.cpu) {
+    const pts = 100 * G.race; G.score += pts; G.bubble = null;
+    G.banner = { big: "You win!", small: "+" + pts + " points · " + acc + "% on target", note: "Next race: the others get better", win: true };
+    sfx.bell(); setTimeout(() => sfx.win(), 250);
+  } else {
+    G.lives--;
+    G.banner = { big: ln.name + " wins!", small: acc + "% on target", note: G.lives > 0 ? (G.lives === 1 ? "1 race left to lose — try again" : G.lives + " losses left — try again") : "", win: false };
+    G.bubble = { text: "Hey! My head’s not done growing!", t: 0, life: 2.2 };
+    sfx.lose();
+  }
+  setState("result");
+}
+
+function gameOver() {
+  setState("over");
+  const newBest = G.score > G.best;
+  if (newBest) { G.best = G.score; store.set("sb-best", String(G.best)); }
+  $("finalScore").textContent = G.score;
+  $("finalLine").textContent = "You made it to race " + G.race + ".";
+  $("finalBest").textContent = newBest ? "New best score!" : "Best: " + G.best;
+  $("overScreen").classList.add("show");
+}
+
+// ---------- Update ----------
+const keys = new Set();
+function update(dt) {
+  G.t += dt;
+  if (G.state === "paused" || G.state === "title") return;
+  G.stateT += dt;
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
+  if (G.state === "ready") {
+    const n = Math.floor(G.stateT / 0.7);
+    if (n !== G.lastBeep) { G.lastBeep = n; if (n < 3) sfx.beep(n === 2); }
+    if (G.stateT >= 2.1) { setState("race"); G.lastBeep = -1; }
+  }
+  if (G.state === "race") updateRace(dt);
+  if (G.state === "result" && G.stateT > 3.4) {
+    if (G.lives <= 0) gameOver();
+    else { if (G.banner && G.banner.win) G.race++; startRace(); }
+  }
+  if (keys.size) {
+    const sp = L.laneW * 1.4 * dt;
+    if (keys.has("ArrowLeft")) G.finger.x -= sp;
+    if (keys.has("ArrowRight")) G.finger.x += sp;
+    if (keys.has("ArrowUp")) G.finger.y -= sp;
+    if (keys.has("ArrowDown")) G.finger.y += sp;
+  }
+  for (const d of G.drops) d.t += dt / DROP_FLIGHT;
+  const landed = G.drops.filter(d => d.t >= 1);
+  G.drops = G.drops.filter(d => d.t < 1);
+  landed.forEach(dropLands);
+  for (const p of G.parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; if (p.rot !== undefined) p.rot += dt * 8; }
+  G.parts = G.parts.filter(p => p.t < p.life);
+  for (const f of G.frags) { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 700 * dt; f.rot += f.vr * dt; }
+  G.frags = G.frags.filter(f => f.t < 1.3);
+  for (const p of G.pops) p.t += dt;
+  G.pops = G.pops.filter(p => p.t < 1);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function drawBackground() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#3a0a18"); g.addColorStop(1, "#16040a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.18; ctx.fillStyle = "#f2e2c4";
+  for (let x = -38; x < W + 38; x += 76) ctx.fillRect(x, 0, 38, H);
+  ctx.globalAlpha = 1;
+}
+
+function drawBooth() {
+  const { boothX: bx, boothW: bw, top, bottom, hudH } = L;
+  // back wall: white with the racers' colors
+  ctx.fillStyle = "#f6efe2"; ctx.fillRect(bx, top, bw, bottom - top);
+  for (const ln of G.lanes) {
+    const x = bx + L.laneW * ln.i;
+    ctx.globalAlpha = 0.16; ctx.fillStyle = ln.color; ctx.fillRect(x, top, L.laneW, bottom - top); ctx.globalAlpha = 1;
+    if (ln.i) { ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(x - 1, top, 2, bottom - top); }
+  }
+  // sign
+  const sy = hudH, sh = top - hudH;
+  const sg = ctx.createLinearGradient(0, sy, 0, sy + sh);
+  sg.addColorStop(0, "#d0243a"); sg.addColorStop(1, "#8a0f22");
+  ctx.fillStyle = sg; rr(bx, sy, bw, sh, 6); ctx.fill();
+  ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(sh * 0.56); ctx.font = `${fs}px Rye, Georgia, serif`;
+  const label = "BLOW UP SONNY’S BIG EGO HEAD";
+  while (ctx.measureText(label).width > bw - 16 && fs > 9) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.fillText(label, W / 2, sy + sh / 2 + 1);
+  // red counter with stars
+  const cy = bottom;
+  ctx.fillStyle = "#c81e32"; ctx.fillRect(0, cy, W, H - cy);
+  ctx.fillStyle = "#1f5fbf"; ctx.fillRect(0, cy, W, Math.min(16, L.gunH * 0.14));
+  ctx.fillStyle = "rgba(255,255,255,.25)"; ctx.fillRect(0, cy, W, 2);
+}
+
+function drawTarget(ln) {
+  const R = ln.r, x = ln.tx, y = ln.ty;
+  // hose from target to the balloon
+  ctx.strokeStyle = "#6b6f78"; ctx.lineWidth = Math.max(3, L.laneW * 0.03); ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x, y - R * 1.5); ctx.bezierCurveTo(x, (y + L.neckY) / 2, ln.cx, (y + L.neckY) / 2, ln.cx, L.neckY); ctx.stroke();
+  const rings = [["#ffffff", 1.55], ["#d0243a", 1.3], ["#ffffff", 1.0], ["#d0243a", 0.7], ["#2a0812", 0.36]];
+  for (const [c, k] of rings) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, R * k, 0, 7); ctx.fill(); }
+  ctx.strokeStyle = ln.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R * 1.55, 0, 7); ctx.stroke();
+}
+
+function drawHead(ln) {
+  if (ln.popped) return;
+  const b = headBox(ln);
+  // neck knot
+  ctx.fillStyle = "#e9c19e"; ctx.beginPath(); ctx.ellipse(ln.cx, L.neckY - 2, Math.max(4, b.w * 0.08), Math.max(3, b.w * 0.05), 0, 0, 7); ctx.fill();
+  if (head.complete && head.naturalWidth) ctx.drawImage(head, b.x, b.y, b.w, b.h);
+  // shine, so he looks like a balloon
+  ctx.globalAlpha = 0.18 + 0.25 * ln.fill; ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.ellipse(b.x + b.w * 0.3, b.y + b.h * 0.58, b.w * 0.07, b.h * 0.1, -0.5, 0, 7); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawFrags() {
+  if (!(head.complete && head.naturalWidth)) return;
+  for (const f of G.frags) {
+    ctx.globalAlpha = clamp(1.3 - f.t, 0, 1);
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+    ctx.drawImage(head, f.sx * head.naturalWidth, f.sy * head.naturalHeight, f.sw * head.naturalWidth, f.sh * head.naturalHeight, -f.w / 2, -f.h / 2, f.w, f.h);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawGun(ln) {
+  const a = ln.ax !== undefined ? Math.atan2(ln.ay - ln.gy, ln.ax - ln.gx) : -Math.PI / 2, len = gunLen();
+  // post
+  ctx.fillStyle = "#2b2b30"; ctx.fillRect(ln.gx - 4, ln.gy, 8, H - ln.gy);
+  ctx.save(); ctx.translate(ln.gx, ln.gy); ctx.rotate(a);
+  ctx.fillStyle = "#1c1c22"; rr(-len * 0.3, -len * 0.14, len * 1.2, len * 0.28, len * 0.1); ctx.fill();
+  ctx.fillStyle = ln.color; ctx.fillRect(len * 0.05, -len * 0.14, len * 0.16, len * 0.28);
+  ctx.fillStyle = "#44444c"; rr(len * 0.8, -len * 0.08, len * 0.2, len * 0.16, 3); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = "#1c1c22"; ctx.beginPath(); ctx.arc(ln.gx, ln.gy, len * 0.18, 0, 7); ctx.fill();
+  // name plate
+  const fs = clamp(L.laneW * 0.1, 11, 16);
+  ctx.font = `800 ${fs}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const tw = ctx.measureText(ln.name).width + 16, py = Math.min(H - L.safeB - fs, ln.gy + len * 0.55);
+  ctx.fillStyle = ln.color; rr(ln.gx - tw / 2, py - fs * 0.75, tw, fs * 1.5, fs * 0.75); ctx.fill();
+  ctx.fillStyle = "#1a0610"; ctx.fillText(ln.name, ln.gx, py + 1);
+}
+
+function drawDrops() {
+  for (const d of G.drops) {
+    const t = d.t, x = d.sx + (d.tx - d.sx) * t, y = d.sy + (d.ty - d.sy) * t - Math.sin(Math.PI * t) * L.laneW * 0.12;
+    const ln = G.lanes[d.ln];
+    ctx.fillStyle = ln.cpu ? "rgba(150,210,255,.75)" : "rgba(190,235,255,.95)";
+    ctx.beginPath(); ctx.arc(x, y, clamp(L.laneW * 0.022, 2, 4.5) * (1 - 0.35 * t), 0, 7); ctx.fill();
+  }
+}
+
+function drawParts() {
+  for (const p of G.parts) {
+    const k = 1 - p.t / p.life;
+    ctx.globalAlpha = Math.min(1, k * 2);
+    if (p.kind === "confetti") { ctx.fillStyle = p.color; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); ctx.restore(); }
+    else { ctx.fillStyle = p.kind === "splash" ? "rgba(140,200,255,.8)" : p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPops() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) {
+    const k = p.t, s = 1 + k * 0.6;
+    ctx.globalAlpha = 1 - k * k;
+    ctx.font = `${Math.round(clamp(L.laneW * 0.32, 30, 64) * s)}px Rye, Georgia, serif`;
+    ctx.lineWidth = 6; ctx.strokeStyle = "#2a0812"; ctx.strokeText(p.text, p.x, p.y);
+    ctx.fillStyle = "#ffd75e"; ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFills() {
+  for (const ln of G.lanes) {
+    const w = L.laneW * 0.7, x = ln.cx - w / 2, y = L.top + 8;
+    ctx.fillStyle = "rgba(0,0,0,.15)"; rr(x, y, w, 7, 4); ctx.fill();
+    ctx.fillStyle = ln.color; rr(x, y, Math.max(7, w * ln.fill), 7, 4); ctx.fill();
+  }
+}
+
+function drawSights() {
+  if (G.state !== "race" && G.state !== "ready") return;
+  const me = G.lanes[1]; if (!me || me.ax === undefined) return;
+  const r = clamp(me.r * 0.6, 8, 16);
+  ctx.strokeStyle = "#0a6cff"; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.85;
+  ctx.beginPath(); ctx.arc(me.ax, me.ay, r, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(me.ax - r * 1.5, me.ay); ctx.lineTo(me.ax + r * 1.5, me.ay); ctx.moveTo(me.ax, me.ay - r * 1.5); ctx.lineTo(me.ax, me.ay + r * 1.5); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawBubble() {
+  const bb = G.bubble, me = G.lanes[1]; if (!bb || !me) return;
+  const k = Math.min(1, bb.t / 0.12, (bb.life - bb.t) / 0.2); if (k <= 0) return;
+  const fs = clamp(L.laneW * 0.1, 12, 17);
+  ctx.font = `700 ${fs}px system-ui, sans-serif`;
+  const maxW = Math.min(W - 24, Math.max(150, L.laneW * 1.5)), words = bb.text.split(" "), lines = [];
+  let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 20 && cur) { lines.push(cur); cur = w; } else cur = t; }
+  lines.push(cur);
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.25, bw = tw + 22, bh = lines.length * lh + 12;
+  const hb = me.popped ? { y: L.neckY - 60 } : headBox(me);
+  const x = clamp(me.cx - bw / 2, 8, W - bw - 8), y = Math.max(L.top + 20, hb.y - bh - 14);
+  ctx.globalAlpha = k;
+  ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5;
+  rr(x, y, bw, bh, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, x + bw / 2, y + 6 + lh * (i + 0.5)));
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  const y = L.safeT + (L.land ? 26 : 30);
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.textAlign = "left";
+  ctx.fillText("RACE", 62 + L.safeL, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.race), 62 + L.safeL, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 30px system-ui, sans-serif";
+  ctx.fillText(String(G.score), W / 2, y + 2);
+  for (let i = 0; i < LIVES; i++) {
+    const x = W - L.safeR - 18 - i * 24;
+    ctx.fillStyle = i < G.lives ? "#5ac8ff" : "rgba(255,244,220,.2)";
+    ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.quadraticCurveTo(x + 9, y + 2, x, y + 9); ctx.quadraticCurveTo(x - 9, y + 2, x, y - 10); ctx.fill();
+  }
+}
+
+function drawBanner() {
+  if (G.state === "ready") {
+    const n = Math.min(2, Math.floor(G.stateT / 0.7)), txt = ["Ready…", "Set…", "SQUIRT!"][n];
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `${Math.round(clamp(W * 0.12, 34, 64))}px Rye, Georgia, serif`;
+    ctx.lineWidth = 7; ctx.strokeStyle = "#2a0812";
+    const y = L.top + (L.neckY - L.top) * 0.45;
+    ctx.strokeText(txt, W / 2, y); ctx.fillStyle = "#ffd75e"; ctx.fillText(txt, W / 2, y);
+    ctx.font = "700 16px system-ui, sans-serif"; ctx.lineWidth = 4;
+    const sub = "Race " + G.race + (targetSwing(G.race) ? " · moving targets" : "");
+    ctx.strokeText(sub, W / 2, y + 44); ctx.fillStyle = "#fff4dc"; ctx.fillText(sub, W / 2, y + 44);
+    return;
+  }
+  if (G.state !== "result" || !G.banner || G.stateT < 0.9) return;
+  const k = clamp((G.stateT - 0.9) / 0.25, 0, 1), y = L.top + (L.neckY - L.top) * 0.5, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k;
+  ctx.fillStyle = "rgba(20,4,10,.88)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = 36; ctx.font = `${fs}px Rye, Georgia, serif`;
+  while (ctx.measureText(G.banner.big).width > bw - 24 && fs > 18) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.fillStyle = G.banner.win ? "#ffd75e" : "#ff8a8a"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52); }
+  ctx.globalAlpha = 1;
+}
+
+function drawHint() {
+  if (G.state !== "race" || G.race > 1 || G.raceT > 4 || G.finger.down) return;
+  const me = G.lanes[1];
+  ctx.globalAlpha = 0.6 + 0.4 * Math.sin(G.t * 6);
+  ctx.fillStyle = "#2a0812"; ctx.font = "800 14px system-ui, sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(isTouch ? "Hold your finger here!" : "Hold the mouse here!", me.cx, me.ty - me.r * 1.55 - 12);
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawBackground();
+  if (G.state === "title" || !G.lanes.length) return;
+  drawBooth(); drawFills();
+  for (const ln of G.lanes) drawTarget(ln);
+  for (const ln of G.lanes) drawHead(ln);
+  drawFrags(); drawDrops();
+  for (const ln of G.lanes) drawGun(ln);
+  drawParts(); drawPops(); drawSights(); drawBubble();
+  drawHUD(); drawBanner(); drawHint();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Input ----------
+let ptrId = null;
+const canAim = () => G.state === "race" || G.state === "ready";
+cv.addEventListener("pointerdown", e => {
+  audio();
+  if (!canAim()) return;
+  ptrId = e.pointerId; G.finger.x = e.clientX; G.finger.y = e.clientY; G.finger.down = true;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+});
+cv.addEventListener("pointermove", e => {
+  if (e.pointerType === "mouse" && ptrId === null) { G.finger.x = e.clientX; G.finger.y = e.clientY; return; }
+  if (e.pointerId !== ptrId) return;
+  G.finger.x = e.clientX; G.finger.y = e.clientY;
+});
+const release = e => { if (e.pointerId !== ptrId) return; ptrId = null; G.finger.down = false; };
+cv.addEventListener("pointerup", release);
+cv.addEventListener("pointercancel", release);
+addEventListener("keydown", e => {
+  if (e.key.startsWith("Arrow") || e.key === " ") { keys.add(e.key); e.preventDefault(); audio(); }
+  if (e.key === "Escape" || e.key === "p") togglePause();
+});
+addEventListener("keyup", e => keys.delete(e.key));
+
+// ---------- Screens ----------
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (["ready", "race", "result"].includes(G.state)) {
+    G.pausedFrom = { state: G.state, t: G.stateT }; ptrId = null; G.finger.down = false;
+    setState("paused"); $("pauseScreen").classList.add("show");
+  }
+}
+function toMidway() { location.href = "../"; }
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause;
+$("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : "";
+
+addEventListener("resize", layout);
+layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
