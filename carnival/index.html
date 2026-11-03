@@ -40,6 +40,8 @@
   .game h2 { font-family: "Rye", Georgia, serif; font-weight: 400; font-size: 24px; margin: 0 0 4px; color: #ffd75e; }
   .game p { margin: 0; font-size: 14px; line-height: 1.4; color: #e6dcc6; }
   .game .best { margin-top: 6px; font-weight: 700; color: #7aff8a; font-size: 13px; }
+  .purse { display: inline-block; margin-top: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(255,215,94,.14); color: #ffd75e; font-weight: 800; }
+  .game .cost { margin-top: 6px; font-weight: 700; color: #ffd75e; font-size: 13px; }
   .soon { margin-top: 18px; text-align: center; color: #cdb896; font-size: 14px; border: 2px dashed rgba(255,244,220,.25);
     border-radius: 18px; padding: 16px; }
 </style>
@@ -50,6 +52,7 @@
     <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>Carnival<br>Midway</h1>
     <p>Step right up and try your luck!</p>
+    <p class="purse" id="purse"></p>
   </header>
 
   <a class="game" href="down-the-clown/">
@@ -93,13 +96,16 @@
     <div>
       <h2>Sonny the Sorta Psychic</h2>
       <p>Sonny reads your fortune. 1,200 pieces of terrible advice, and every one is about him.</p>
+      <div class="cost">Costs 🪙 1 coin per fortune</div>
       <div class="best" id="fsBest"></div>
     </div>
   </a>
 
   <div class="soon">More games coming soon</div>
 </main>
+<script src="coins.js"></script>
 <script>
+  { const n = Coins.get(); document.getElementById("purse").textContent = "🪙 You have " + Coins.label(n) + " · win rounds in any game to earn more"; }
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}
   for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}

@@ -61,9 +61,9 @@
 <canvas id="cv"></canvas>
 <button id="backBtn">‹ Midway</button>
 <div id="panel">
-  <div id="prompt">Pick a topic, or tap INSERT COIN. Sonny knows best (just ask him).</div>
+  <div id="prompt">Each fortune costs 🪙 1 coin. Pick a topic, or tap INSERT COIN.</div>
   <div id="topics"></div>
-  <div id="bottomRow"><span id="collected"></span><button class="link" id="voiceBtn"></button></div>
+  <div id="bottomRow"><span id="coins"></span><span id="collected"></span><button class="link" id="voiceBtn"></button></div>
 </div>
 <div id="cardWrap">
   <div id="card">
@@ -74,10 +74,11 @@
     <div class="fortune" id="cardText"></div>
     <div class="lucky" id="cardLucky"></div>
     <div class="fine" id="cardFine"></div>
-    <div id="cardBtns"><button class="cbtn main" id="againBtn">Ask again</button><button class="cbtn alt" id="closeBtn">Close</button></div>
+    <div id="cardBtns"><button class="cbtn main" id="againBtn">Ask again (🪙 1)</button><button class="cbtn alt" id="closeBtn">Close</button></div>
   </div>
 </div>
 
+<script src="../coins.js"></script>
 <script src="fortunes.js"></script>
 <script>
 "use strict";
@@ -162,9 +163,17 @@ const sfx = {
 // ---------- State ----------
 const S = { mode: "idle", t: 0, glow: 0, sign: null, signT: 0, topic: "", fortune: "", coinT: 9 };
 
+function showCoins() { const n = Coins.get(); $("coins").textContent = "🪙 Coins: " + n; }
+function noCoins() {
+  const p = $("prompt"); p.classList.remove("says");
+  p.innerHTML = "<span>Out of coins! Sonny doesn’t work for free.<br>Win rounds in the other Midway games to earn more. <a href=\"../\" style=\"color:#ffd75e\">Go win coins ›</a></span>";
+  S.coinT = 0; tone(220, 0.25, "square", 0.06); tone(180, 0.35, "square", 0.06, 0.2);
+}
 function ask(topic) {
   if (S.mode !== "idle") return;
-  audio(); sfx.coin(); S.coinT = 0;
+  audio();
+  if (!Coins.spend(1)) { noCoins(); return; }
+  showCoins(); sfx.coin(); S.coinT = 0;
   if (canSpeak) speechSynthesis.getVoices();
   S.topic = topic; S.fortune = nextFortune(topic);
   setButtons(false);
@@ -200,7 +209,8 @@ function closeCard() {
   wrap.classList.remove("up"); card.style.opacity = "0";
   setTimeout(() => wrap.classList.remove("show"), 320);
   S.mode = "idle"; S.sign = null; setButtons(true);
-  $("prompt").classList.remove("says"); $("prompt").textContent = "Pick another topic. Sonny has plenty more to say.";
+  $("prompt").classList.remove("says");
+  $("prompt").textContent = Coins.get() > 0 ? "Pick another topic. Sonny has plenty more to say. (1 coin)" : "That was your last coin. Win more in the other Midway games!";
 }
 $("againBtn").onclick = closeCard;
 $("closeBtn").onclick = closeCard;
@@ -296,7 +306,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-voiceLabel(); showCollected();
+voiceLabel(); showCollected(); showCoins();
 layout();
 if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").then(layout).catch(() => {});
 if (canSpeak) speechSynthesis.getVoices();

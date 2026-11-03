@@ -66,6 +66,7 @@
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
     <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
     <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
   </div>
 </div>
@@ -90,6 +91,7 @@
   </div>
 </div>
 
+<script src="../coins.js"></script>
 <script>
 "use strict";
 // ---------- Settings ----------
@@ -327,7 +329,8 @@ function raceOver(ln) {
   const me = G.lanes[1], acc = me.shots ? Math.round(me.hits / me.shots * 100) : 0;
   if (!ln.cpu) {
     const pts = 100 * G.race; G.score += pts; G.bubble = null;
-    G.banner = { big: "You win!", small: "+" + pts + " points · " + acc + "% on target", note: "Next race: the others get better", win: true };
+    const coins = Coins.forRound(G.race); Coins.add(coins); Coins.chime(); showCoins();
+    G.banner = { big: "You win!", small: "+" + pts + " points · 🪙 +" + Coins.label(coins), note: "Next race: the others get better", win: true };
     sfx.bell(); setTimeout(() => sfx.win(), 250);
   } else {
     G.lives--;
@@ -678,6 +681,9 @@ $("resumeBtn").onclick = togglePause;
 $("pauseBtn").onclick = togglePause;
 ["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
 document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+
+function showCoins() { const n = Coins.get(); document.getElementById("coinLine").textContent = "🪙 Midway coins: " + n + " · win rounds to earn more for Sonny the Sorta Psychic"; }
+showCoins();
 $("bestLine").textContent = G.best ? "Best score: " + G.best : "";
 
 addEventListener("resize", layout);

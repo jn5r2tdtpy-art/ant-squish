@@ -67,6 +67,7 @@
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
     <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
     <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
   </div>
 </div>
@@ -91,6 +92,7 @@
   </div>
 </div>
 
+<script src="../coins.js"></script>
 <script>
 "use strict";
 // ---------- Settings ----------
@@ -380,7 +382,8 @@ function roundCleared() {
   const bonus = Math.ceil(G.timeLeft) * TIME_BONUS;
   G.score += bonus;
   const nb = bracesCount(G.round + 1) > bracesCount(G.round);
-  G.banner = { big: "Toothless!", small: "Time bonus +" + bonus, note: nb ? "Next round: more braces" : (regrowTime(G.round + 1) ? "Next round: teeth grow back faster" : "") };
+  const coins = Coins.forRound(G.round); Coins.add(coins); Coins.chime(); showCoins();
+  G.banner = { big: "Toothless!", small: "Time bonus +" + bonus + " · 🪙 +" + Coins.label(coins), note: nb ? "Next round: more braces" : (regrowTime(G.round + 1) ? "Next round: teeth grow back faster" : "") };
   G.bubble = null;
   setState("clear"); sfx.clear();
 }
@@ -829,6 +832,9 @@ $("resumeBtn").onclick = togglePause;
 $("pauseBtn").onclick = togglePause;
 ["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = toMidway);
 document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+
+function showCoins() { const n = Coins.get(); document.getElementById("coinLine").textContent = "🪙 Midway coins: " + n + " · win rounds to earn more for Sonny the Sorta Psychic"; }
+showCoins();
 $("bestLine").textContent = G.best ? "Best score: " + G.best : "";
 
 addEventListener("resize", layout);
