@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>The Sonny &amp; Eddie Show</title>
+<meta name="theme-color" content="#1a0508">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0508; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; }
+  #backBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); height: 38px; border-radius: 19px;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 14px system-ui, sans-serif; padding: 0 14px; cursor: pointer; z-index: 3; }
+  #panel { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 14px calc(12px + var(--sab)); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 220px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn:disabled { opacity: .5; }
+  #row { display: flex; gap: 14px; align-items: center; justify-content: center; font-size: 13px; color: #cdb896; flex-wrap: wrap; }
+  body.side #panel { left: auto; right: 0; top: 0; width: 34%; justify-content: center; }
+  body.side .btn { min-width: 0; width: 100%; }
+  .link { background: none; border: 0; color: #cdb896; font: 600 13px system-ui, sans-serif; text-decoration: underline; cursor: pointer; padding: 4px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<button id="backBtn">‹ Midway</button>
+<div id="panel">
+  <button class="btn" id="goBtn">Start the show!</button>
+  <div id="row"><span id="count"></span><button class="link" id="voiceBtn"></button></div>
+</div>
+<script src="bits.js"></script>
+<script>
+"use strict";
+const BITS = window.BITS;
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const img = s => { const i = new Image(); i.src = s; return i; };
+const I = { sonny: img("img/sonny.webp"), top: img("img/eddie-top.webp"), jaw: img("img/eddie-jaw.webp"), hat: img("img/hat.webp") };
+// sizes of the pictures and where Eddie's mouth is
+const EW = 360, EH = 560, MOUTH_Y = 383, JAW_L = 129, JAW_R = 241, SW = 420, SH = 480, HW = 420, HH = 240;
+
+// ---------- Voices ----------
+let voiceOn = store.get("ve-voice") !== "off";
+function voiceLabel() { $("voiceBtn").textContent = voiceOn ? "🔊 Sound: on" : "🔇 Sound: off"; }
+$("voiceBtn").onclick = () => { voiceOn = !voiceOn; store.set("ve-voice", voiceOn ? "on" : "off"); voiceLabel(); if (!voiceOn) player.pause(); };
+const player = new Audio(); player.preload = "auto";
+function voiceFile(key) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(key)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; } return "voice/" + h.toString(16).padStart(8, "0") + ".mp3"; }
+// mouth movement follows the loudness of the recording
+let analyser = null, aData = null, acx = null;
+function hookAnalyser() {
+  if (analyser) return; try {
+    acx = new (window.AudioContext || window.webkitAudioContext)(); const src = acx.createMediaElementSource(player);
+    analyser = acx.createAnalyser(); analyser.fftSize = 512; aData = new Uint8Array(analyser.fftSize); src.connect(analyser); analyser.connect(acx.destination);
+  } catch (e) { analyser = null; }
+}
+function loudness() {
+  if (!analyser || player.paused) return null;
+  analyser.getByteTimeDomainData(aData); let s = 0; for (let i = 0; i < aData.length; i++) { const v = (aData[i] - 128) / 128; s += v * v; }
+  return Math.sqrt(s / aData.length);
+}
+function say(who, text, onEnd) {
+  S.talker = who; S.line = text; S.lineT = 0;
+  let done = false; const fin = () => { if (!done) { done = true; S.talker = null; player.onended = player.onerror = null; setTimeout(onEnd, 350); } };
+  if (!voiceOn) { setTimeout(fin, 900 + text.length * 55); return; }
+  player.onended = fin; player.onerror = () => phone(who, text, fin);
+  player.src = voiceFile(who + ":" + text);
+  const p = player.play(); if (p && p.catch) p.catch(() => phone(who, text, fin));
+  setTimeout(fin, 5000 + text.length * 90);
+}
+function phone(who, text, fin) { // no recording for this line yet
+  if (!("speechSynthesis" in window)) { setTimeout(fin, 900 + text.length * 55); return; }
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = who === "E" ? 1.6 : 0.95; u.rate = 1.05; u.onend = u.onerror = fin; speechSynthesis.speak(u); }
+  catch (e) { setTimeout(fin, 900 + text.length * 55); }
+}
+
+// ---------- Show ----------
+const S = { t: 0, talker: null, line: "", lineT: 0, busy: false, laugh: 0, bitNo: 0, jaw: 0 };
+let order = [], seen = 0;
+function nextBit() {
+  if (!order.length) order = BITS.map((_, i) => i).sort(() => Math.random() - 0.5);
+  return BITS[order.pop()];
+}
+function play() {
+  if (S.busy) return;
+  hookAnalyser(); if (acx && acx.state === "suspended") acx.resume();
+  S.busy = true; $("goBtn").disabled = true; $("goBtn").textContent = "…";
+  const bit = nextBit(); let i = 0;
+  const step = () => {
+    if (i >= bit.length) { S.busy = false; S.laugh = 1; laugh(); seen++; $("count").textContent = "Jokes heard: " + seen + " of " + BITS.length; $("goBtn").disabled = false; $("goBtn").textContent = "Another one!"; return; }
+    const [who, line] = bit[i++]; say(who, line, step);
+  };
+  step();
+}
+$("goBtn").onclick = play;
+$("backBtn").onclick = () => { player.pause(); location.href = "../"; };
+// a little canned laugh and a rimshot
+function laugh() {
+  try {
+    const a = acx || new (window.AudioContext || window.webkitAudioContext)(), t = a.currentTime;
+    const n = a.createBuffer(1, a.sampleRate * 0.4, a.sampleRate), d = n.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (a.sampleRate * 0.12));
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); s.buffer = n; f.type = "highpass"; f.frequency.value = 2500; g.gain.value = 0.35;
+    s.connect(f).connect(g).connect(a.destination); s.start(t + 0.18);
+    [[180, 0], [120, 0.09]].forEach(([fr, dl]) => { const o = a.createOscillator(), og = a.createGain(); o.frequency.setValueAtTime(fr, t + dl); o.frequency.exponentialRampToValueAtTime(60, t + dl + 0.15);
+      og.gain.setValueAtTime(0.4, t + dl); og.gain.exponentialRampToValueAtTime(0.001, t + dl + 0.18); o.connect(og).connect(a.destination); o.start(t + dl); o.stop(t + dl + 0.2); });
+  } catch (e) {}
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  L.side = W > H * 1.15; document.body.classList.toggle("side", L.side);
+  const top = $("backBtn").getBoundingClientRect().bottom + 6, bottom = L.side ? H - 6 : H - $("panel").getBoundingClientRect().height - 4;
+  L.top = top; L.bottom = bottom;
+  const sw = L.side ? W * 0.66 : W, h = bottom - top, w = Math.min(sw, h * 0.95);
+  L.u = Math.min(w / 10, h / 12);           // one unit of the stage
+  L.cx = sw / 2; L.floor = bottom - L.u * 0.6;
+}
+addEventListener("resize", layout);
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawStage() {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#3a0a12"); g.addColorStop(1, "#14040a"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // curtains
+  const cw = W * 0.16;
+  for (const side of [0, 1]) {
+    for (let i = 0; i < 5; i++) {
+      const x = side ? W - cw + i * cw / 5 : i * cw / 5, sw = cw / 5;
+      const cg = ctx.createLinearGradient(x, 0, x + sw, 0); cg.addColorStop(0, "#6a0e1a"); cg.addColorStop(0.5, "#b8202e"); cg.addColorStop(1, "#6a0e1a");
+      ctx.fillStyle = cg; ctx.fillRect(x, 0, sw + 1, L.floor);
+    }
+  }
+  // valance with gold fringe and the show's name
+  const vh = Math.max(40, L.u * 1.3), vy = L.top - 6;
+  ctx.fillStyle = "#9a1626"; ctx.fillRect(0, vy, W, vh);
+  for (let x = 0; x < W; x += 30) { ctx.fillStyle = "#9a1626"; ctx.beginPath(); ctx.arc(x + 15, vy + vh, 15, 0, Math.PI); ctx.fill(); }
+  ctx.fillStyle = "#e0a838"; ctx.fillRect(0, vy + vh - 3, W, 3);
+  ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(vh * 0.42); ctx.font = `${fs}px Rye, Georgia, serif`;
+  while (ctx.measureText("THE SONNY & EDDIE SHOW").width > W - 30 && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.fillText("THE SONNY & EDDIE SHOW", W / 2, vy + vh * 0.48);
+  // spotlight and wooden stage
+  const sp = ctx.createRadialGradient(L.cx, L.floor, 10, L.cx, L.floor - L.u * 3, L.u * 7);
+  sp.addColorStop(0, "rgba(255,240,200,.35)"); sp.addColorStop(1, "rgba(255,240,200,0)"); ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#5a3418"; ctx.fillRect(0, L.floor, W, H - L.floor);
+  ctx.fillStyle = "#7a4a26"; ctx.fillRect(0, L.floor, W, 6);
+  // stool
+  const u = L.u, sx = L.cx + u * 1.2;
+  ctx.fillStyle = "#3a2410"; ctx.fillRect(sx - u * 1.1, L.floor - u * 2.4, u * 0.18, u * 2.4); ctx.fillRect(sx + u * 0.9, L.floor - u * 2.4, u * 0.18, u * 2.4);
+  ctx.fillStyle = "#8a1a2a"; rr(sx - u * 1.3, L.floor - u * 2.6, u * 2.6, u * 0.4, u * 0.15); ctx.fill();
+}
+
+function drawSonny() {
+  const u = L.u, x = L.cx + u * 1.3, seat = L.floor - u * 2.6;
+  const talk = S.talker === "S", bob = Math.sin(S.t * (talk ? 7 : 1.5)) * (talk ? 2 : 1.5);
+  // legs
+  ctx.fillStyle = "#2a2a30"; rr(x - u * 0.9, seat - u * 0.2, u * 1.9, u * 0.6, u * 0.2); ctx.fill();
+  ctx.fillRect(x + u * 0.55, seat, u * 0.5, u * 2.4); ctx.fillRect(x - u * 0.4, seat, u * 0.5, u * 2.4);
+  ctx.fillStyle = "#111"; rr(x - u * 0.55, L.floor - u * 0.25, u * 0.8, u * 0.3, 4); ctx.fill(); rr(x + u * 0.45, L.floor - u * 0.25, u * 0.8, u * 0.3, 4); ctx.fill();
+  // suit jacket
+  const ty = seat - u * 3.1 + bob;
+  ctx.fillStyle = "#6e7380";
+  ctx.beginPath(); ctx.moveTo(x - u * 1.25, ty + u * 0.4); ctx.quadraticCurveTo(x, ty - u * 0.1, x + u * 1.25, ty + u * 0.4);
+  ctx.lineTo(x + u * 1.15, seat + u * 0.2); ctx.lineTo(x - u * 1.15, seat + u * 0.2); ctx.closePath(); ctx.fill();
+  // shirt, tie and lapels
+  ctx.fillStyle = "#f4f1ea"; ctx.beginPath(); ctx.moveTo(x - u * 0.35, ty + u * 0.1); ctx.lineTo(x + u * 0.35, ty + u * 0.1); ctx.lineTo(x, ty + u * 1.6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#7a1a5a"; ctx.beginPath(); ctx.moveTo(x - u * 0.12, ty + u * 0.2); ctx.lineTo(x + u * 0.12, ty + u * 0.2); ctx.lineTo(x + u * 0.16, ty + u * 1.4); ctx.lineTo(x, ty + u * 1.6); ctx.lineTo(x - u * 0.16, ty + u * 1.4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#555a66"; ctx.lineWidth = u * 0.1;
+  ctx.beginPath(); ctx.moveTo(x - u * 0.38, ty + u * 0.1); ctx.lineTo(x - u * 0.15, ty + u * 1.6); ctx.moveTo(x + u * 0.38, ty + u * 0.1); ctx.lineTo(x + u * 0.15, ty + u * 1.6); ctx.stroke();
+  // right arm resting on his knee
+  ctx.strokeStyle = "#6e7380"; ctx.lineWidth = u * 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x + u * 1.05, ty + u * 0.5); ctx.lineTo(x + u * 1.35, seat - u * 0.6); ctx.lineTo(x + u * 0.9, seat + u * 0.1); ctx.stroke();
+  ctx.fillStyle = "#e9b08e"; ctx.beginPath(); ctx.arc(x + u * 0.8, seat + u * 0.15, u * 0.22, 0, 7); ctx.fill();
+  // neck and head
+  ctx.fillStyle = "#e0a585"; ctx.fillRect(x - u * 0.28, ty - u * 0.35, u * 0.56, u * 0.5);
+  const hw = u * 2.6, hh = hw * SH / SW;
+  if (I.sonny.complete && I.sonny.naturalWidth) ctx.drawImage(I.sonny, x - hw * 0.5, ty - hh * 0.92, hw, hh);
+  return { x, ty, seat };
+}
+
+function drawEddie(son) {
+  const u = L.u, x = son.x - u * 1.7, base = son.seat + u * 0.05; // sitting on Sonny's left knee
+  const talk = S.talker === "E";
+  // jaw opens with the loudness of Eddie's voice
+  let open = 0;
+  if (talk) { const l = loudness(); open = l == null ? (Math.sin(S.lineT * 22) > 0 ? 1 : 0.2) : clamp((l - 0.015) * 9, 0, 1); }
+  S.jaw += (open - S.jaw) * 0.5;
+  const turn = talk ? Math.sin(S.t * 3) * 0.06 : Math.sin(S.t * 0.9) * 0.03;
+  // little legs dangling
+  ctx.fillStyle = "#2a3a6a"; rr(x - u * 0.55, base - u * 0.25, u * 1.1, u * 0.4, u * 0.15); ctx.fill();
+  const sw = Math.sin(S.t * 2) * u * 0.06;
+  ctx.fillRect(x - u * 0.5, base, u * 0.3, u * 1.1 + sw); ctx.fillRect(x + u * 0.15, base, u * 0.3, u * 1.1 - sw);
+  ctx.fillStyle = "#111"; rr(x - u * 0.62, base + u * 1.05 + sw, u * 0.45, u * 0.2, 4); ctx.fill(); rr(x + u * 0.05, base + u * 1.05 - sw, u * 0.45, u * 0.2, 4); ctx.fill();
+  // checkered jacket
+  const ty = base - u * 2.0;
+  ctx.save(); ctx.beginPath(); ctx.moveTo(x - u * 0.75, ty + u * 0.25); ctx.quadraticCurveTo(x, ty - u * 0.05, x + u * 0.75, ty + u * 0.25); ctx.lineTo(x + u * 0.7, base); ctx.lineTo(x - u * 0.7, base); ctx.closePath(); ctx.clip();
+  ctx.fillStyle = "#c9c2b2"; ctx.fillRect(x - u, ty - u * 0.2, u * 2, u * 2.4);
+  ctx.fillStyle = "#9a9284"; const c = u * 0.14;
+  for (let yy = ty - u * 0.2, r = 0; yy < base; yy += c, r++) for (let xx = x - u + (r % 2) * c; xx < x + u; xx += c * 2) ctx.fillRect(xx, yy, c, c);
+  ctx.restore();
+  ctx.fillStyle = "#2a2a30"; ctx.beginPath(); ctx.moveTo(x - u * 0.75, ty + u * 0.25); ctx.lineTo(x - u * 0.2, ty + u * 0.05); ctx.lineTo(x - u * 0.45, ty + u * 0.8); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x + u * 0.75, ty + u * 0.25); ctx.lineTo(x + u * 0.2, ty + u * 0.05); ctx.lineTo(x + u * 0.45, ty + u * 0.8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#111"; for (const k of [0.7, 1.25]) { ctx.beginPath(); ctx.arc(x, ty + u * k, u * 0.07, 0, 7); ctx.fill(); }
+  // bow tie
+  ctx.fillStyle = "#b02a3a"; ctx.beginPath(); ctx.moveTo(x, ty + u * 0.12); ctx.lineTo(x - u * 0.32, ty - u * 0.04); ctx.lineTo(x - u * 0.32, ty + u * 0.28); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x, ty + u * 0.12); ctx.lineTo(x + u * 0.32, ty - u * 0.04); ctx.lineTo(x + u * 0.32, ty + u * 0.28); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#e8d070"; ctx.beginPath(); ctx.arc(x, ty + u * 0.12, u * 0.07, 0, 7); ctx.fill();
+  // Sonny's left hand going into Eddie's back, and a little arm for Eddie
+  ctx.strokeStyle = "#6e7380"; ctx.lineWidth = u * 0.45; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(son.x - u * 1.05, son.ty + u * 0.5); ctx.lineTo(x + u * 0.55, ty + u * 1.1); ctx.stroke();
+  ctx.strokeStyle = "#2a2a30"; ctx.lineWidth = u * 0.22; ctx.beginPath(); ctx.moveTo(x - u * 0.68, ty + u * 0.4); ctx.lineTo(x - u * 0.8, base - u * 0.3); ctx.stroke();
+  ctx.fillStyle = "#e9b08e"; ctx.beginPath(); ctx.arc(x - u * 0.8, base - u * 0.25, u * 0.13, 0, 7); ctx.fill();
+  // head: top part, dark mouth gap, then the jaw that drops; dummy lines down from the corners
+  const hw = u * 1.4, s = hw / EW, hh = EH * s, hx = x - hw / 2, hy = ty - hh * 0.86;
+  const drop = S.jaw * u * 0.42;
+  ctx.save(); ctx.translate(x, ty); ctx.rotate(turn); ctx.translate(-x, -ty);
+  ctx.fillStyle = "#2a0a0e"; ctx.fillRect(hx + JAW_L * s, hy + MOUTH_Y * s - 2, (JAW_R - JAW_L) * s, drop + 4);
+  if (I.jaw.complete && I.jaw.naturalWidth) ctx.drawImage(I.jaw, hx, hy + drop, hw, hh);
+  if (I.top.complete && I.top.naturalWidth) ctx.drawImage(I.top, hx, hy, hw, hh);
+  ctx.strokeStyle = "rgba(60,25,15,.55)"; ctx.lineWidth = 1.2;
+  for (const jx of [JAW_L, JAW_R]) { ctx.beginPath(); ctx.moveTo(hx + jx * s, hy + MOUTH_Y * s + drop); ctx.lineTo(hx + jx * s, hy + (MOUTH_Y + 95) * s + drop); ctx.stroke(); }
+  // Sonny's top hat on Eddie, sized to his head
+  const hatW = hw * 1.18, hatH = hatW * HH / HW;
+  if (I.hat.complete && I.hat.naturalWidth) ctx.drawImage(I.hat, x - hatW * 0.5, hy - hatH * 0.62, hatW, hatH);
+  ctx.restore();
+  return { x, hy };
+}
+
+function drawBubble(px, py, text, left) {
+  const fs = clamp(L.u * 0.36, 13, 19); ctx.font = `700 ${fs}px system-ui, sans-serif`;
+  const maxW = Math.min(W * 0.62, 320), words = text.split(" "), lines = []; let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW - 24 && cur) { lines.push(cur); cur = w; } else cur = t; }
+  lines.push(cur);
+  const tw = Math.max(...lines.map(l => ctx.measureText(l).width)), lh = fs * 1.28, bw = tw + 26, bh = lines.length * lh + 14;
+  const bx = clamp(left ? px - bw * 0.85 : px - bw * 0.2, 8, W - bw - 8), by = Math.max(L.top + L.u * 1.4, py - bh - 18);
+  ctx.fillStyle = "#fffdf5"; ctx.strokeStyle = "#2a0812"; ctx.lineWidth = 2.5; rr(bx, by, bw, bh, 14); ctx.fill(); ctx.stroke();
+  const tx = clamp(px, bx + 20, bx + bw - 20);
+  ctx.beginPath(); ctx.moveTo(tx - 9, by + bh - 1); ctx.lineTo(px, py - 4); ctx.lineTo(tx + 9, by + bh - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#fffdf5"; ctx.fillRect(tx - 8, by + bh - 4, 16, 6);
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, bx + bw / 2, by + 7 + lh * (i + 0.5)));
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawStage(); const son = drawSonny(); const ed = drawEddie(son);
+  if (S.talker && S.line) {
+    if (S.talker === "E") drawBubble(ed.x, ed.hy - L.u * 0.5, S.line, true);
+    else drawBubble(son.x + L.u * 0.4, son.ty - L.u * 2.5, S.line, false);
+  }
+  if (S.laugh > 0) {
+    ctx.globalAlpha = Math.min(1, S.laugh * 2); ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center";
+    ctx.font = `${Math.round(clamp(L.u * 0.6, 20, 34))}px Rye, Georgia, serif`;
+    ctx.fillText("Ba-dum tss!", W / 2, L.top + L.u * 2); ctx.globalAlpha = 1;
+  }
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; S.t += dt; S.lineT += dt; S.laugh = Math.max(0, S.laugh - dt * 0.6); draw(); requestAnimationFrame(frame); }
+voiceLabel(); $("count").textContent = BITS.length + " jokes in the act";
+layout(); if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").then(layout).catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
