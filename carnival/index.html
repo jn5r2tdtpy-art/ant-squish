@@ -40,6 +40,16 @@
   .game h2 { font-family: "Rye", Georgia, serif; font-weight: 400; font-size: 24px; margin: 0 0 4px; color: #ffd75e; }
   .game p { margin: 0; font-size: 14px; line-height: 1.4; color: #e6dcc6; }
   .game .best { margin-top: 6px; font-weight: 700; color: #7aff8a; font-size: 13px; }
+  .mikey { margin: 16px auto 8px; max-width: 420px; }
+  .mikey img { width: 100%; height: auto; display: block; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+  .mikey .bubble { position: relative; margin: 14px 4px 10px; background: #fffdf5; color: #2a0812; border: 3px solid #2a0812; border-radius: 16px;
+    padding: 12px 14px; font: 700 16px/1.35 system-ui, sans-serif; min-height: 44px; }
+  .mikey .bubble::before { content: ""; position: absolute; top: -14px; left: 50%; margin-left: -12px; border: 12px solid transparent; border-top: 0; border-bottom: 14px solid #2a0812; }
+  .mikey .bubble::after { content: ""; position: absolute; top: -9px; left: 50%; margin-left: -9px; border: 9px solid transparent; border-top: 0; border-bottom: 10px solid #fffdf5; }
+  .mikey .bubble.talking { box-shadow: 0 0 0 4px rgba(255,215,94,.6); }
+  .hear { font: 700 16px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 12px 22px; box-shadow: 0 4px 0 #a8661a; cursor: pointer; }
+  .hear:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
   .purse { display: inline-block; margin-top: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(255,215,94,.14); color: #ffd75e; font-weight: 800; }
   .game .cost { margin-top: 6px; font-weight: 700; color: #ffd75e; font-size: 13px; }
   .soon { margin-top: 18px; text-align: center; color: #cdb896; font-size: 14px; border: 2px dashed rgba(255,244,220,.25);
@@ -51,6 +61,11 @@
   <header>
     <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>Carnival<br>Midway</h1>
+    <div class="mikey">
+      <img src="mikey/poster.webp" alt="Big Top Mikey, the Ringmaster">
+      <div class="bubble" id="mikeyLine"></div>
+      <button class="hear" id="hearMikey">🎩 Hear Mikey</button>
+    </div>
     <p>Step right up and try your luck!</p>
     <p class="purse" id="purse"></p>
   </header>
@@ -120,6 +135,22 @@
 
   <div class="soon">More games coming soon</div>
 </main>
+<script src="mikey/lines.js"></script>
+<script>
+  // Big Top Mikey welcomes everyone. Sound needs a tap first, so his line shows in the bubble and plays when you tap.
+  (function () {
+    const lines = window.MIKEY, box = document.getElementById("mikeyLine"), btn = document.getElementById("hearMikey"), player = new Audio();
+    let i = 0;
+    box.textContent = lines[0];
+    btn.onclick = () => {
+      const n = i % lines.length; i++;
+      box.textContent = lines[n]; box.classList.add("talking");
+      player.src = "mikey/voice/" + n + ".mp3"; player.play().catch(() => {});
+      player.onended = () => box.classList.remove("talking");
+      btn.textContent = "🎩 More from Mikey";
+    };
+  })();
+</script>
 <script src="coins.js"></script>
 <script>
   function showPurse() { document.getElementById("purse").textContent = "🪙 You have " + Coins.label(Coins.get()) + " · win rounds in any game to earn more"; }
