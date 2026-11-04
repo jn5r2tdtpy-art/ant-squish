@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>The Junk Crane</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(38px, 12vw, 56px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .icon { font-size: 50px; }
+  #haul { font-size: 30px; line-height: 1.3; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <div class="icon">🥚🕹️</div>
+    <h1>The Junk Crane</h1>
+    <p><i>Win an egg. Open it. Regret it.</i></p>
+    <div class="rules">
+      <p><b>Drag your finger along the slider</b> to move the claw over an egg, then tap the big red <b>DROP</b> button. The claw drops, grabs and carries the egg to the prize chute.</p>
+      <p>Line the claw up right over the middle of an egg: the closer you are, the better it holds. Sometimes it slips anyway. It’s a claw machine.</p>
+      <p>You get <b>5 tries</b>. Every egg you win, you open, and every prize inside is junk: Eddie’s debt, Sonny’s spare Harley keys, the penny Abby found on the floor…</p>
+      <p>The shiny 🟡 <b>gold egg</b> has a real coin inside: 🪙 +1.</p>
+    </div>
+    <button class="btn" id="playBtn">Insert coin!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Out of Tries!</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><div id="haul"></div><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const TRIES = 5, AIM_TIME = 15, EGGS = 11;
+const GRIP = 0.92;                                                       // best hold chance with the claw dead center on an egg
+// The junk inside the eggs. Copy a line to add more: [emoji, prize, joke].
+const PRIZES = [
+  ["🧾", "Eddie’s Debt", "An IOU for $4,000. Congratulations, it’s yours now!"],
+  ["🔑", "Sonny’s Spare Harley Key", "One of Sonny’s 900 billion spare Harley keys. The Harley is not included."],
+  ["👓", "Abby’s Glasses", "She’s been looking for these all day. They were on her head."],
+  ["🪙", "Abby’s Lucky Penny", "A penny Abby found on the floor. She says it’s lucky. It’s a little sticky."],
+  ["🎟️", "Eddie’s Lucky Scratch-Off", "Already scratched. It lost. Like the last 300."],
+  ["✂️", "Eddie’s Coupon", "Buy one, get nothing. Expired in 2009."],
+  ["✍️", "Sonny’s Autograph", "He signed it himself. Then he asked for it back."],
+  ["💍", "Eddie’s Wedding Ring #3", "Slightly used. Comes with a story he will not stop telling."],
+  ["👛", "Eddie’s Wallet", "Empty. Except for a moth. The moth also owes money."],
+  ["🎩", "Sonny’s Hat Tag", "The tag from Sonny’s hat. It says “one size fits most.” It does not fit Sonny."],
+  ["🎈", "A Bag of Sonny’s Hot Air", "He blew it up himself. There’s plenty more where that came from."],
+  ["📼", "Abby’s Story From Lunch", "Part 1 of 9. She’ll tell you the rest in person."],
+  ["🍬", "Eddie’s Half-Eaten Mint", "He was saving the other half for a special occasion."],
+  ["🏆", "Sonny’s Participation Trophy", "He made it himself. It says “World’s Greatest Sonny.”"],
+  ["📇", "Eddie’s Business Card", "It says “Professional Gambler.” The phone number is disconnected."],
+];
+const GOLD_PRIZE = ["🪙", "A Real Midway Coin!", "The only thing in this machine worth having. 🪙 +1"];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.01, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.01, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+let motor = null;
+function motorOn(on) { const a = audio(); if (!a) return;
+  if (on && !motor) { const o = a.createOscillator(), g = a.createGain(); o.type = "sawtooth"; o.frequency.value = 70; g.gain.value = 0.025; o.connect(g).connect(a.destination); o.start(); motor = { o, g }; }
+  if (!on && motor) { motor.g.gain.setTargetAtTime(0.0001, a.currentTime, 0.03); const m = motor; setTimeout(() => { try { m.o.stop(); } catch (e) {} }, 150); motor = null; } }
+const sfx = {
+  coin() { tone(1200, 0.08, "square", 0.06); tone(1600, 0.12, "square", 0.06, 0.08); },
+  clack() { tone(300, 0.06, "square", 0.12, 0, 150); noise(0.05, "highpass", 2000, 0.15); },
+  thud() { tone(140, 0.12, "triangle", 0.25, 0, 80); },
+  chute() { tone(500, 0.3, "triangle", 0.12, 0, 200); noise(0.2, "lowpass", 900, 0.2, 1, 0.15); },
+  pop() { noise(0.1, "highpass", 1200, 0.5); tone(700, 0.15, "sine", 0.2, 0, 1400); },
+  trombone() { [392, 370, 349, 294].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.28, "sawtooth", 0.07, i * 0.3, i === 3 ? 270 : 0)); },
+  gold() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, i * 0.08)); },
+  buzz() { tone(150, 0.4, "square", 0.08); },
+};
+
+// ---------- State ----------
+const G = { state: "title", tries: TRIES, won: [], best: +store.get("jc-best") || 0, stateT: 0, t: 0, aimT: AIM_TIME,
+  claw: { x: 0, tx: 0, drop: 0, open: 1, egg: null, plan: null, slipAt: 0 }, eggs: [], prize: null, pops: [], touch: null, pausedFrom: null, msg: null };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+let deck = [];
+function nextPrize() { if (!deck.length) deck = PRIZES.slice().sort(() => Math.random() - 0.5); return deck.pop(); }
+const EGG_COLORS = ["#e8304a", "#3a7af0", "#3ad07a", "#f08a2c", "#c040ff", "#f07ab0", "#2fb0a8"];
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  sfx.coin(); G.tries = TRIES; G.won = []; G.pops = []; deck = []; hideOverlays(); layout(); fillEggs(); newTry();
+}
+function fillEggs() {
+  G.eggs = [];
+  const r = L.er, x0 = L.chuteR + r * 1.1, x1 = L.gx + L.gw - r * 1.1, n0 = Math.max(4, Math.floor((x1 - x0) / (r * 2.05)) + 1);
+  const gold = Math.floor(Math.random() * EGGS);
+  let k = 0;
+  for (let row = 0; k < EGGS && row < 3; row++) {
+    const n = n0 - row, off = row * r;
+    for (let i = 0; i < n && k < EGGS; i++, k++) {
+      const x = x0 + off + i * ((x1 - x0 - 2 * off) / Math.max(1, n - 1)) + rand(-3, 3);
+      G.eggs.push({ x, y: L.floor - r - row * r * 1.7, vy: 0, r: r * rand(0.94, 1.04), c: EGG_COLORS[k % EGG_COLORS.length], gold: k === gold, rot: rand(-0.3, 0.3), held: false });
+    }
+  }
+}
+function newTry() { const c = G.claw; c.x = c.tx = L.gx + L.gw * 0.62; c.drop = 0; c.open = 1; c.egg = null; c.plan = null; G.aimT = AIM_TIME; G.msg = null; setState("aim"); }
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 56 + L.safeT; L.ctrlH = Math.min(120, H * 0.17) + L.safeB;
+  const top = L.hudH + 4, bottom = H - L.ctrlH;
+  L.mw = Math.min(W - 20, (bottom - top) * 0.82, 560); L.mx = (W - L.mw) / 2; L.my = top; L.mh = bottom - top - 6;
+  L.mqH = Math.min(56, L.mh * 0.1);                                      // marquee
+  L.gx = L.mx + 14; L.gw = L.mw - 28; L.gy = L.my + L.mqH + 8; L.gh = L.mh - L.mqH - 22;
+  L.rail = L.gy + 16; L.floor = L.gy + L.gh - 8;
+  L.er = Math.min(L.gw * 0.082, L.gh * 0.075);                                                    // egg size
+  L.chuteW = L.er * 3.1; L.chuteR = L.gx + L.chuteW; L.chuteTop = L.floor - L.er * 2.4;
+  L.clawW = L.er * 1.5;
+  // controls: slider on the left, DROP button on the right
+  const cy = H - L.ctrlH + (L.ctrlH - L.safeB) / 2;
+  L.btnR = Math.min(44, (L.ctrlH - L.safeB) * 0.42); L.btnX = L.mx + L.mw - L.btnR - 6; L.btnY = cy;
+  L.sx0 = L.mx + 16; L.sx1 = L.btnX - L.btnR - 24; L.sy = cy;
+  if (G.claw) { G.claw.x = clamp(G.claw.x, clawMin(), clawMax()); G.claw.tx = clamp(G.claw.tx, clawMin(), clawMax()); }
+}
+const clawMin = () => L.gx + L.clawW * 0.6, clawMax = () => L.gx + L.gw - L.clawW * 0.6;
+const clawTipY = () => L.rail + 22 + G.claw.drop;                       // where the claw's fingers are
+
+// ---------- Controls ----------
+function inBtn(x, y) { return Math.hypot(x - L.btnX, y - L.btnY) < L.btnR * 1.25; }
+function pointerDown(e) {
+  audio(); const x = e.clientX, y = e.clientY;
+  if (G.state === "reveal") { if (G.stateT > 0.8) afterReveal(); return; }
+  if (G.state !== "aim") return;
+  if (inBtn(x, y)) { drop(); return; }
+  G.touch = { id: e.pointerId }; steer(x);
+}
+function pointerMove(e) { if (G.touch && G.touch.id === e.pointerId && G.state === "aim") steer(e.clientX); }
+function pointerUp(e) { if (G.touch && G.touch.id === e.pointerId) G.touch = null; }
+function steer(x) { // the slider maps across the whole machine; dragging inside the glass works too
+  const inSlider = x >= L.sx0 - 20 && x <= L.sx1 + 20;
+  const f = inSlider ? (x - L.sx0) / (L.sx1 - L.sx0) : (x - L.gx) / L.gw;
+  G.claw.tx = clamp(clawMin() + clamp(f, 0, 1) * (clawMax() - clawMin()), clawMin(), clawMax());
+}
+function drop() { if (G.state !== "aim") return; G.touch = null; G.claw.tx = G.claw.x; sfx.clack(); motorOn(true); setState("down"); }
+
+// ---------- The claw ----------
+function eggUnder(x) { // the highest egg whose top the claw would hit
+  let best = null;
+  for (const e of G.eggs) { if (e.held || e.won) continue; if (Math.abs(e.x - x) < e.r * 1.05 && (!best || e.y < best.y)) best = e; }
+  return best;
+}
+function grab() {
+  const c = G.claw, e = eggUnder(c.x);
+  if (!e) { c.plan = "miss"; return; }
+  const a = Math.abs(e.x - c.x) / e.r, p = clamp(1 - a * 1.25, 0, 1) * GRIP * (e.gold ? 0.7 : 1), roll = Math.random();
+  if (roll < p) c.plan = "hold";
+  else if (roll < p + 0.35 && a < 0.8) { c.plan = "slip"; c.slipAt = rand(0.15, 0.85); }
+  else { c.plan = "miss"; e.wobble = 1; }
+  if (c.plan !== "miss") { c.egg = e; e.held = true; }
+}
+function letGo(e) { e.held = false; e.vy = 0; G.claw.egg = null; }
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  const c = G.claw, sp = L.gw * 0.55;                                    // crane speed, px/s
+  if (G.state === "aim") {
+    const d = c.tx - c.x; if (Math.abs(d) > 1) { c.x += Math.sign(d) * Math.min(Math.abs(d), sp * dt); motorOn(true); } else motorOn(false);
+    G.aimT -= dt; if (G.aimT <= 0) { G.aimT = 0; drop(); }
+  }
+  if (G.state === "down") {
+    c.drop += dt * L.gh * 0.55;
+    const e = eggUnder(c.x), stopAt = e ? e.y - e.r * 0.55 : L.floor - 6;
+    if (clawTipY() >= stopAt) { motorOn(false); setState("close"); sfx.clack(); }
+  }
+  if (G.state === "close") { c.open = Math.max(0, 1 - G.stateT / 0.45); if (G.stateT > 0.5) { grab(); motorOn(true); setState("up"); } }
+  if (G.state === "up") {
+    c.drop = Math.max(0, c.drop - dt * L.gh * 0.45);
+    if (c.plan === "miss" && G.stateT < 0.3) c.open = Math.min(0.5, G.stateT * 2);
+    if (c.drop <= 0) { if (c.plan === "miss") { motorOn(false); G.msg = { text: pick(["Missed!", "So close!", "The claw is weak today.", "Nothing! Classic claw machine."]), t: 0 }; endTry(); } else setState("carry"); }
+  }
+  if (G.state === "carry") {
+    const goal = L.gx + L.chuteW / 2, start = c.carryFrom ?? (c.carryFrom = c.x);
+    c.x = Math.max(goal, c.x - sp * dt);
+    const prog = (start - c.x) / Math.max(1, start - goal);
+    if (c.plan === "slip" && c.egg && prog >= c.slipAt) { const e = c.egg; letGo(e); sfx.clack(); G.msg = { text: "It slipped!", t: 0 }; }
+    if (c.x <= goal + 0.5) { motorOn(false); c.carryFrom = null; setState("release"); }
+  }
+  if (G.state === "release") { c.open = Math.min(1, G.stateT / 0.3); if (c.egg) letGo(c.egg); if (G.stateT > 1.1) checkChute(); }
+  if (G.state === "return") { c.open = 1; const home = L.gx + L.gw * 0.62; c.x = Math.min(home, c.x + sp * dt); if (c.x >= home - 0.5) next(); }
+  if (G.state === "reveal") { if (G.prize && !G.prize.sounded && G.stateT > 0.6) { G.prize.sounded = true; G.prize.gold ? sfx.gold() : sfx.trombone(); } }
+  // the held egg rides the claw; loose eggs fall and settle
+  if (c.egg) { c.egg.x = c.x; c.egg.y = clawTipY() - 4; }
+  settle(dt);
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.2);
+  if (G.msg) { G.msg.t += dt; if (G.msg.t > 1.6) G.msg = null; }
+}
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function settle(dt) {
+  const loose = G.eggs.filter(e => !e.held && !e.won).sort((a, b) => b.y - a.y);
+  for (const e of loose) {
+    // resting height: the floor (or the chute bottom), or on top of an egg below it
+    let rest = L.floor - e.r;
+    for (const o of loose) { if (o === e || o.y < e.y) continue; const dx = Math.abs(o.x - e.x), rr2 = e.r + o.r; if (dx < rr2 * 0.95) rest = Math.min(rest, o.y - Math.sqrt(rr2 * rr2 - dx * dx)); }
+    if (e.x < L.chuteR && e.x > L.gx) rest = L.floor + e.r * 3;          // falls down the chute
+    if (e.y < rest - 0.5) { e.vy += 1400 * dt; e.y = Math.min(rest, e.y + e.vy * dt); if (e.y >= rest) { if (e.vy > 300) sfx.thud(); e.vy = 0; } }
+    else { e.y = rest; e.vy = 0; }
+    // the chute wall pushes eggs back out of the way
+    if (e.x < L.chuteR + e.r && e.x >= L.chuteR && e.y > L.chuteTop - e.r) e.x = L.chuteR + e.r;
+    if (e.wobble) e.wobble = Math.max(0, e.wobble - dt * 2);
+  }
+}
+function checkChute() {
+  const e = G.eggs.find(e => !e.won && !e.held && e.x < L.chuteR && e.y > L.floor);
+  if (e) { e.won = true; sfx.chute(); openEgg(e); return; }
+  // nothing came down the chute
+  if (G.stateT > 1.6) endTry();
+}
+function openEgg(e) {
+  const pr = e.gold ? GOLD_PRIZE : nextPrize();
+  G.prize = { egg: e, emoji: pr[0], name: pr[1], joke: pr[2], gold: e.gold, sounded: false };
+  G.won.push(pr[0]);
+  if (e.gold) { Coins.add(1); Coins.chime(); showCoins(); }
+  setTimeout(() => sfx.pop(), 450);
+  setState("reveal");
+}
+function afterReveal() { G.prize = null; endTry(); }
+function endTry() { G.tries--; setState("return"); G.claw.egg = null; }
+function next() {
+  if (G.tries <= 0) { gameOver(); return; }
+  if (!G.eggs.some(e => !e.won)) fillEggs();
+  newTry();
+}
+function gameOver() {
+  setState("over"); motorOn(false);
+  const n = G.won.length, nb = n > G.best; if (nb) { G.best = n; store.set("jc-best", String(n)); }
+  $("finalScore").textContent = n + (n === 1 ? " egg" : " eggs");
+  $("finalLine").textContent = n === 0 ? "No eggs! Honestly, you didn’t miss much." : n >= 3 ? "What a haul of junk! Congratulations?" : "Here’s your junk:";
+  $("haul").textContent = G.won.join(" ");
+  $("finalBest").textContent = (nb ? "New record haul!" : "Best haul: " + G.best + " eggs") + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 400);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawMachine() {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#3a1a4a"); g.addColorStop(1, "#1a0a20"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // cabinet
+  const cg = ctx.createLinearGradient(L.mx, 0, L.mx + L.mw, 0); cg.addColorStop(0, "#c8306a"); cg.addColorStop(0.5, "#f05a8a"); cg.addColorStop(1, "#c8306a");
+  ctx.fillStyle = cg; rr(L.mx, L.my, L.mw, L.mh + 4, 18); ctx.fill();
+  // marquee with chasing lights
+  ctx.fillStyle = "#2a1a4a"; rr(L.mx + 10, L.my + 6, L.mw - 20, L.mqH - 4, 10); ctx.fill();
+  const n = Math.floor((L.mw - 20) / 20); for (let i = 0; i < n; i++) { const on = (Math.floor(G.t * 6) + i) % 3 === 0; ctx.fillStyle = on ? "#fff3a0" : "#f2b02c";
+    ctx.beginPath(); ctx.arc(L.mx + 20 + i * (L.mw - 40) / (n - 1), L.my + 9, on ? 3.5 : 2.6, 0, 7); ctx.fill(); }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = `${Math.round(L.mqH * 0.48)}px Rye, Georgia, serif`; ctx.fillStyle = "#ffd75e";
+  ctx.fillText("THE JUNK CRANE", W / 2, L.my + L.mqH * 0.58, L.mw - 40);
+  // glass box
+  const gg = ctx.createLinearGradient(0, L.gy, 0, L.gy + L.gh); gg.addColorStop(0, "#2a3a6a"); gg.addColorStop(1, "#4a2a5a");
+  ctx.fillStyle = gg; rr(L.gx, L.gy, L.gw, L.gh, 8); ctx.fill();
+  // rail
+  ctx.fillStyle = "#b8bcc4"; ctx.fillRect(L.gx + 6, L.rail - 4, L.gw - 12, 8);
+  ctx.fillStyle = "#8a8e96"; for (let x = L.gx + 12; x < L.gx + L.gw - 8; x += 18) ctx.fillRect(x, L.rail - 2, 8, 4);
+  // floor and the prize chute
+  ctx.fillStyle = "#5a3a2a"; ctx.fillRect(L.chuteR, L.floor, L.gx + L.gw - L.chuteR, L.gy + L.gh - L.floor);
+  ctx.fillStyle = "#14080c"; ctx.fillRect(L.gx + 4, L.chuteTop, L.chuteW - 4, L.gy + L.gh - L.chuteTop);
+  ctx.fillStyle = "#d8dce2"; ctx.fillRect(L.chuteR - 4, L.chuteTop, 8, L.floor - L.chuteTop + 8);
+  ctx.fillStyle = "#ffd75e"; ctx.font = `800 ${Math.round(clamp(L.chuteW * 0.2, 10, 16))}px system-ui, sans-serif`; ctx.fillText("PRIZE", L.gx + L.chuteW / 2, L.chuteTop - 12);
+  ctx.fillText("▼", L.gx + L.chuteW / 2, L.chuteTop + 12);
+}
+function drawEgg(e, scale = 1, openK = 0) {
+  const r = e.r * scale, wob = e.wobble ? Math.sin(G.t * 30) * e.wobble * 0.15 : 0;
+  ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.rot + wob);
+  const top = e.gold ? "#f2c419" : e.c;
+  // bottom half (clear-ish white)
+  ctx.fillStyle = e.gold ? "#e8b020" : "rgba(245,245,250,.95)"; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.88, r, 0, 0, Math.PI); ctx.fill();
+  // top half (colored), lifts off when it opens
+  ctx.save(); ctx.translate(openK * r * 1.3, -openK * r * 1.5); ctx.rotate(openK * 0.8);
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.5, r * 0.1, 0, -r * 0.2, r); g.addColorStop(0, "#ffffff"); g.addColorStop(0.25, top); g.addColorStop(1, shade(top));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.88, r * 1.05, 0, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(-r * 0.88, -r * 0.06, r * 1.76, r * 0.12);
+  ctx.restore();
+  if (e.gold) { ctx.strokeStyle = `rgba(255,250,200,${0.5 + 0.5 * Math.sin(G.t * 6)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, -r * 0.05, r * 1.02, r * 1.15, 0, 0, 7); ctx.stroke(); }
+  ctx.restore();
+}
+function shade(hex) { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, v - 60); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
+function drawClaw() {
+  const c = G.claw, x = c.x, tip = clawTipY(), w = L.clawW, o = c.open;
+  // carriage on the rail and the cable
+  ctx.fillStyle = "#6a6e78"; rr(x - w * 0.5, L.rail - 10, w, 16, 4); ctx.fill();
+  ctx.strokeStyle = "#c8ccd4"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, L.rail + 4); ctx.lineTo(x, tip - w * 0.55); ctx.stroke();
+  // claw head and three prongs
+  ctx.fillStyle = "#d8dce2"; rr(x - w * 0.28, tip - w * 0.62, w * 0.56, w * 0.24, 5); ctx.fill();
+  ctx.strokeStyle = "#e8ecf2"; ctx.lineWidth = Math.max(3, w * 0.09); ctx.lineCap = "round";
+  for (const s of [-1, 1]) {
+    const spread = 0.18 + 0.32 * o;
+    ctx.beginPath(); ctx.moveTo(x + s * w * 0.22, tip - w * 0.42);
+    ctx.quadraticCurveTo(x + s * w * (0.25 + spread), tip - w * 0.2, x + s * w * (0.06 + spread * 0.9), tip); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x, tip - w * 0.4); ctx.lineTo(x, tip - w * 0.05); ctx.stroke();
+  // a little shadow on the floor shows where it will drop
+  if (G.state === "aim") { ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.beginPath(); ctx.ellipse(x, L.floor - 2, w * 0.5, 5, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, tip + 4); ctx.lineTo(x, L.floor - 4); ctx.stroke(); ctx.setLineDash([]); }
+}
+function drawGlassShine() {
+  ctx.fillStyle = "rgba(255,255,255,.08)"; ctx.beginPath(); ctx.moveTo(L.gx + L.gw * 0.12, L.gy); ctx.lineTo(L.gx + L.gw * 0.28, L.gy); ctx.lineTo(L.gx + L.gw * 0.08, L.gy + L.gh); ctx.lineTo(L.gx, L.gy + L.gh); ctx.lineTo(L.gx, L.gy + L.gh * 0.7); ctx.fill();
+  ctx.strokeStyle = "#a82a5a"; ctx.lineWidth = 4; rr(L.gx, L.gy, L.gw, L.gh, 8); ctx.stroke();
+}
+function drawControls() {
+  const y = L.sy, x0 = L.sx0, x1 = L.sx1, aim = G.state === "aim";
+  ctx.fillStyle = "rgba(20,4,10,.6)"; rr(x0 - 12, y - 22, x1 - x0 + 24, 44, 22); ctx.fill();
+  ctx.fillStyle = "#5a4a6a"; rr(x0, y - 4, x1 - x0, 8, 4); ctx.fill();
+  const f = (G.claw.tx - clawMin()) / (clawMax() - clawMin()), kx = x0 + clamp(f, 0, 1) * (x1 - x0);
+  ctx.fillStyle = aim ? "#ffd75e" : "#8a7a5a"; ctx.beginPath(); ctx.arc(kx, y, 16, 0, 7); ctx.fill();
+  ctx.fillStyle = "#2a0812"; ctx.font = "900 14px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("◀▶", kx, y + 1);
+  // DROP button
+  const pressed = !aim;
+  ctx.fillStyle = "#7a0a14"; ctx.beginPath(); ctx.arc(L.btnX, L.btnY + 5, L.btnR, 0, 7); ctx.fill();
+  const bg = ctx.createRadialGradient(L.btnX - L.btnR * 0.3, L.btnY - L.btnR * 0.4, 2, L.btnX, L.btnY, L.btnR); bg.addColorStop(0, "#ff7a7a"); bg.addColorStop(1, aim ? "#d81a2a" : "#8a2a2a");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(L.btnX, L.btnY + (pressed ? 4 : 0), L.btnR, 0, 7); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(L.btnR * 0.42)}px system-ui, sans-serif`; ctx.fillText("DROP", L.btnX, L.btnY + (pressed ? 4 : 0));
+  if (aim && L.ctrlH - L.safeB > 95) { ctx.fillStyle = "#cdb896"; ctx.font = "700 12px system-ui, sans-serif"; ctx.fillText("Drag to move the claw", (x0 + x1) / 2, y + 32); }
+}
+function drawHUD() {
+  const y = L.safeT + 28; ctx.fillStyle = "rgba(20,4,10,.85)"; ctx.fillRect(0, 0, W, L.hudH - 4);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("TRIES", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.tries), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 22px system-ui, sans-serif"; ctx.fillText(G.won.length ? G.won.join("") : "No junk yet", W / 2, y - 2, W - 170);
+  if (G.state === "aim") { ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = G.aimT < 5 ? "#ff8a8a" : "#cdb896"; ctx.fillText("Drop in " + Math.ceil(G.aimT) + "s", W / 2, y + 18); }
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  if (G.msg) { ctx.globalAlpha = clamp(1.6 - G.msg.t, 0, 1); ctx.textAlign = "center"; ctx.font = "800 22px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    ctx.strokeText(G.msg.text, W / 2, L.gy + L.gh * 0.35); ctx.fillStyle = "#fff"; ctx.fillText(G.msg.text, W / 2, L.gy + L.gh * 0.35); ctx.globalAlpha = 1; }
+}
+function wrap(text, maxW) { const words = text.split(" "), lines = [""]; for (const w of words) { const t = (lines[lines.length - 1] + " " + w).trim(); if (ctx.measureText(t).width > maxW && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; } return lines; }
+function drawReveal() {
+  if (G.state !== "reveal" || !G.prize) return;
+  const p = G.prize, k = clamp(G.stateT / 0.3, 0, 1);
+  ctx.fillStyle = `rgba(10,2,8,${0.75 * k})`; ctx.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.36, er = Math.min(W, H) * 0.14;
+  // the egg pops open
+  const openK = clamp((G.stateT - 0.35) / 0.35, 0, 1);
+  drawEgg({ ...p.egg, x: cx, y: cy + er * 0.3, rot: 0, wobble: G.stateT < 0.35 ? 1 : 0 }, er / p.egg.r, openK);
+  if (openK > 0) {
+    const s = clamp((G.stateT - 0.5) / 0.4, 0, 1), bounce = 1 + Math.sin(s * Math.PI) * 0.25;
+    ctx.globalAlpha = s; ctx.font = `${Math.round(er * 1.1 * bounce)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(p.emoji, cx, cy + er * 0.2 - er * 1.1 * s);
+    // the prize card
+    const cw = Math.min(W - 32, 380), ch = 150, cx0 = cx - cw / 2, cy0 = cy + er * 1.5;
+    ctx.fillStyle = p.gold ? "#fff4c0" : "#fff4dc"; rr(cx0, cy0, cw, ch, 16); ctx.fill();
+    ctx.strokeStyle = p.gold ? "#f2b02c" : "#c8306a"; ctx.lineWidth = 4; ctx.stroke();
+    ctx.fillStyle = "#a3122a"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText(p.gold ? "JACKPOT!" : "YOU WON…", cx, cy0 + 20);
+    ctx.fillStyle = "#2a0812"; ctx.font = "26px Rye, Georgia, serif"; ctx.fillText(p.name, cx, cy0 + 50, cw - 20);
+    ctx.font = "600 15px system-ui, sans-serif"; ctx.fillStyle = "#4a2a1a";
+    wrap(p.joke, cw - 30).forEach((l, i) => ctx.fillText(l, cx, cy0 + 84 + i * 20));
+    if (G.stateT > 0.8) { ctx.fillStyle = "#fff4dc"; ctx.font = "800 15px system-ui, sans-serif"; ctx.fillText("Tap to keep playing", cx, cy0 + ch + 26); }
+    ctx.globalAlpha = 1;
+  }
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawMachine();
+  ctx.save(); rr(L.gx, L.gy, L.gw, L.gh, 8); ctx.clip();
+  for (const e of G.eggs) if (!e.won && !e.held) drawEgg(e);
+  drawClaw(); if (G.claw.egg) drawEgg(G.claw.egg);
+  ctx.restore();
+  drawGlassShine(); drawControls(); drawHUD(); drawReveal();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} pointerDown(e); });
+cv.addEventListener("pointermove", e => { e.preventDefault(); pointerMove(e); });
+cv.addEventListener("pointerup", e => pointerUp(e));
+cv.addEventListener("pointercancel", e => pointerUp(e));
+addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") togglePause(); if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (G.state === "reveal") afterReveal(); else drop(); }
+  if (e.key === "ArrowLeft") G.claw.tx = clamp(G.claw.tx - L.gw * 0.08, clawMin(), clawMax()); if (e.key === "ArrowRight") G.claw.tx = clamp(G.claw.tx + L.gw * 0.08, clawMin(), clawMax()); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; G.touch = null; motorOn(false); setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin for 5 tries. You have " + n + ". The gold egg pays +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best haul: " + G.best + " eggs" : ""; showCoins();
+addEventListener("resize", () => { layout(); });
+layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
