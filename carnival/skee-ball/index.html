@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Skee-Ball</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(38px, 12vw, 56px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .icon { font-size: 44px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <div class="icon">🎳🎯</div>
+    <h1>Skee-Ball</h1>
+    <div class="rules">
+      <p><b>Slide your finger up the lane</b> to roll the ball. Start your swipe where you want the ball across the lane, angle it to steer, and swipe <b>faster to roll it farther</b> up the board.</p>
+      <p>The ball hops the bump and drops in a ring: <b>10, 20, 30, 40</b> and the little <b>50</b> in the middle. Too soft and it rolls back for nothing.</p>
+      <p>You get <b>9 balls</b> a round. Reach the goal score to beat the round, or lose one of 3 tries. Each round the goal goes up, and later the board starts sliding side to side.</p>
+      <p>The tiny <b>100</b> pockets in the top corners pay 🪙 +1 each.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, BALLS = 9;
+const goalFor  = n => Math.min(300, 150 + 15 * (n - 1));                // points needed with 9 balls
+const slideFor = n => n < 4 ? 0 : Math.min(1.6, 0.5 + 0.12 * (n - 4));  // how fast the board slides (from round 4)
+const SWIPE_FULL = 4;                                                    // swipe speed (lane lengths per second) that reaches the top of the board
+const STEER = 0.5;                                                       // how much the angle of your swipe bends the roll
+const HUMP = 0.35;                                                       // slower than this and the ball rolls back
+// target board, in board units: x across -1..1, y up the board 0..1.4
+const BOARD_H = 1.4, RING_C = { x: 0, y: 0.72 };
+const RINGS = [{ r: 0.09, pts: 50 }, { r: 0.2, pts: 40 }, { r: 0.33, pts: 30 }, { r: 0.48, pts: 20 }];
+const POCKETS = [{ x: -0.8, y: 1.24, r: 0.1 }, { x: 0.8, y: 1.24, r: 0.1 }];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.01, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.008, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  roll() { noise(0.55, "lowpass", 320, 0.25); },
+  hop() { tone(140, 0.08, "triangle", 0.3, 0, 90); noise(0.06, "lowpass", 800, 0.25); },
+  drop(p) { tone(220 + p * 6, 0.1, "triangle", 0.25, 0, 120); noise(0.08, "bandpass", 1400, 0.15, 2, 0.05); },
+  back() { noise(0.4, "lowpass", 260, 0.18); },
+  ding(i) { tone(1320 + (i % 4) * 110, 0.06, "square", 0.04); },
+  hundred() { [0, 0.15, 0.3, 0.45].forEach((d, i) => tone([1568, 2093, 2637, 3136][i], 0.3, "triangle", 0.1, d)); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, roundPts: 0, shownPts: 0, lives: LIVES, balls: BALLS, best: +store.get("sk-best") || 0,
+  stateT: 0, t: 0, ball: null, swipe: null, holdU: 0, slide: 0, pops: [], banner: null, pausedFrom: null, lastDing: 0 };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function startRound() {
+  G.balls = BALLS; G.roundPts = 0; G.shownPts = 0; G.ball = null; G.swipe = null; G.holdU = 0; G.slide = 0;
+  G.banner = { big: "Round " + G.round, small: "Score " + goalFor(G.round) + " with 9 balls", note: slideFor(G.round) ? "Watch out: the board is sliding!" : "" };
+  setState("intro");
+}
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; hideOverlays(); layout(); startRound();
+}
+const playing = () => ["aim", "rolling", "result"].includes(G.state);
+const boardX = () => G.slide;                                            // how far the board has slid (board units)
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 58 + L.safeT; L.foot = (W > H ? 34 : 54) + L.safeB;
+  const top = L.hudH + 4, bottom = H - L.foot, h = bottom - top;
+  L.cx = W / 2;
+  L.mqH = Math.min(78, h * 0.13);                                         // light-up score sign
+  L.mqY = top;
+  const rest = h - L.mqH - 8;
+  L.boardH = rest * 0.36; L.boardTop = L.mqY + L.mqH + 8; L.boardBot = L.boardTop + L.boardH;
+  L.laneTop = L.boardBot + 6; L.laneBot = bottom - 6; L.laneLen = L.laneBot - L.laneTop;
+  // lane half-width at the bottom; it narrows toward the bump
+  L.lw = Math.min(W / 2 - 18, (L.laneLen + L.boardH) * 0.42);
+  L.bhw = L.lw * 0.62;                                                    // board half-width
+}
+const laneHW = v => L.lw * (1 - 0.42 * v);
+function lanePt(u, v) { return { x: L.cx + u * laneHW(v), y: L.laneBot - v * L.laneLen, s: 1 - 0.45 * v }; }
+function boardPt(bx, by) { const k = 1 - 0.12 * by / BOARD_H; return { x: L.cx + bx * L.bhw * k, y: L.boardBot - by / BOARD_H * L.boardH, s: 0.55 * k }; }
+const ballR = () => L.lw * 0.11;
+
+// ---------- Swiping ----------
+const uAt = x => clamp((x - L.cx) / (laneHW(0) * 0.85), -1, 1);
+function swipeStart(e) { if (G.state !== "aim") return; audio(); G.swipe = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }; G.holdU = uAt(e.clientX); }
+function swipeMove(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId || G.state !== "aim") return;
+  sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (sw.pts.length > 40) sw.pts.shift();
+  if (sw.pts[0].y - e.clientY < 12) G.holdU = uAt(e.clientX);
+}
+function swipeEnd(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId) return; G.swipe = null;
+  if (G.state !== "aim") return;
+  const now = performance.now(); sw.pts.push({ x: e.clientX, y: e.clientY, t: now });
+  const first = sw.pts[0], last = sw.pts[sw.pts.length - 1], up = first.y - last.y; if (up < 25) return;
+  const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
+  for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[i].y - rec[j].y) / dt * 1000); break; } }
+  const v = speed / (L.laneLen * SWIPE_FULL);
+  const u0 = uAt(first.x), drift = STEER * (last.x - first.x) / up * L.laneLen / laneHW(0.5);
+  roll(u0, clamp(u0 + drift, -1, 1), v);
+}
+function roll(u0, u1, v) {
+  // where it lands on the board (a little bounce makes every roll a bit different)
+  const by = (v - HUMP) / (1 - HUMP) * BOARD_H + rand(-0.04, 0.04), bx = u1 * 0.95 + rand(-0.03, 0.03);
+  G.ball = { u0, u1, v, bx, by, phase: "up", t: 0, x: 0, y: 0, s: 1, pts: 0, gone: false };
+  G.balls--; sfx.roll(); setState("rolling");
+}
+function scoreAt(bx, by) {
+  if (by < 0) return 0;                                                   // didn't clear the bump
+  if (by > BOARD_H) return 10;                                            // off the back, drops into the 10
+  const sx = boardX();
+  for (const p of POCKETS) if (Math.hypot(bx - (p.x + sx), by - p.y) < p.r) return 100;
+  const d = Math.hypot(bx - (RING_C.x + sx), by - RING_C.y);
+  for (const r of RINGS) if (d < r.r) return r.pts;
+  return 10;
+}
+function landing() {
+  const b = G.ball, pts = scoreAt(b.bx, b.by); b.pts = pts;
+  if (pts === 0) { b.phase = "back"; b.t = 0; sfx.back(); return; }
+  b.phase = "drop"; b.t = 0; sfx.drop(pts);
+  G.roundPts += pts; G.score += pts;
+  const q = boardPt(clamp(b.bx, -1.1, 1.1), clamp(b.by, 0, BOARD_H));
+  G.pops.push({ x: q.x, y: q.y - 16, text: "+" + pts, color: pts >= 50 ? "#ffd75e" : "#fff", t: 0, big: pts >= 50 });
+  if (pts === 100) { Coins.add(1); Coins.chime(); sfx.hundred(); showCoins(); G.pops.push({ x: q.x, y: q.y + 14, text: "🪙 +1", color: "#ffd75e", t: 0 }); }
+}
+function afterBall() {
+  const goal = goalFor(G.round);
+  if (G.balls === 0) {
+    if (G.roundPts >= goal) {
+      const bonus = 50 * G.round; G.score += bonus;
+      G.banner = { big: "Round clear!", small: G.roundPts + " points · +" + bonus + " bonus", note: "Next round: a higher score to beat", win: true };
+      setState("clear"); sfx.win(); return;
+    }
+    G.lives--;
+    if (G.lives <= 0) { gameOver(); return; }
+    G.banner = { big: "Not enough!", small: G.roundPts + " of " + goal + " · " + (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Try that round again" };
+    setState("fail"); sfx.lose(); return;
+  }
+  G.ball = null; G.holdU = 0; setState("aim");
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("sk-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const UP = 0.55, HOP = 0.38, DROP = 0.3;
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.6) setState("aim");
+  if (playing() && slideFor(G.round)) G.slide = Math.sin(G.t * slideFor(G.round)) * 0.32;
+  const b = G.ball;
+  if (G.state === "rolling" && b) {
+    b.t += dt;
+    if (b.phase === "up") {
+      const reach = Math.min(1, b.v / HUMP), k = Math.min(1, b.t / (UP * Math.max(0.5, reach)));
+      const e = 1 - Math.pow(1 - k, 2), v = reach * e, u = b.u0 + (b.u1 - b.u0) * e;
+      const p = lanePt(u, v); b.x = p.x; b.y = p.y; b.s = p.s;
+      if (k >= 1) { if (b.v < HUMP) { b.phase = "back"; b.t = 0; b.pts = 0; sfx.back(); } else { b.phase = "hop"; b.t = 0; b.hx = p.x; b.hy = p.y; sfx.hop(); } }
+    } else if (b.phase === "hop") {
+      const k = Math.min(1, b.t / HOP), q = boardPt(clamp(b.bx, -1.1, 1.1), clamp(b.by, 0, BOARD_H + 0.1));
+      b.x = b.hx + (q.x - b.hx) * k; b.y = b.hy + (q.y - b.hy) * k - Math.sin(Math.PI * k) * L.boardH * 0.35; b.s = 0.55 + (q.s - 0.55) * k;
+      if (k >= 1) landing();
+    } else if (b.phase === "drop") {
+      b.s *= Math.pow(0.02, dt / DROP); if (b.t > DROP) { b.gone = true; setState("result"); }
+    } else if (b.phase === "back") {
+      const k = Math.min(1, b.t / 0.6), reach = Math.min(1, b.v / HUMP), v = reach * (1 - k), p = lanePt(b.u1, Math.max(0, v)); b.x = p.x; b.y = p.y; b.s = p.s;
+      if (k >= 1) { b.gone = true; G.pops.push({ x: p.x, y: p.y - 30, text: "Too soft!", color: "#fff", t: 0 }); setState("result"); }
+    }
+  }
+  if (G.state === "result" && G.stateT > 0.45) afterBall();
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  // the sign counts up
+  if (G.shownPts < G.roundPts) { G.shownPts = Math.min(G.roundPts, G.shownPts + dt * 200); if (G.t - G.lastDing > 0.06) { G.lastDing = G.t; sfx.ding(Math.floor(G.shownPts / 10)); } }
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.1);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawMarquee() {
+  const w = Math.min(W - 24, L.bhw * 2 + 60), x = L.cx - w / 2, y = L.mqY, h = L.mqH;
+  ctx.fillStyle = "#1e2f5a"; rr(x - 4, y - 2, w + 8, h + 6, 16); ctx.fill();
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "#f2802c"); g.addColorStop(1, "#c8501a");
+  ctx.fillStyle = g; rr(x, y, w, h, 14); ctx.fill();
+  // chasing bulbs
+  const n = Math.floor(w / 26); for (let i = 0; i < n; i++) { const on = (Math.floor(G.t * 6) + i) % 3 === 0;
+    ctx.fillStyle = on ? "#fff6a0" : "#f2c419"; ctx.beginPath(); ctx.arc(x + 16 + i * (w - 32) / (n - 1), y + 9, on ? 4.5 : 3.5, 0, 7); ctx.fill(); }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${Math.round(h * 0.3)}px Rye, Georgia, serif`; ctx.fillStyle = "#fff4dc"; ctx.fillText("SKEE-BALL", L.cx - w * 0.2, y + h * 0.6);
+  const dw = w * 0.36, dx = x + w - dw - 12, dy = y + h * 0.3, dh = h * 0.56;
+  ctx.fillStyle = "#16163a"; rr(dx, dy, dw, dh, 6); ctx.fill();
+  ctx.font = `800 ${Math.round(dh * 0.7)}px ui-monospace, Menlo, monospace`; ctx.fillStyle = "#c8a0ff";
+  ctx.fillText(String(Math.floor(G.shownPts)).padStart(4, "0"), dx + dw / 2, dy + dh / 2 + 1);
+}
+function drawBoard() {
+  const sx = boardX();
+  // tilted target board
+  const a = boardPt(-1.15, -0.05), b = boardPt(1.15, -0.05), c = boardPt(1.15, BOARD_H + 0.08), d = boardPt(-1.15, BOARD_H + 0.08);
+  ctx.fillStyle = "#24346a"; ctx.beginPath(); ctx.moveTo(a.x - 10, a.y + 6); ctx.lineTo(b.x + 10, b.y + 6); ctx.lineTo(c.x + 10, c.y - 8); ctx.lineTo(d.x - 10, d.y - 8); ctx.closePath(); ctx.fill();
+  const g = ctx.createLinearGradient(0, d.y, 0, a.y); g.addColorStop(0, "#f7c870"); g.addColorStop(1, "#e89a3a");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.clip();
+  // rings (circles on a tilted board look like ovals)
+  const ky = L.boardH / BOARD_H;
+  const cen = boardPt(RING_C.x + sx, RING_C.y);
+  const ringCol = ["#fff4dc", "#e05a2a", "#fff4dc", "#e05a2a", "#fff4dc"];
+  ctx.fillStyle = "#b8601e"; ctx.beginPath(); ctx.ellipse(cen.x, cen.y, 0.7 * L.bhw, 0.7 * ky, 0, 0, 7); ctx.fill();
+  for (let i = RINGS.length - 1; i >= 0; i--) {
+    const r = RINGS[i].r; ctx.fillStyle = i % 2 ? "#f2b45a" : "#fbe2a8";
+    ctx.beginPath(); ctx.ellipse(cen.x, cen.y, r * L.bhw, r * ky, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#5a6aa8"; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  // each ring's number at its top and its hole at its bottom (10 is the big outer ring)
+  const bands = [{ a: 0, b: RINGS[0].r, pts: 50 }, ...RINGS.slice(1).map((r, i) => ({ a: RINGS[i].r, b: r.r, pts: r.pts })), { a: RINGS[RINGS.length - 1].r, b: 0.7, pts: 10 }];
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const bd of bands) {
+    const mid = bd.pts === 50 ? 0 : (bd.a + bd.b) / 2, th = (bd.b - bd.a) * ky;
+    const fs = Math.round(clamp(th * 0.75, 8, 18));
+    ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.fillStyle = bd.pts === 10 ? "#fff4dc" : "#24346a";
+    if (bd.pts === 50) { ctx.fillText("50", cen.x, cen.y - th * 0.2); continue; }
+    ctx.fillText(String(bd.pts), cen.x, cen.y - mid * ky);
+    ctx.fillStyle = "#3a1a0a"; ctx.beginPath(); ctx.ellipse(cen.x, cen.y + mid * ky, Math.max(6, (bd.b - bd.a) * L.bhw * 0.6), Math.max(2.5, th * 0.32), 0, 0, 7); ctx.fill();
+  }
+  // 100 pockets in the top corners
+  for (const p of POCKETS) {
+    const q = boardPt(p.x + sx, p.y);
+    ctx.fillStyle = "#fff4dc"; ctx.beginPath(); ctx.ellipse(q.x, q.y, p.r * L.bhw * 1.3, p.r * ky * 1.3, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#5a6aa8"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = "#3a1a0a"; ctx.beginPath(); ctx.ellipse(q.x, q.y, p.r * L.bhw * 0.95, p.r * ky * 0.95, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#ffd75e"; ctx.font = `900 ${Math.round(Math.max(7, p.r * L.bhw * 0.62))}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("100", q.x, q.y + 1);
+  }
+  ctx.restore();
+}
+function drawLane() {
+  const a = lanePt(-1, 0), b = lanePt(1, 0), c = lanePt(1, 1), d = lanePt(-1, 1);
+  // blue side rails
+  ctx.fillStyle = "#2a4a9a"; ctx.beginPath(); ctx.moveTo(a.x - 18, a.y + 6); ctx.lineTo(d.x - 10, d.y); ctx.lineTo(d.x, d.y); ctx.lineTo(a.x, a.y + 6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(b.x + 18, b.y + 6); ctx.lineTo(c.x + 10, c.y); ctx.lineTo(c.x, c.y); ctx.lineTo(b.x, b.y + 6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#6a9af0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x - 4, a.y + 6); ctx.lineTo(d.x - 2, d.y); ctx.moveTo(b.x + 4, b.y + 6); ctx.lineTo(c.x + 2, c.y); ctx.stroke();
+  // wooden lane
+  const g = ctx.createLinearGradient(0, a.y, 0, d.y); g.addColorStop(0, "#f2a050"); g.addColorStop(1, "#e88a34");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(120,50,10,.18)"; ctx.lineWidth = 1;
+  for (let k = 1; k < 8; k++) { const p = lanePt(-1 + k * 0.25, 0), q = lanePt(-1 + k * 0.25, 1); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+  // the bump at the end
+  ctx.fillStyle = "#c86a24"; ctx.beginPath(); ctx.moveTo(d.x, d.y + 10); ctx.quadraticCurveTo(L.cx, d.y - 8, c.x, c.y + 10); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.fill();
+  ctx.strokeStyle = "#fff0c8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(d.x, d.y + 10); ctx.quadraticCurveTo(L.cx, d.y - 8, c.x, c.y + 10); ctx.stroke();
+  // front lip with the ball return
+  ctx.fillStyle = "#c8ccd4"; rr(a.x - 18, a.y + 4, b.x - a.x + 36, 14, 6); ctx.fill();
+}
+function ballAt(x, y, r) {
+  ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.beginPath(); ctx.ellipse(x + 2, y + r * 0.7, r, r * 0.35, 0, 0, 7); ctx.fill();
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r); g.addColorStop(0, "#a88a6a"); g.addColorStop(1, "#4a3424");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+}
+function drawBall() {
+  if (G.state === "aim") {
+    const p = lanePt(G.holdU || 0, 0.04); ballAt(p.x, p.y, ballR());
+    if (!G.swipe) { const k = (G.t * 1.6) % 1; ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.lineCap = "round";
+      for (let j = 0; j < 3; j++) { const y = p.y - ballR() - 14 - j * 16 - k * 16; ctx.globalAlpha = 0.85 - j * 0.25; ctx.beginPath(); ctx.moveTo(p.x - 12, y + 8); ctx.lineTo(p.x, y - 4); ctx.lineTo(p.x + 12, y + 8); ctx.stroke(); }
+      ctx.globalAlpha = 1; }
+    return;
+  }
+  const b = G.ball; if (!b || b.gone || !["rolling", "result"].includes(G.state)) return;
+  ballAt(b.x, b.y, ballR() * b.s);
+}
+function drawHUD() {
+  const y = L.safeT + 29; ctx.fillStyle = "rgba(20,4,10,.85)"; ctx.fillRect(0, 0, W, L.hudH - 4);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 26px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 3);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Goal " + goalFor(G.round) + "   Balls: " + G.balls + "   Tries: " + G.lives, W / 2, y + 17);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  if (G.state === "aim") { ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+    ctx.fillText("SWIPE UP the lane to roll the ball", W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0; }
+}
+function drawFx() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = clamp(1.1 - p.t, 0, 1); ctx.font = `800 ${p.big ? 28 : 22}px system-ui, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    const px = clamp(p.x, 60, W - 60); ctx.strokeText(p.text, px, p.y - p.t * 34); ctx.fillStyle = p.color; ctx.fillText(p.text, px, p.y - p.t * 34); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.laneTop + L.laneLen * 0.4, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.9)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26, bw - 20);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52, bw - 20); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#3a1a3a"); g.addColorStop(1, "#2a0812"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawMarquee(); drawBoard(); drawLane();
+  drawBall(); drawFx(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} swipeStart(e); });
+cv.addEventListener("pointermove", e => { e.preventDefault(); swipeMove(e); });
+cv.addEventListener("pointerup", e => swipeEnd(e));
+cv.addEventListener("pointercancel", () => { G.swipe = null; });
+addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; G.swipe = null; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Each 100 pocket pays +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>

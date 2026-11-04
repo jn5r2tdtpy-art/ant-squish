@@ -161,6 +161,15 @@
     </div>
   </a>
 
+  <a class="game" href="skee-ball/">
+    <div style="font-size:46px;width:64px;text-align:center">🎯</div>
+    <div>
+      <h2>Skee-Ball</h2>
+      <p>Swipe up the lane to roll the ball into the rings. Hit the goal with 9 balls, and sink a 100 pocket for a coin!</p>
+      <div class="best" id="skBest"></div>
+    </div>
+  </a>
+
   <a class="game" href="ventriloquist/">
     <img src="ventriloquist/img/card.webp" alt="" style="width:78px;border-radius:12px">
     <div>
@@ -194,7 +203,7 @@
   showPurse();
   addEventListener("pageshow", showPurse);
   try { const n = JSON.parse(localStorage.getItem("fs-seen2") || "[]").length; if (n) document.getElementById("fsBest").textContent = "Fortunes collected: " + n; } catch (e) {}
-  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"], ["kc-best", "kcBest"], ["rt-best", "rtBest"], ["bp-best", "bpBest"], ["hd-best", "hdBest"]]) {
+  for (const [key, id] of [["ck-best", "ckBest"], ["ga-best", "gaBest"], ["sb-best", "sbBest"], ["dd-best", "ddBest"], ["dt-best", "dtBest"], ["kc-best", "kcBest"], ["rt-best", "rtBest"], ["bp-best", "bpBest"], ["hd-best", "hdBest"], ["sk-best", "skBest"]]) {
     try { const b = +localStorage.getItem(key); if (b) document.getElementById(id).textContent = "Best: " + b; } catch (e) {}
   }
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
