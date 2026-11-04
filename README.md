@@ -55,7 +55,7 @@ It works offline once it has been opened. High scores are saved on each device.
 **Down the Clown** (`carnival/down-the-clown/`): fire an air cannon to knock the clowns off the shelves before the clock runs out.
 
 - **Points:** glasses clown 10, top-hat clown 20, bald clown 30. The Red Head is −10 and pops back up. A clown glowing gold is worth double.
-- **Rounds:** each round adds one more Red Head. When half the clowns are Red Heads, a new row is added and it starts again with one Red Head (4 clowns a row, up to 4 rows; after that the clock gets shorter each round). From round 40 a fifth row joins (Red Heads start over at 1, up to 10), and every round from 40 on gets 5 extra seconds.
+- **Rounds:** each round adds one more Red Head. When half the clowns are Red Heads, a new row is added and it starts again with one Red Head (4 clowns a row, up to 4 rows; after that the clock gets shorter each round). From round 40 a fifth row joins (Red Heads start over at 1, up to 10), and every round from 40 on gets 5 extra seconds, except rounds 40–49, which are 15 seconds shorter than that.
 - **Sideways:** turned sideways, the score sits on the left, the cannon on the right, and the booth uses the full height.
 - **Aim:** touch a clown to aim (slide to adjust), lift to fire (mouse: aim and click; keyboard: arrows and Space). The sights sway a little more each round.
 - **Clock:** rounds 1–6 are 5 seconds shorter than the base clock, rounds 7–12 are 10 seconds shorter, rounds 13–20 are 15 seconds shorter, and round 21 on use the base clock (`timeCut` near the top of the game code).
