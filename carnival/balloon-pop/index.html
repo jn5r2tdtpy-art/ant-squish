@@ -54,7 +54,7 @@
     <h1>Balloon Pop</h1>
     <div class="rules">
       <p>Throw darts and <b>pop the balloons</b>. You get <b>5 darts</b> a round. Pop enough to beat the round.</p>
-      <p><b>Tap once</b> to lock where across the board as the marker slides side to side. <b>Tap again</b> to lock how high as the marker slides up and down.</p>
+      <p><b>Tap once</b> to lock where across the board as the marker slides side to side. <b>Tap again</b> to lock how high you throw as the power meter beside the board slides up and down.</p>
       <p>Each round the markers get faster and the balloons get smaller, and from round 3 some balloons are missing.</p>
       <p>Pop the shiny <b>gold balloon</b> to win 🪙 +1. Miss the goal and you lose one of 3 tries.</p>
     </div>
@@ -78,7 +78,7 @@ const LIVES = 3, DARTS = 5, ROWS = 7, COLS = 7;
 const goalFor    = n => n < 9 ? 2 : n < 18 ? 3 : 4;      // balloons to pop with 5 darts
 const aimSpeed   = n => 1.3 + 0.07 * Math.min(n - 1, 25);                          // side-to-side marker
 const heightSpeed = n => 0.55 + 0.03 * Math.min(n - 1, 25);                         // up-and-down marker (trips per second)
-const sizeFor    = n => Math.max(0.65, 1 - 0.02 * (n - 1));           // balloons get smaller
+const sizeFor    = n => Math.max(0.72, 1 - 0.016 * (n - 1));           // balloons get smaller
 const missingFor = n => n < 3 ? 0 : Math.min(24, 3 * (n - 2));         // balloons missing from the board
 const COLORS = ["#e8304a", "#f08a2c", "#f2d23c", "#7ad04a", "#2fb0a8", "#3a7af0", "#8fb8f0", "#8a4ad8", "#f07ab0"];
 
@@ -138,11 +138,13 @@ function layout() {
   L.hudH = 60 + L.safeT; L.foot = (W > H ? 44 : 70) + L.safeB;
   const top = L.hudH + 6, bottom = H - L.foot, h = bottom - top;
   L.signH = Math.min(h * 0.16, 110);
-  const bh = h - L.signH - 10, bw = Math.min(W - 40, bh * 1.05, 700);
+  const bh = h - L.signH - 10, bw = Math.min(W - 96, bh * 1.05, 700);
   L.bx = (W - bw) / 2; L.by = top + L.signH + 6; L.bw = bw; L.bh = bh; L.sy = top;
   L.rail = Math.max(10, bw * 0.03);
   L.ix = L.bx + L.rail; L.iy = L.by + L.rail; L.iw = bw - 2 * L.rail; L.ih = bh - 2 * L.rail;
   L.cw = L.iw / COLS; L.ch = L.ih / ROWS;
+  L.mx = L.bx + L.bw + 26;                     // power meter beside the board
+  L.hLow = yFromH(0); L.hHigh = yFromH(1);
 }
 function cellCenter(r, c) { return { x: L.ix + (c + 0.5) * L.cw, y: L.iy + (r + 0.5) * L.ch }; }
 function balloonSize(b) { const s = sizeFor(G.round) * b.sz; return { rx: L.cw * 0.4 * s, ry: Math.min(L.ch * 0.46, L.cw * 0.5) * s }; }
@@ -276,18 +278,25 @@ function drawDart(x, y, s, ang) {
 }
 function drawMarkers() {
   if (!["aim", "height", "flying", "result"].includes(G.state)) return;
-  const x = G.state === "aim" ? aimNow() : G.aimX;
-  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.85)" : "rgba(122,255,138,.95)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
-  ctx.beginPath(); ctx.moveTo(x, L.by); ctx.lineTo(x, L.by + L.bh); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = G.state === "aim" ? "#fff" : "#7aff8a";
-  ctx.beginPath(); ctx.moveTo(x, L.by + L.bh + 4); ctx.lineTo(x - 10, L.by + L.bh + 20); ctx.lineTo(x + 10, L.by + L.bh + 20); ctx.fill();
+  // aim arrow along the bottom of the board (like the can game)
+  const ax = G.state === "aim" ? aimNow() : G.aimX, ty = L.by + L.bh;
+  ctx.fillStyle = G.state === "aim" ? "#ffffff" : "#7aff8a"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ax, ty + 6); ctx.lineTo(ax - 11, ty + 24); ctx.lineTo(ax + 11, ty + 24); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.7)" : "rgba(122,255,138,.85)"; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ax, ty); ctx.lineTo(ax, L.by); ctx.stroke(); ctx.setLineDash([]);
+  // power meter beside the board: how high the dart goes
   if (G.state !== "aim") {
-    const y = G.state === "height" ? yFromH(hNow()) : G.aimY;
-    ctx.strokeStyle = G.state === "height" ? "rgba(255,255,255,.85)" : "rgba(122,255,138,.95)"; ctx.setLineDash([6, 6]);
-    ctx.beginPath(); ctx.moveTo(L.bx, y); ctx.lineTo(L.bx + L.bw, y); ctx.stroke(); ctx.setLineDash([]);
-    const mx = L.bx + L.bw + 4; ctx.fillStyle = G.state === "height" ? "#fff" : "#7aff8a";
-    ctx.beginPath(); ctx.moveTo(mx, y); ctx.lineTo(mx + 14, y - 9); ctx.lineTo(mx + 14, y + 9); ctx.fill();
-    if (G.state === "height") { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke(); }
+    const x = L.mx, y0 = L.hLow, y1 = L.hHigh;
+    ctx.fillStyle = "rgba(20,4,10,.55)"; rr(x - 9, y1 - 6, 18, y0 - y1 + 12, 9); ctx.fill();
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, "#3a7af0"); g.addColorStop(0.5, "#f2c419"); g.addColorStop(1, "#e0242e");
+    ctx.fillStyle = g; rr(x - 5, y1, 10, y0 - y1, 5); ctx.fill();
+    // tick for each balloon row
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    for (let r = 0; r < ROWS; r++) { const c = cellCenter(r, 0); ctx.fillRect(x - 8, c.y - 1, 16, 2); }
+    const hy = G.state === "height" ? yFromH(hNow()) : G.aimY;
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 10, hy); ctx.lineTo(x - 24, hy - 9); ctx.lineTo(x - 24, hy + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (G.state === "height") { ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.moveTo(L.bx, hy); ctx.lineTo(x - 26, hy); ctx.stroke(); ctx.setLineDash([]); }
   }
 }
 function drawFlying() {
@@ -304,7 +313,7 @@ function drawHUD() {
   ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
   ctx.fillText("Darts left: " + G.darts + "   Popped: " + G.popped + "/" + goalFor(G.round) + "   Tries: " + G.lives, W / 2, y + 18);
   ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
-  const label = G.state === "aim" ? "TAP to lock where across" : G.state === "height" ? "TAP to lock how high" : "";
+  const label = G.state === "aim" ? "TAP to lock where across" : G.state === "height" ? "TAP to lock how high you throw" : "";
   ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
   ctx.fillText(label, W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0;
 }
