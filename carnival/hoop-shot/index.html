@@ -55,7 +55,7 @@
     <div class="rules">
       <p><b>Swipe up</b> to shoot. Start your swipe where you want the ball across, angle it to steer, and swipe <b>faster to shoot farther</b>. Too soft hits the front of the rim; a little long can bank off the backboard.</p>
       <p>You have <b>30 seconds</b>. Shoot as fast as you can: each basket is 2 points, and 3 in the last 10 seconds of 🔥 bonus time.</p>
-      <p>Score the goal to beat the round, or lose one of 3 tries. The goal goes up each round, and from round 3 the hoop slides side to side.</p>
+      <p>Score the goal to beat the round, or lose one of 3 tries. The goal goes up each round, and from round 2 the hoop slides left and right across the backboard.</p>
       <p>Make the 🟡 <b>gold ball</b> (one each round) to win 🪙 +1.</p>
     </div>
     <button class="btn" id="playBtn">Step right up!</button>
@@ -76,7 +76,7 @@
 // ---------- Settings ----------
 const LIVES = 3, TIME = 30, BONUS_TIME = 10, RELOAD = 0.35, FLY = 0.6;
 const goalFor  = n => Math.min(46, 18 + 3 * (n - 1));                   // points to score in 30 seconds
-const slideFor = n => n < 3 ? 0 : Math.min(2.2, 0.6 + 0.14 * (n - 3));  // how fast the hoop slides (from round 3)
+const slideFor = n => n < 2 ? 0 : Math.min(2.4, 0.7 + 0.15 * (n - 2));  // how fast the hoop slides left and right across the backboard (from round 2)
 const SWIPE_FULL = 3.0;                                                 // swipe speed (lane lengths per second) that reaches the hoop
 const STEER = 0.5;
 const TOL_D = 0.12, BANK = 0.32;                            // how close a shot must be; how much too long can still bank in
@@ -113,7 +113,7 @@ const G = { state: "title", round: 1, score: 0, pts: 0, lives: LIVES, best: +sto
   balls: [], reload: 0, shots: 0, goldAt: 0, swipe: null, holdU: 0, hoopU: 0, pops: [], banner: null, pausedFrom: null, lastTick: 0, net: 0 };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 function startRound() {
-  G.pts = 0; G.balls = []; G.reload = 0; G.shots = 0; G.goldAt = Math.floor(rand(3, 12)); G.timeLeft = TIME; G.swipe = null; G.holdU = 0; G.hoopU = 0;
+  G.pts = 0; G.balls = []; G.reload = 0; G.shots = 0; G.goldAt = Math.floor(rand(3, 12)); G.timeLeft = TIME; G.swipe = null; G.holdU = 0; G.hoopU = 0; G.slideT = 0;
   G.banner = { big: "Round " + G.round, small: "Score " + goalFor(G.round) + " in 30 seconds", note: slideFor(G.round) ? "Watch out: the hoop is moving!" : "Shoot fast!" };
   setState("intro");
 }
@@ -143,6 +143,7 @@ function layout() {
 const laneHW = d => L.lw * (1 - 0.38 * clamp(d, 0, 1.4));
 const laneY = d => L.laneBot - d * L.laneLen;                             // floor of the lane at depth d (1 = under the hoop)
 const hoopX = () => L.cx + G.hoopU * laneHW(1);
+const slideAmp = () => Math.max(0.3, (L.bw - L.rimW * 1.4) / laneHW(1));   // the hoop travels almost the whole width of the backboard
 const ballR = d => { const k = clamp(d, 0, 1.3); return L.lw * 0.21 + (L.rimW * 0.74 - L.lw * 0.21) * k; };   // big in your hand, nearly fills the rim at the hoop
 
 // ---------- Shooting ----------
@@ -185,7 +186,8 @@ function score(b, kind) {
 function update(dt) {
   G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
   if (G.state === "intro" && G.stateT > 1.6) setState("play");
-  if ((G.state === "play" || G.state === "buzz") && slideFor(G.round)) G.hoopU = Math.sin(G.t * slideFor(G.round)) * 0.5;
+  if (G.state === "play") G.slideT += dt;
+  if ((G.state === "play" || G.state === "buzz") && slideFor(G.round)) G.hoopU = Math.sin(G.slideT * slideFor(G.round)) * slideAmp();
   if (G.state === "play") {
     G.timeLeft -= dt; G.reload = Math.max(0, G.reload - dt);
     if (G.timeLeft < 5 && G.t - G.lastTick > 1) { G.lastTick = G.t; sfx.tick(); }
@@ -281,7 +283,7 @@ function drawBackboard() {
   ctx.font = `${Math.round(sh * 0.34)}px Rye, Georgia, serif`; ctx.fillStyle = bonus && Math.floor(G.t * 3) % 2 ? "#ff7a5a" : "#ffd75e";
   ctx.fillText(bonus ? "BONUS 3 PTS" : "HOOP SHOT", L.cx, sy + sh / 2 + 1, sw - dw * 2 - 30);
   // glass backboard with the orange square (it slides with the hoop)
-  const off = G.hoopU * laneHW(1), bx = L.cx + off - L.bw, by = L.boardTop, bw2 = L.bw * 2, bh = L.boardH;
+  const bx = L.cx - L.bw, by = L.boardTop, bw2 = L.bw * 2, bh = L.boardH;
   ctx.fillStyle = "rgba(0,0,0,.25)"; rr(bx + 6, by + 8, bw2, bh, 8); ctx.fill();
   ctx.fillStyle = "#d8702a"; rr(bx - 5, by - 5, bw2 + 10, bh + 10, 10); ctx.fill();
   const g = ctx.createLinearGradient(bx, by, bx + bw2, by + bh); g.addColorStop(0, "#f4fbff"); g.addColorStop(0.5, "#dff0fa"); g.addColorStop(1, "#f8fcff");
