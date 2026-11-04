@@ -53,8 +53,8 @@
     <div class="icon">🐸</div>
     <h1>Frog Bog</h1>
     <div class="rules">
-      <p>The lily pads spin around the pond. <b>Swipe down on the mallet</b> to smack the lever and launch a frog. Swipe <b>harder to send it farther</b>.</p>
-      <p>Time it so a lily pad is where your frog lands: the near side of the pond or the far side. Miss and it’s a splash!</p>
+      <p>The lily pads spin around the pond. <b>Drag your finger down</b> to pull the mallet back: the farther you pull, the farther the frog flies. Drag <b>left or right</b> to aim. A ring shows where it will land.</p>
+      <p><b>Let go</b> to smack the lever and launch the frog. Time it so a lily pad spins under the ring when the frog lands. Miss and it’s a splash!</p>
       <p>You get <b>5 frogs</b> a round. Land enough to beat the round, or lose one of 3 tries. Each round the pads spin faster and get smaller.</p>
       <p>Land on the 🌼 <b>gold lily pad</b> to win 🪙 +1.</p>
     </div>
@@ -75,12 +75,11 @@
 "use strict";
 // ---------- Settings ----------
 const LIVES = 3, FROGS = 5, PADS = 6, PAD_RING = 0.62;
-const goalFor  = n => n < 4 ? 2 : n < 10 ? 3 : 4;                        // frogs to land with 5
-const spinFor  = n => Math.min(2.1, 0.55 + 0.09 * (n - 1));              // how fast the pads go round (radians per second)
+const goalFor  = n => n < 3 ? 3 : 4;                        // frogs to land with 5
+const spinFor  = n => Math.min(2.4, 0.6 + 0.11 * (n - 1));              // how fast the pads go round (radians per second)
 const padFor   = n => Math.max(0.12, 0.2 - 0.006 * (n - 1));            // lily pad size
 const flipsFrom = 6;                                                    // from this round the spin sometimes changes direction
 const FLY = 0.75;                                                       // seconds a frog is in the air
-const SWIPE_MIN = 250, SWIPE_PER = 500;                                 // swipe speed (px/s) to start reaching the pond, and per pond-radius after that
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -100,6 +99,7 @@ const sfx = {
   smack() { tone(160, 0.1, "square", 0.25, 0, 70); noise(0.08, "lowpass", 900, 0.45); },
   boing() { tone(220, 0.35, "sine", 0.18, 0, 660); },
   ribbit() { tone(180, 0.07, "sawtooth", 0.12, 0, 120); tone(200, 0.09, "sawtooth", 0.12, 0.1, 130); },
+  thud() { tone(120, 0.12, "triangle", 0.25, 0, 70); },
   splash() { noise(0.5, "bandpass", 900, 0.4, 0.8); noise(0.25, "highpass", 3000, 0.12, 1, 0.05); },
   gold() { [1568, 2093, 2637].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, 0.05 + i * 0.05)); },
   win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
@@ -108,7 +108,7 @@ const sfx = {
 
 // ---------- State ----------
 const G = { state: "title", round: 1, score: 0, lives: LIVES, frogs: FROGS, landed: 0, best: +store.get("fb-best") || 0,
-  stateT: 0, t: 0, ang: 0, spin: 1, flipT: 0, gold: 0, frog: null, riders: [], ripples: [], pops: [], swipe: null, mallet: 0, banner: null, pausedFrom: null };
+  stateT: 0, t: 0, ang: 0, spin: 1, flipT: 0, gold: 0, frog: null, riders: [], ripples: [], pops: [], swipe: null, pull: null, mallet: 0, banner: null, pausedFrom: null };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 function startRound() {
   G.frogs = FROGS; G.landed = 0; G.frog = null; G.riders = []; G.ripples = []; G.ang = rand(0, 6.28); G.spin = Math.random() < 0.5 ? 1 : -1; G.flipT = rand(3, 6);
@@ -142,39 +142,44 @@ const pondPt = (x, y) => ({ x: L.cx + x * L.rx, y: L.cy + y * L.ry });
 const frogStart = () => ({ x: L.cx - 30, y: L.baseY - 36 });
 
 // ---------- Swiping the mallet ----------
-function swipeStart(e) { if (G.state !== "aim") return; audio(); G.swipe = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }; }
-function swipeMove(e) { const sw = G.swipe; if (!sw || sw.id !== e.pointerId || G.state !== "aim") return; sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (sw.pts.length > 40) sw.pts.shift();
-  G.mallet = clamp((e.clientY - sw.pts[0].y) / 80, 0, 1) * -0.5; }
+// drag down to pull the mallet back (farther = the frog flies farther), drag sideways to aim, let go to smack it
+const pullFull = () => Math.min(H * 0.32, 270);                         // how far to drag for the far side of the pond
+function pullFrom(sw, x, y) {
+  const dx = x - sw.x0, dy = y - sw.y0;
+  return { lx: clamp(dx / (W * 0.28), -1, 1) * 0.95, d: clamp(dy / pullFull() * 2, 0, 2.05), dy };
+}
+function swipeStart(e) { if (G.state !== "aim") return; audio(); G.swipe = { id: e.pointerId, x0: e.clientX, y0: e.clientY }; G.pull = null; }
+function swipeMove(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId || G.state !== "aim") return;
+  const p = pullFrom(sw, e.clientX, e.clientY); G.pull = p.dy > 12 ? p : null;
+  G.mallet = -clamp(p.d / 2, 0, 1) * 0.6;
+}
 function swipeEnd(e) {
   const sw = G.swipe; if (!sw || sw.id !== e.pointerId) return; G.swipe = null; G.mallet = 0;
   if (G.state !== "aim") return;
-  const now = performance.now(); sw.pts.push({ x: e.clientX, y: e.clientY, t: now });
-  const down = sw.pts[sw.pts.length - 1].y - sw.pts[0].y; if (down < 25) return;
-  const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
-  for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[j].y - rec[i].y) / dt * 1000); break; } }
-  launch(speed);
+  const p = pullFrom(sw, e.clientX, e.clientY); G.pull = null;
+  if (p.dy < 15) return;                                                 // just a tap
+  launch(p.lx, p.d);
 }
-function launch(speed) {
-  // how far up the pond: 0 = the near edge, 2 = the far edge
-  const d = (speed - SWIPE_MIN) / SWIPE_PER;
-  G.frog = { d, ly: 1 - d, t: 0 }; G.frogs--; G.mallet = 1; sfx.smack(); sfx.boing(); setState("flying");
+function launch(lx, d) {
+  // d: how far up the pond, 0 = the near edge, 2 = the far edge; lx: left/right
+  G.frog = { lx, d, ly: 1 - d, t: 0 }; G.frogs--; G.mallet = 1; sfx.smack(); sfx.boing(); setState("flying");
 }
 function land() {
-  const f = G.frog, ly = f.ly, size = padFor(G.round);
-  if (ly < -1.1 || f.d < -0.15) {                                       // over the pond or short of it
-    G.pops.push({ ...pondPt(0, clamp(ly, -1.05, 1.1)), text: f.d < -0.15 ? "Too soft!" : "Too hard!", color: "#fff", t: 0 });
-    if (ly < -1.1) { G.ripples.push({ x: 0, y: -1.02, t: 0 }); sfx.splash(); } setState("result"); return;
+  const f = G.frog, ly = f.ly, lx = f.lx, size = padFor(G.round);
+  if (Math.hypot(lx, ly) > 1.04) {                                       // past the edge of the pond
+    G.pops.push({ ...pondPt(lx * 0.9, clamp(ly, -1, 1)), text: ly > 0.9 ? "Too short!" : "Missed the pond!", color: "#fff", t: 0 }); sfx.thud(); setState("result"); return;
   }
   let hit = -1;
-  for (let i = 0; i < PADS; i++) { const p = padPos(i); if (Math.hypot(p.x, (p.y - ly) * 1) < size * 1.05) { hit = i; break; } }
-  if (hit < 0) { G.ripples.push({ x: 0, y: ly, t: 0 }); sfx.splash(); G.pops.push({ ...pondPt(0, ly), text: "Splash!", color: "#cfeaff", t: 0 }); setState("result"); return; }
+  for (let i = 0; i < PADS; i++) { const p = padPos(i); if (Math.hypot(p.x - lx, p.y - ly) < size * 1.05) { hit = i; break; } }
+  if (hit < 0) { G.ripples.push({ x: lx, y: ly, t: 0 }); sfx.splash(); G.pops.push({ ...pondPt(lx, ly), text: "Splash!", color: "#cfeaff", t: 0 }); setState("result"); return; }
   // ride along on the pad
   const p = padPos(hit), a0 = G.ang + hit * Math.PI * 2 / PADS;
-  G.riders.push({ pad: hit, dx: (0 - p.x), dy: (ly - p.y), a0 });
+  G.riders.push({ pad: hit, dx: (lx - p.x), dy: (ly - p.y), a0 });
   G.landed++; sfx.ribbit();
   const gold = hit === G.gold, pts = gold ? 30 : 10; G.score += pts;
-  G.pops.push({ ...pondPt(0, ly), text: gold ? "+30 GOLD!" : "+10", color: gold ? "#ffd75e" : "#fff", t: 0 });
-  if (gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ ...pondPt(0, ly + 0.25), text: "🪙 +1", color: "#ffd75e", t: 0 }); G.gold = -1; }
+  G.pops.push({ ...pondPt(lx, ly), text: gold ? "+30 GOLD!" : "+10", color: gold ? "#ffd75e" : "#fff", t: 0 });
+  if (gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ ...pondPt(lx, ly + 0.25), text: "🪙 +1", color: "#ffd75e", t: 0 }); G.gold = -1; }
   setState("result");
 }
 function afterFrog() {
@@ -237,8 +242,14 @@ function drawPond() {
   for (let k = 0; k < 6; k++) { const ph = (G.t * 1.5 + k / 6) % 1, a = k * 1.05; ctx.globalAlpha = 1 - ph;
     ctx.beginPath(); ctx.arc(L.cx + Math.cos(a) * L.rx * 0.09 * ph * 1.5, L.cy - L.ry * 0.35 * Math.sin(Math.PI * ph) + Math.sin(a) * L.ry * 0.05, 2.5, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
-  // landing line straight out from the launcher
-  if (G.state === "aim") { ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.setLineDash([5, 7]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L.cx, L.cy + L.ry); ctx.lineTo(L.cx, L.cy - L.ry); ctx.stroke(); ctx.setLineDash([]); }
+  // where the frog will land while you pull back
+  if (G.state === "aim" && G.pull) {
+    const q = pondPt(G.pull.lx, 1 - G.pull.d), fs = frogStart(), r = padFor(G.round) * L.rx * 0.7, off = Math.hypot(G.pull.lx, 1 - G.pull.d) > 1.04;
+    ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.setLineDash([5, 7]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(fs.x, fs.y); ctx.quadraticCurveTo((fs.x + q.x) / 2, Math.min(fs.y, q.y) - L.ry * 0.8, q.x, q.y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = off ? "#ff8a8a" : "#ffffff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(q.x, q.y, r, r * 0.6, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(q.x - r * 0.4, q.y); ctx.lineTo(q.x + r * 0.4, q.y); ctx.moveTo(q.x, q.y - r * 0.25); ctx.lineTo(q.x, q.y + r * 0.25); ctx.stroke();
+  }
   for (const r of G.ripples) { const p = pondPt(r.x, r.y), k = r.t / 1.2; ctx.strokeStyle = `rgba(230,250,255,${1 - k})`; ctx.lineWidth = 2;
     for (let j = 0; j < 3; j++) { const s = k * (1 + j * 0.5); ctx.beginPath(); ctx.ellipse(p.x, p.y, 8 + s * 30, (8 + s * 30) * 0.6, 0, 0, 7); ctx.stroke(); } }
 }
@@ -302,7 +313,7 @@ function drawLauncher() {
 }
 function drawFlying() {
   const f = G.frog; if (!f || G.state !== "flying") return;
-  const a = frogStart(), b = pondPt(0, clamp(f.ly, -1.05, 1.15)), t = f.t;
+  const a = frogStart(), b = pondPt(f.lx, clamp(f.ly, -1.1, 1.15)), t = f.t;
   const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t - Math.sin(Math.PI * t) * (L.ry * 1.2 + 60);
   ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x, a.y + (b.y - a.y) * t + 6, 10, 4, 0, 0, 7); ctx.fill();
   drawFrog(x, y, (0.9 + Math.sin(Math.PI * t) * 0.5) * clamp(L.rx / 170, 0.6, 1.2), 1);
@@ -317,7 +328,7 @@ function drawHUD() {
   ctx.fillText("Frogs: " + G.frogs + "   Landed: " + G.landed + "/" + goalFor(G.round) + "   Tries: " + G.lives, W / 2, y + 17);
   ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
   if (G.state === "aim") { ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
-    ctx.fillText("SWIPE DOWN to smack the mallet", W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0; }
+    ctx.fillText(G.pull ? "Let go to smack the mallet!" : "DRAG DOWN to pull back, then let go", W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0; }
 }
 function drawFx() {
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
