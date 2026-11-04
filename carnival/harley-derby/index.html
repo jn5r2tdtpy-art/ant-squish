@@ -56,12 +56,12 @@
 
 <div class="overlay show" id="titleScreen">
   <div class="card">
-    <div class="faces"><img src="img/sonny.webp" alt=""><img src="img/sonny.webp" alt=""><img src="img/sonny.webp" alt=""></div>
+    <div class="faces"><img src="img/sonny.webp" alt="Sonny"><img src="img/eddie.webp" alt="Eddie"><img src="img/abby.webp" alt="Abby"></div>
     <h1>Sonny’s<br>Harley Derby</h1>
     <div class="rules">
-      <p>Race your Harley against <b>3 Sonnys</b>! <b>Roll the ball into a hole</b> to move your bike ahead: roll it up the lane to the triangle of holes at the end. The 🟡 front holes move you 1, the 🔴 middle row 2 and the 🔵 back row 3. Miss and you go nowhere.</p>
+      <p>Race your Harley against <b>Sonny, Eddie and Abby</b>! <b>Roll the ball into a hole</b> to move your bike ahead: roll it up the lane to the triangle of holes at the end. The 🟡 front holes move you 1, the 🔴 middle row 2 and the 🔵 back row 3. Miss and you go nowhere.</p>
       <p><b>Slide your finger up the lane</b> to roll the ball. Start your swipe where you want the ball across the lane, angle it to steer, and swipe <b>faster to roll it farther</b>.</p>
-      <p>Beat all the Sonnys to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
+      <p>Beat all three of them to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
       <p>Each race you win pays 🪙 +1.</p>
     </div>
     <div class="you"><canvas id="youPrev" width="80" height="100"></canvas>
@@ -102,26 +102,42 @@ const HOLES = [ // a triangle of holes at the far end of the lane, like the real
 const ROW_V = [0.62, 0.72, 0.82, 0.92];
 const TOL_U = 0.16, TOL_V = 0.05;                                      // how close the ball must stop to drop in
 const HOLE_COLOR = { 1: "#f2c419", 2: "#e0242e", 3: "#2f6ee0" };
-const RIVALS = [ // three Sonnys
-  { jacket: "#1a1a1c", tank: "#2a8a3a" },
-  { jacket: "#2a2a30", tank: "#3a7af0" },
-  { jacket: "#3a2414", tank: "#e0242e" },
+const RIVALS = [ // Sonny, Eddie and Abby
+  { who: "sonny", name: "Sonny", img: "img/sonny.webp", jacket: "#1a1a1c", tank: "#2a8a3a" },
+  { who: "eddie", name: "Eddie", img: "img/eddie.webp", jacket: "#2a2a30", tank: "#3a7af0" },
+  { who: "abby", name: "Abby", img: "img/abby.webp", jacket: "#6a2a4a", tank: "#e0242e" },
 ];
 const LANE_GLOW = ["#3ad07a", "#3a8af0", "#f0484a", "#f2c419"];       // back to front; you ride the front (yellow) lane
-const LINES = { // the Sonnys talking to you
-  three: ["Hey! Slow down, that’s my lane!", "Beginner’s luck!", "Whoa! Who taught you that? Me?"],
-  miss: ["Ha! Nice roll, rookie!", "Roll it IN the hole, pal!", "Keep rolling like that. Please."],
-  passed: ["See ya, slowpoke!", "Eat my dust!", "That’s how a Harley does it!", "Born to ride, baby!"],
-  win: ["Rigged! This race was rigged!", "My bike needs a tune-up, that’s all.", "I let you win. To be nice."],
-  lose: ["Never in doubt. I’m Sonny!", "Another trophy for the garage!", "Too easy. Next!"],
-}
+const LINES = { // what each rider says to you
+  sonny: {
+    three: ["Hey! Slow down, that’s my lane!", "Beginner’s luck!", "Whoa! Who taught you that? Me?"],
+    miss: ["Ha! Nice roll, rookie!", "Roll it IN the hole, pal!", "Keep rolling like that. Please."],
+    passed: ["See ya, slowpoke!", "Eat my dust!", "That’s how a Harley does it!", "Born to ride, baby!"],
+    win: ["Rigged! This race was rigged!", "My bike needs a tune-up, that’s all.", "I let you win. To be nice."],
+    lose: ["Never in doubt. I’m Sonny!", "Another trophy for the garage!", "Too easy. Next!"],
+  },
+  eddie: {
+    three: ["Hey! Did you pay for that roll? I sure didn’t.", "Ten bucks says you can’t do that again.", "Lucky roll! I want half."],
+    miss: ["Ha! I bet on that!", "Missed! That’s the first bet I’ve won all year.", "Roll it again. Double or nothing!"],
+    passed: ["Out of my way, I’ve got money on this race!", "See ya! I’m not stopping to pay the toll!", "Eat my dust! It’s free, like everything I take."],
+    win: ["I had money on me! Who’s paying me back?", "I wasn’t racing. I was saving gas.", "Double or nothing? Come on!"],
+    lose: ["I won! Somebody write this down, it never happens!", "Winner! Drinks are on you.", "First bet I’ve won in years!"],
+  },
+  abby: {
+    three: ["Ooh, nice roll! Don’t tell Sonny I said that.", "Wow! Okay, now it’s a race!"],
+    miss: ["Aww, so close! Well, not really close. But close-ish!", "Keep rolling! I’ll wait. Actually, I won’t!"],
+    passed: ["Beep beep! Coming through!", "Bye-bye! I’ll save you a seat at the finish!", "Did I tell you about my week? Oh wait, we’re racing. Bye!"],
+    win: ["No fair! I was talking and forgot to steer!", "Okay, you win this one. I’ll get you next time!"],
+    lose: ["Woo-hoo! I beat the boys AND you!", "Winner winner! I’m telling everybody!"],
+  },
+};
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
 const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-const face = new Image(); face.src = "img/sonny.webp";
+const heads = {}; for (const r of RIVALS) { heads[r.who] = new Image(); heads[r.who].src = r.img; }
 let myHead = null;                                                       // your own head, if you added one
 function loadMyHead() { const d = store.get("hd-head"); if (!d) { myHead = null; return; } const im = new Image(); im.onload = () => { myHead = im; showYou(); }; im.src = d; }
 
@@ -153,13 +169,14 @@ const sfx = {
 const G = { state: "title", round: 1, score: 0, lives: LIVES, best: +store.get("hd-best") || 0, stateT: 0, t: 0,
   aimPhase: 0, pPhase: 0, aimU: 0, power: 0, ball: null, steps: 0, shown: 0, riders: [], pops: [], banner: null, bubble: null, pausedFrom: null, place: 1, raceT: 0 };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function sayAs(cat, lane) { if (lane == null) lane = leadSonny(); say(pick(LINES[RIVALS[lane].who][cat]), lane); }
 function say(t, lane) { if (lane == null) lane = leadSonny(); G.bubble = { text: t, lane, t: 0, life: Math.max(2.5, 1.2 + t.length * 0.06) }; }
 function leadSonny() { let k = 0; G.riders.forEach((r, i) => { if (r.p > G.riders[k].p) k = i; }); return k; }
 function startRound() {
   G.steps = 0; G.shown = 0; G.ball = null; G.raceT = 0;
   G.riders = RIVALS.map(r => ({ ...r, p: 0, surge: 1, next: 0 })); G.bubble = null;
   newRoll();
-  G.banner = { big: "Race " + G.round, small: "Roll the ball in the holes to beat the Sonnys to the flag", note: G.round > 1 ? "The Sonnys are faster this time" : "" };
+  G.banner = { big: "Race " + G.round, small: "Roll the ball in the holes to beat Sonny, Eddie and Abby to the flag", note: G.round > 1 ? "They’re faster this time" : "" };
   setState("intro");
 }
 function newRoll() { G.ball = null; G.holdU = 0; G.swipe = null; }
@@ -235,23 +252,23 @@ function settle() {
     b.hole = h; sfx.drop(h.val); sfx.vroom(h.val);
     G.steps = Math.min(STEPS, G.steps + h.val); G.score += h.val * 10;
     const q = rampPt(h.u, h.v); G.pops.push({ x: q.x, y: q.y - 20, text: "+" + h.val, color: HOLE_COLOR[h.val], t: 0 });
-    if (h.val === 3 && Math.random() < 0.6) say(pick(LINES.three));
+    if (h.val === 3 && Math.random() < 0.6) sayAs("three");
   } else {
     b.back = true; sfx.miss();
     const q = rampPt(b.u, b.tv); G.pops.push({ x: q.x, y: q.y - 18, text: b.want < ROW_V[0] - TOL_V ? "Too soft!" : b.want > 1 ? "Too hard!" : "Missed!", color: "#fff", t: 0 });
-    if (Math.random() < 0.35) say(pick(LINES.miss));
+    if (Math.random() < 0.35) sayAs("miss");
   }
   setState("result");
 }
 function finishRace(won) {
   if (won) {
     const bonus = 100 * G.round; G.score += bonus; Coins.add(1); Coins.chime(); showCoins();
-    G.banner = { big: "You win!", small: "+" + bonus + " points · 🪙 +1", note: "Next race: faster Sonnys", win: true };
-    say(pick(LINES.win)); sfx.bell(); setTimeout(() => sfx.win(), 500); setState("clear"); return;
+    G.banner = { big: "You win!", small: "+" + bonus + " points · 🪙 +1", note: "Next race: faster riders", win: true };
+    sayAs("win"); sfx.bell(); setTimeout(() => sfx.win(), 500); setState("clear"); return;
   }
-  G.lives--; const winner = G.riders.findIndex(r => r.p >= 1); say(pick(LINES.lose), winner < 0 ? leadSonny() : winner);
+  G.lives--; const winner = G.riders.findIndex(r => r.p >= 1); const wl = winner < 0 ? leadSonny() : winner; sayAs("lose", wl);
   if (G.lives <= 0) { gameOver(); return; }
-  G.banner = { big: "Sonny won!", small: (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Run that race again" };
+  G.banner = { big: RIVALS[wl].name + " won!", small: (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Run that race again" };
   setState("fail"); sfx.lose();
 }
 function gameOver() {
@@ -277,7 +294,7 @@ function update(dt) {
       r.next -= dt; if (r.next <= 0) { r.surge = rand(0.55, 1.45); r.next = rand(0.5, 1.2); }
       r.p += dt * base * r.surge;
     }
-    if (playerPlace() > before && Math.random() < 0.5 && !G.bubble) say(pick(LINES.passed));
+    if (playerPlace() > before && Math.random() < 0.5 && !G.bubble) sayAs("passed");
     if (G.riders.some(r => r.p >= 1)) finishRace(false);
   }
   // your bike glides forward to its new spot
@@ -334,7 +351,7 @@ function drawRider(i) {
   ctx.strokeStyle = jacket; ctx.lineWidth = 6 * s;
   ctx.beginPath(); ctx.moveTo(x + 44 * s, wy - 50 * s); ctx.lineTo(x + 58 * s, wy - 46 * s); ctx.lineTo(x + 66 * s, wy - 56 * s); ctx.stroke();  // arm up to the ape hangers
   ctx.fillStyle = "#e8b090"; ctx.beginPath(); ctx.arc(x + 66 * s, wy - 57 * s, 3 * s, 0, 7); ctx.fill();
-  const head = you ? myHead : (face.complete && face.naturalWidth ? face : null);
+  const hi = you ? null : heads[r.who], head = you ? myHead : (hi && hi.complete && hi.naturalWidth ? hi : null);
   ctx.save(); ctx.shadowColor = LANE_GLOW[i]; ctx.shadowBlur = 12;
   if (head) { const fh = w * 0.62, fw = fh * head.naturalWidth / head.naturalHeight; ctx.drawImage(head, x + 43 * s - fw / 2, wy - 52 * s - fh * 0.92, fw, fh); }
   else { // your helmet until you add your own head
