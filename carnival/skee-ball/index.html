@@ -54,7 +54,7 @@
     <h1>Skee-Ball</h1>
     <div class="rules">
       <p><b>Slide your finger up the lane</b> to roll the ball. Start your swipe where you want the ball across the lane, angle it to steer, and swipe <b>faster to roll it farther</b> up the board.</p>
-      <p>The ball hops the bump and drops in a ring: <b>10, 20, 30, 40</b> and the little <b>50</b> in the middle. Too soft and it rolls back for nothing.</p>
+      <p>The ball hops the bump and rolls down into a hole: three <b>20</b>s along the bottom, two <b>30</b>s, the <b>40</b> in the middle and two <b>50</b>s up high. Land on a hole or just above it to drop in; anything else rolls into the <b>10</b> slot. Too soft and it rolls back for nothing.</p>
       <p>You get <b>9 balls</b> a round. Reach the goal score to beat the round, or lose one of 3 tries. Each round the goal goes up, and later the board starts sliding side to side.</p>
       <p>The tiny <b>100</b> pockets in the top corners pay 🪙 +1 each.</p>
     </div>
@@ -81,9 +81,18 @@ const SWIPE_FULL = 4;                                                    // swip
 const STEER = 0.5;                                                       // how much the angle of your swipe bends the roll
 const HUMP = 0.35;                                                       // slower than this and the ball rolls back
 // target board, in board units: x across -1..1, y up the board 0..1.4
-const BOARD_H = 1.4, RING_C = { x: 0, y: 0.72 };
-const RINGS = [{ r: 0.09, pts: 50 }, { r: 0.2, pts: 40 }, { r: 0.33, pts: 30 }, { r: 0.48, pts: 20 }];
-const POCKETS = [{ x: -0.8, y: 1.24, r: 0.1 }, { x: 0.8, y: 1.24, r: 0.1 }];
+const BOARD_H = 1.4;
+// holes spread over the board (x across -1..1, y up the board). A ball that lands on a hole, or a little above it, rolls down and drops in.
+// Anything else rolls down into the 10 slot along the bottom.
+const HOLES = [
+  { x: -0.58, y: 0.36, r: 0.17, pts: 20 }, { x: 0, y: 0.36, r: 0.17, pts: 20 }, { x: 0.58, y: 0.36, r: 0.17, pts: 20 },
+  { x: -0.36, y: 0.68, r: 0.15, pts: 30 }, { x: 0.36, y: 0.68, r: 0.15, pts: 30 },
+  { x: 0, y: 0.94, r: 0.14, pts: 40 },
+  { x: -0.45, y: 1.12, r: 0.12, pts: 50 }, { x: 0.45, y: 1.12, r: 0.12, pts: 50 },
+  { x: -0.84, y: 1.3, r: 0.09, pts: 100 }, { x: 0.84, y: 1.3, r: 0.09, pts: 100 },
+];
+const ROLL_IN = 0.2;                                                     // how far above a hole a ball can land and still roll into it
+const HOLE_COL = { 20: "#3a8af0", 30: "#3ad07a", 40: "#f2c419", 50: "#f0484a", 100: "#c040ff" };
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -164,7 +173,7 @@ function swipeEnd(e) {
   const first = sw.pts[0], last = sw.pts[sw.pts.length - 1], up = first.y - last.y; if (up < 25) return;
   const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
   for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[i].y - rec[j].y) / dt * 1000); break; } }
-  const v = speed / (L.laneLen * SWIPE_FULL);
+  const v = Math.sqrt(speed / (L.laneLen * SWIPE_FULL));                // square root: a wide range of swipe speeds lands in the middle of the board
   const u0 = uAt(first.x), drift = STEER * (last.x - first.x) / up * L.laneLen / laneHW(0.5);
   roll(u0, clamp(u0 + drift, -1, 1), v);
 }
@@ -174,21 +183,28 @@ function roll(u0, u1, v) {
   G.ball = { u0, u1, v, bx, by, phase: "up", t: 0, x: 0, y: 0, s: 1, pts: 0, gone: false };
   G.balls--; sfx.roll(); setState("rolling");
 }
+function holeAt(bx, by) {
+  // the first hole the ball reaches as it rolls down from where it landed
+  const sx = boardX(); let best = null;
+  for (const h of HOLES) {
+    const hx = h.x + sx;
+    if (Math.abs(bx - hx) < h.r * 1.15 && by >= h.y - h.r * 1.15 && by <= h.y + h.r + ROLL_IN && (!best || h.y > best.y)) best = h;
+  }
+  return best;
+}
 function scoreAt(bx, by) {
   if (by < 0) return 0;                                                   // didn't clear the bump
   if (by > BOARD_H) return 10;                                            // off the back, drops into the 10
-  const sx = boardX();
-  for (const p of POCKETS) if (Math.hypot(bx - (p.x + sx), by - p.y) < p.r) return 100;
-  const d = Math.hypot(bx - (RING_C.x + sx), by - RING_C.y);
-  for (const r of RINGS) if (d < r.r) return r.pts;
-  return 10;
+  const h = holeAt(bx, by); return h ? h.pts : 10;
 }
 function landing() {
   const b = G.ball, pts = scoreAt(b.bx, b.by); b.pts = pts;
   if (pts === 0) { b.phase = "back"; b.t = 0; sfx.back(); return; }
   b.phase = "drop"; b.t = 0; sfx.drop(pts);
+  const h = b.by <= BOARD_H ? holeAt(b.bx, b.by) : null;                 // where it rolls to: its hole, or down to the 10 slot
+  b.from = { x: b.x, y: b.y }; const to = h ? boardPt(h.x + boardX(), h.y) : boardPt(clamp(b.bx, -0.95, 0.95), 0.07); b.to = { x: to.x, y: to.y };
   G.roundPts += pts; G.score += pts;
-  const q = boardPt(clamp(b.bx, -1.1, 1.1), clamp(b.by, 0, BOARD_H));
+  const q = b.to;
   G.pops.push({ x: q.x, y: q.y - 16, text: "+" + pts, color: pts >= 50 ? "#ffd75e" : "#fff", t: 0, big: pts >= 50 });
   if (pts === 100) { Coins.add(1); Coins.chime(); sfx.hundred(); showCoins(); G.pops.push({ x: q.x, y: q.y + 14, text: "🪙 +1", color: "#ffd75e", t: 0 }); }
 }
@@ -234,7 +250,8 @@ function update(dt) {
       b.x = b.hx + (q.x - b.hx) * k; b.y = b.hy + (q.y - b.hy) * k - Math.sin(Math.PI * k) * L.boardH * 0.35; b.s = 0.55 + (q.s - 0.55) * k;
       if (k >= 1) landing();
     } else if (b.phase === "drop") {
-      b.s *= Math.pow(0.02, dt / DROP); if (b.t > DROP) { b.gone = true; setState("result"); }
+      const k = Math.min(1, b.t / 0.25); b.x = b.from.x + (b.to.x - b.from.x) * k; b.y = b.from.y + (b.to.y - b.from.y) * k;
+      if (b.t > 0.25) b.s *= Math.pow(0.02, dt / DROP); if (b.t > 0.25 + DROP) { b.gone = true; setState("result"); }
     } else if (b.phase === "back") {
       const k = Math.min(1, b.t / 0.6), reach = Math.min(1, b.v / HUMP), v = reach * (1 - k), p = lanePt(b.u1, Math.max(0, v)); b.x = p.x; b.y = p.y; b.s = p.s;
       if (k >= 1) { b.gone = true; G.pops.push({ x: p.x, y: p.y - 30, text: "Too soft!", color: "#fff", t: 0 }); setState("result"); }
@@ -273,35 +290,21 @@ function drawBoard() {
   const g = ctx.createLinearGradient(0, d.y, 0, a.y); g.addColorStop(0, "#f7c870"); g.addColorStop(1, "#e89a3a");
   ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
   ctx.save(); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.clip();
-  // rings (circles on a tilted board look like ovals)
   const ky = L.boardH / BOARD_H;
-  const cen = boardPt(RING_C.x + sx, RING_C.y);
-  const ringCol = ["#fff4dc", "#e05a2a", "#fff4dc", "#e05a2a", "#fff4dc"];
-  ctx.fillStyle = "#b8601e"; ctx.beginPath(); ctx.ellipse(cen.x, cen.y, 0.7 * L.bhw, 0.7 * ky, 0, 0, 7); ctx.fill();
-  for (let i = RINGS.length - 1; i >= 0; i--) {
-    const r = RINGS[i].r; ctx.fillStyle = i % 2 ? "#f2b45a" : "#fbe2a8";
-    ctx.beginPath(); ctx.ellipse(cen.x, cen.y, r * L.bhw, r * ky, 0, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#5a6aa8"; ctx.lineWidth = 2.5; ctx.stroke();
-  }
-  // each ring's number at its top and its hole at its bottom (10 is the big outer ring)
-  const bands = [{ a: 0, b: RINGS[0].r, pts: 50 }, ...RINGS.slice(1).map((r, i) => ({ a: RINGS[i].r, b: r.r, pts: r.pts })), { a: RINGS[RINGS.length - 1].r, b: 0.7, pts: 10 }];
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  for (const bd of bands) {
-    const mid = bd.pts === 50 ? 0 : (bd.a + bd.b) / 2, th = (bd.b - bd.a) * ky;
-    const fs = Math.round(clamp(th * 0.75, 8, 18));
-    ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.fillStyle = bd.pts === 10 ? "#fff4dc" : "#24346a";
-    if (bd.pts === 50) { ctx.fillText("50", cen.x, cen.y - th * 0.2); continue; }
-    ctx.fillText(String(bd.pts), cen.x, cen.y - mid * ky);
-    ctx.fillStyle = "#3a1a0a"; ctx.beginPath(); ctx.ellipse(cen.x, cen.y + mid * ky, Math.max(6, (bd.b - bd.a) * L.bhw * 0.6), Math.max(2.5, th * 0.32), 0, 0, 7); ctx.fill();
-  }
-  // 100 pockets in the top corners
-  for (const p of POCKETS) {
-    const q = boardPt(p.x + sx, p.y);
-    ctx.fillStyle = "#fff4dc"; ctx.beginPath(); ctx.ellipse(q.x, q.y, p.r * L.bhw * 1.3, p.r * ky * 1.3, 0, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#5a6aa8"; ctx.lineWidth = 3; ctx.stroke();
-    ctx.fillStyle = "#3a1a0a"; ctx.beginPath(); ctx.ellipse(q.x, q.y, p.r * L.bhw * 0.95, p.r * ky * 0.95, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = "#ffd75e"; ctx.font = `900 ${Math.round(Math.max(7, p.r * L.bhw * 0.62))}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("100", q.x, q.y + 1);
+  // the 10 slot along the bottom
+  const s0 = boardPt(-1, 0.13), s1 = boardPt(1, 0.01);
+  ctx.fillStyle = "#3a1a0a"; rr(s0.x, s0.y, s1.x - s0.x, s1.y - s0.y, 8); ctx.fill();
+  ctx.fillStyle = "#fff4dc"; ctx.font = `900 ${Math.round(clamp((s1.y - s0.y) * 0.7, 9, 16))}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const fx of [-0.6, 0, 0.6]) { const q = boardPt(fx, 0.07); ctx.fillText("10", q.x, q.y + 1); }
+  // the holes, each with a colored ring and its number
+  for (const h of HOLES) {
+    const q = boardPt(h.x + sx, h.y), rx = h.r * 0.82 * L.bhw * (1 - 0.12 * h.y / BOARD_H), ry = h.r * 0.82 * ky;
+    ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(q.x + 2, q.y + 3, rx * 1.3, ry * 1.3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = HOLE_COL[h.pts]; ctx.beginPath(); ctx.ellipse(q.x, q.y, rx * 1.3, ry * 1.3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff4dc"; ctx.beginPath(); ctx.ellipse(q.x, q.y, rx * 1.12, ry * 1.12, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2a1206"; ctx.beginPath(); ctx.ellipse(q.x, q.y, rx, ry, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = h.pts === 100 ? "#ffd75e" : "#fff4dc"; ctx.font = `900 ${Math.round(clamp(rx * (h.pts === 100 ? 0.6 : 0.85), 6, 20))}px system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(h.pts), q.x, q.y + 1);
   }
   ctx.restore();
 }
