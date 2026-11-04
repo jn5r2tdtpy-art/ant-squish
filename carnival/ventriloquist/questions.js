@@ -516,4 +516,12 @@ window.QUESTIONS = [
   {"q":"Eddie, why did your wives leave?","a":[["E","Bad luck."],["S","He bet the wedding ring on a football game. Four times."]]},
   {"q":"Sonny, what should people never do with Eddie?","a":[["S","Play cards with him. Lend him money. Or believe him when he says he's up."]]},
   {"q":"Eddie, what's in your wallet?","a":[["E","Three lottery tickets, a coupon for the buffet, and a moth."]]},
+  {"q":"How cheap is Eddie?","a":[["S","He reuses birthday candles."],["E","They still light! Mostly."]]},
+  {"q":"Eddie, why didn't you bring a present?","a":[["E","My presence is the present."],["S","He says that every year. Every single year."]]},
+  {"q":"What does Eddie do at a restaurant when the check comes?","a":[["S","Goes to the bathroom."],["E","For forty-five minutes. I have a lot to think about."]]},
+  {"q":"Eddie, how do you save money?","a":[["E","I never have any to spend. Easy."],["S","He has money. He just keeps it at the casino."]]},
+  {"q":"Sonny, what's the cheapest thing Eddie ever did?","a":[["S","Asked for his wedding gifts back. All four times."],["E","They were good gifts!"]]},
+  {"q":"Eddie, why are you wearing two different shoes?","a":[["E","Two for one sale. The other two are at home. Also different."]]},
+  {"q":"What does Eddie bring to a potluck?","a":[["S","An empty plate."],["E","And a big appetite. That's a contribution."]]},
+  {"q":"Eddie, would you lend Sonny a dollar?","a":[["E","Sure. At forty percent interest."],["S","And he'd still bet it on a horse."]]},
 ];

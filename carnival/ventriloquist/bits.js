@@ -49,4 +49,10 @@ window.BITS = [
   [["S", "Eddie, why do you keep buying scratch-offs?"], ["E", "Because one of these days I'm going to scratch one and it's going to scratch back with money."]],
   [["S", "Eddie, what's your lucky number?"], ["E", "Whatever number I didn't bet on."]],
   [["S", "Eddie, you owe me money."], ["E", "Double or nothing?"], ["S", "No."], ["E", "Then nothing it is. Thanks, brother."]],
+  [["S", "Eddie, it's your turn to pick up the check."], ["E", "Oh no, I left my wallet in my other pants."], ["S", "You don't have other pants."], ["E", "That's how cheap I am."]],
+  [["S", "Eddie, what did you get Mom for her birthday?"], ["E", "A card."], ["S", "That's nice."], ["E", "It was your card. I signed it too."]],
+  [["S", "Eddie, how much did you tip the waitress?"], ["E", "I told her to buy low and sell high."]],
+  [["S", "Eddie, you're so cheap you reuse tea bags."], ["E", "Only four times. I'm not an animal."]],
+  [["S", "Eddie, why don't you ever buy a round of drinks?"], ["E", "I'm saving up."], ["S", "For what?"], ["E", "Scratch-offs. Priorities."]],
+  [["S", "Eddie, you're the cheapest guy I know."], ["E", "That's not true."], ["S", "You charged me for this conversation."], ["E", "Five bucks. Pay up."]],
 ];
