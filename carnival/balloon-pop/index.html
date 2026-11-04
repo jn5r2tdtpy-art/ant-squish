@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Balloon Pop</title>
+<title>Bust Sonny’s Balloon</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -50,10 +50,11 @@
 
 <div class="overlay show" id="titleScreen">
   <div class="card">
-    <div class="balloons">🎈🎈🎈</div>
-    <h1>Balloon Pop</h1>
+    <div class="balloons">🎈<img src="img/sonny.webp" alt="Sonny" style="height:64px;vertical-align:middle">🎈</div>
+    <h1>Bust Sonny’s Balloon</h1>
+    <p><i>“Sorry, Sonny. Didn’t mean to bust your balloon!”</i></p>
     <div class="rules">
-      <p>Throw darts and <b>pop the balloons</b>. You get <b>5 darts</b> a round. Pop enough to beat the round.</p>
+      <p>Every balloon on the board has Sonny’s face on it, and he is very proud of them. Throw darts and <b>bust Sonny’s balloons</b>. You get <b>5 darts</b> a round. Pop enough to beat the round.</p>
       <p><b>Tap once</b> to lock where across the board as the marker slides side to side. <b>Tap again</b> to lock how high you throw as the power meter beside the board slides up and down.</p>
       <p>Each round the markers get faster and the balloons get smaller, and from round 3 some balloons are missing.</p>
       <p>Pop the shiny <b>gold balloon</b> to win 🪙 +1. Miss the goal and you lose one of 3 tries.</p>
@@ -80,6 +81,18 @@ const aimSpeed   = n => 1.3 + 0.07 * Math.min(n - 1, 25);                       
 const heightSpeed = n => 0.55 + 0.03 * Math.min(n - 1, 25);                         // up-and-down marker (trips per second)
 const sizeFor    = n => Math.max(0.72, 1 - 0.016 * (n - 1));           // balloons get smaller
 const missingFor = n => n < 3 ? 0 : Math.min(24, 3 * (n - 2));         // balloons missing from the board
+const LINES = { // Sonny, watching his balloons get busted
+  start: ["Go ahead, try to bust my balloon. Nobody ever has.", "These are my balloons. Hands off. Darts off too.", "Each one of these is full of my hot air. Premium stuff."],
+  pop: ["Hey! That was my balloon!", "You didn’t mean to bust my balloon? Sure you didn’t.", "That one had my face on it!", "Rude! I’m telling Mom.",
+    "Fine. I’ve got plenty more hot air where that came from.", "You can bust my balloons, but you’ll never bust my confidence.", "That was my best balloon. They’re all my best balloon."],
+  miss: ["Ha! Missed! My balloons are too good for you.", "Can’t even hit a balloon. Embarrassing.", "Swing and a miss! Just like everyone who ever doubted me."],
+  gold: ["Not the gold one! That was my favorite!", "My golden balloon! Do you know what that cost me? Nothing, I took it. Still!"],
+  clear: ["Fine. Bust them all. I’ll blow up more. I’m full of hot air.", "Okay, okay, you busted my balloon. Happy now?"],
+  fail: ["See? Nobody busts Sonny’s balloon.", "Ha! My balloons live to float another day!"],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const face = new Image(); face.src = "img/sonny.webp";
+function say(t) { G.bubble = { text: t, t: 0, life: Math.max(3.5, 1.5 + t.length * 0.06) }; }
 const COLORS = ["#e8304a", "#f08a2c", "#f2d23c", "#7ad04a", "#2fb0a8", "#3a7af0", "#8fb8f0", "#8a4ad8", "#f07ab0"];
 
 const $ = id => document.getElementById(id);
@@ -108,7 +121,7 @@ const sfx = {
 
 // ---------- State ----------
 const G = { state: "title", round: 1, score: 0, lives: LIVES, darts: DARTS, popped: 0, best: +store.get("bp-best") || 0,
-  stateT: 0, t: 0, aimPhase: 0, hPhase: 0, aimX: 0, aimY: 0, dart: null, stuck: [], balloons: [], bits: [], pops: [], banner: null, pausedFrom: null };
+  stateT: 0, t: 0, aimPhase: 0, hPhase: 0, aimX: 0, aimY: 0, dart: null, stuck: [], balloons: [], bits: [], pops: [], banner: null, bubble: null, pausedFrom: null };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 function buildBoard() {
   const cells = []; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push({ r, c });
@@ -120,7 +133,8 @@ function buildBoard() {
 function startRound() {
   G.darts = DARTS; G.popped = 0; G.stuck = []; buildBoard(); newThrow();
   const miss = missingFor(G.round);
-  G.banner = { big: "Round " + G.round, small: "Pop " + goalFor(G.round) + " balloons with 5 darts", note: miss ? miss + " balloons missing · watch the gaps" : "" };
+  say(pick(LINES.start));
+  G.banner = { big: "Round " + G.round, small: "Bust " + goalFor(G.round) + " of Sonny’s balloons with 5 darts", note: miss ? miss + " balloons missing · watch the gaps" : "" };
   setState("intro");
 }
 function newThrow() { G.aimPhase = rand(0, 6.28); G.hPhase = rand(0, 1); G.dart = null; }
@@ -170,13 +184,13 @@ function hitBalloon(x, y) {
 function land() {
   const d = G.dart, b = hitBalloon(d.tx, d.ty);
   if (b) {
-    b.up = false; G.popped++; sfx.pop();
+    b.up = false; G.popped++; sfx.pop(); if (b.gold) say(pick(LINES.gold)); else if (Math.random() < 0.6) say(pick(LINES.pop));
     const c = cellCenter(b.r, b.c), pts = b.gold ? 50 : 10; G.score += pts;
     for (let i = 0; i < 14; i++) G.bits.push({ x: c.x, y: c.y, vx: rand(-260, 260), vy: rand(-300, 80), r: rand(2, 5), color: b.gold ? "#ffd75e" : b.color, rot: rand(0, 6), life: rand(0.5, 0.9), t: 0 });
     G.pops.push({ x: c.x, y: c.y - 10, text: "POP! +" + pts, color: b.gold ? "#ffd75e" : "#fff", t: 0 });
     if (b.gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ x: c.x, y: c.y + 18, text: "🪙 +1", color: "#ffd75e", t: 0 }); }
   } else {
-    sfx.thunk();
+    sfx.thunk(); if (Math.random() < 0.45) say(pick(LINES.miss));
     const inside = d.tx > L.ix && d.tx < L.ix + L.iw && d.ty > L.iy && d.ty < L.iy + L.ih;
     G.pops.push({ x: d.tx, y: d.ty - 16, text: inside ? "Missed!" : "Off the board!", color: "#fff", t: 0 });
   }
@@ -189,12 +203,12 @@ function afterThrow() {
   if (G.popped >= goal) {
     const bonus = 50 * G.round * (G.popped - goal + 1); G.score += bonus;
     G.banner = { big: G.popped === DARTS ? "5 for 5!" : "Round clear!", small: G.popped + " popped · +" + bonus + " points", note: "Next round: faster markers, smaller balloons", win: true };
-    setState("clear"); sfx.win(); return;
+    setState("clear"); sfx.win(); say(pick(LINES.clear)); return;
   }
   G.lives--;
   if (G.lives <= 0) { gameOver(); return; }
   G.banner = { big: "Not enough pops", small: G.popped + " of " + goal + " · " + (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Try that round again" };
-  setState("fail"); sfx.lose();
+  setState("fail"); sfx.lose(); say(pick(LINES.fail));
 }
 function gameOver() {
   setState("over"); sfx.lose();
@@ -218,6 +232,7 @@ function update(dt) {
   for (const p of G.bits) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt; p.rot += dt * 10; }
   G.bits = G.bits.filter(p => p.t < p.life);
   for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1);
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
 }
 
 // ---------- Drawing ----------
@@ -239,9 +254,13 @@ function drawScene() {
   ctx.fillStyle = "#3a1408"; rr(sx + sw * 0.06, sy + sh * 0.14, sw * 0.88, sh * 0.72, 10); ctx.fill();
   ctx.fillStyle = "#fff4dc"; rr(sx + sw * 0.075, sy + sh * 0.18, sw * 0.85, sh * 0.64, 8); ctx.fill();
   ctx.fillStyle = "#f2b81c"; ctx.strokeStyle = "#5a2a08"; ctx.lineWidth = Math.max(2, sh * 0.03); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  let fs = Math.round(sh * 0.5); ctx.font = `${fs}px Rye, Georgia, serif`;
-  while (ctx.measureText("BALLOON POP").width > sw * 0.8 && fs > 12) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
-  ctx.strokeText("BALLOON POP", W / 2, sy + sh * 0.52); ctx.fillText("BALLOON POP", W / 2, sy + sh * 0.52);
+  const t1 = "BUST SONNY’S BALLOON", t2 = "Sorry, Sonny! Didn’t mean to bust your balloon!";
+  let fs = Math.round(sh * 0.36); ctx.font = `${fs}px Rye, Georgia, serif`;
+  while (ctx.measureText(t1).width > sw * 0.78 && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.strokeText(t1, W / 2, sy + sh * 0.42); ctx.fillText(t1, W / 2, sy + sh * 0.42);
+  let f2 = Math.round(sh * 0.15); ctx.font = `italic 700 ${f2}px Georgia, serif`;
+  while (ctx.measureText(t2).width > sw * 0.78 && f2 > 7) { f2--; ctx.font = `italic 700 ${f2}px Georgia, serif`; }
+  ctx.fillStyle = "#8a2a10"; ctx.fillText(t2, W / 2, sy + sh * 0.68);
   // board: white frame, red back, white rails
   ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.fillRect(L.bx + 6, L.by + 8, L.bw, L.bh);
   ctx.fillStyle = "#f8f6f0"; ctx.fillRect(L.bx, L.by, L.bw, L.bh);
@@ -262,11 +281,15 @@ function drawBalloon(b) {
   ctx.bezierCurveTo(x + s.rx * 1.35, y + s.ry * 0.6, x + s.rx * 1.2, y - s.ry * 1.05, x, y - s.ry);
   ctx.bezierCurveTo(x - s.rx * 1.2, y - s.ry * 1.05, x - s.rx * 1.35, y + s.ry * 0.6, x, y + s.ry); ctx.fill();
   ctx.fillStyle = shadeC(base, -40); ctx.beginPath(); ctx.moveTo(x - s.rx * 0.14, y + s.ry * 1.1); ctx.lineTo(x + s.rx * 0.14, y + s.ry * 1.1); ctx.lineTo(x, y + s.ry * 0.92); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.ellipse(x - s.rx * 0.38, y - s.ry * 0.42, s.rx * 0.16, s.ry * 0.26, -0.5, 0, 7); ctx.fill();
+  if (face.complete && face.naturalWidth) { // Sonny's face printed on the balloon
+    const fh = s.ry * 1.15, fw = fh * face.naturalWidth / face.naturalHeight;
+    ctx.save(); ctx.globalAlpha = 0.92; ctx.drawImage(face, x - fw / 2, y - fh * 0.55, fw, fh); ctx.restore();
+  }
+  ctx.fillStyle = "rgba(255,255,255,.5)"; ctx.beginPath(); ctx.ellipse(x - s.rx * 0.5, y - s.ry * 0.5, s.rx * 0.12, s.ry * 0.2, -0.5, 0, 7); ctx.fill();
   if (b.gold) {
     const tw = 0.5 + 0.5 * Math.sin(G.t * 6);
     ctx.strokeStyle = `rgba(255,250,200,${0.4 + 0.5 * tw})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, s.rx * 1.15, s.ry * 1.08, 0, 0, 7); ctx.stroke();
-    ctx.fillStyle = "#7a4a00"; ctx.font = `800 ${Math.round(s.rx * 0.6)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("+1", x, y + s.ry * 0.1);
+    ctx.fillStyle = "#7a4a00"; ctx.font = `800 ${Math.round(s.rx * 0.6)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "#fff4c0"; ctx.strokeText("+1", x, y + s.ry * 0.72); ctx.fillText("+1", x, y + s.ry * 0.72);
   }
 }
 function drawDart(x, y, s, ang) {
@@ -333,13 +356,34 @@ function drawBanner() {
   if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52); }
   ctx.globalAlpha = 1;
 }
+function drawSonny() {
+  if (!face.complete || !face.naturalWidth) return;
+  const sw = Math.min(L.bw * 0.82, 560), sx = W / 2 - sw / 2, hh = L.signH * 1.25, hw = hh * face.naturalWidth / face.naturalHeight;
+  const bob = Math.sin(G.t * 2) * 2, hx = Math.max(4, sx - hw * 0.55), hy = L.sy + L.signH * 0.05 + bob;
+  ctx.drawImage(face, hx, hy, hw, hh);
+  const b = G.bubble; if (!b) return;
+  // the bubble sits over the sign, next to his head, so it never covers the balloons
+  const bx = hx + hw * 0.92, maxW = Math.min(W - bx - 8, 340);
+  let fs = 14, lines;
+  for (;;) { ctx.font = `700 ${fs}px system-ui, sans-serif`; const words = b.text.split(" "); lines = [""];
+    for (const w of words) { const t = (lines[lines.length - 1] + " " + w).trim(); if (ctx.measureText(t).width > maxW - 20 && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; }
+    if (lines.length * (fs + 4) + 10 <= Math.max(L.signH, 44) || fs <= 10) break; fs--; }
+  const lh = fs + 4, bw = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)) + 20), bh = 10 + lines.length * lh;
+  const by = clamp(hy + hh * 0.45 - bh / 2, L.sy, L.sy + L.signH + 30 - bh);
+  ctx.globalAlpha = clamp((b.life - b.t) / 0.3, 0, 1) * clamp(b.t / 0.12, 0, 1);
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,.3)"; ctx.lineWidth = 1.5; rr(bx, by, bw, bh, 12); ctx.fill(); ctx.stroke();
+  const ty = clamp(hy + hh * 0.5, by + 10, by + bh - 10); ctx.beginPath(); ctx.moveTo(bx - 10, ty); ctx.lineTo(bx + 1, ty - 7); ctx.lineTo(bx + 1, ty + 7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  lines.forEach((l, i) => ctx.fillText(l, bx + 10, by + 5 + lh / 2 + i * lh));
+  ctx.globalAlpha = 1;
+}
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
   if (G.state === "title") return;
   drawScene();
   for (const b of G.balloons) if (b.up) drawBalloon(b);
   for (const s of G.stuck) drawDart(s.x, s.y + 8, 0.8, 0);
-  drawMarkers(); drawFlying(); drawFx(); drawHUD(); drawBanner();
+  drawMarkers(); drawFlying(); drawFx(); drawSonny(); drawHUD(); drawBanner();
 }
 let last = performance.now();
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
