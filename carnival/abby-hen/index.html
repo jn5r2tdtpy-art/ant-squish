@@ -65,7 +65,7 @@ const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.ma
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const hen = new Image(); hen.src = "img/hen-body.webp";
 const head = new Image(); head.src = "img/head.webp";                  // 8 photos of Abby's head, every 45° around, side by side
-const HEAD_FW = 192, HEAD_FH = 200;
+const HEAD_FW = 192, HEAD_FH = 204;
 // how her head is turned (degrees, 0 = facing you, 90 = her right profile, 180 = back of her head)
 // The whole hen turns (degrees, 0 = facing you, 90 = side view facing right like the photo, 180 = back to you).
 // Abby's head is on the hen's neck, so it turns with the body, twisted a little toward you.
@@ -79,13 +79,13 @@ function liftK() {                                                       // 0 = 
   if (G.state !== "cackle") return 0; const t = G.stateT, e = x => (1 - Math.cos(Math.PI * clamp(x, 0, 1))) / 2;
   return t < RISE ? e(t / RISE) : t < RISE + SPIN ? 1 : 1 - e((t - RISE - SPIN) / SINK);
 }
-function headAngle() { return bodyAngle() - 55; }                         // her head is fixed on the hen, turned toward you, and turns with the body
-function drawHead(cx, top, fh) {
+function headAngle() { return bodyAngle() - 45; }                         // at rest she shows one clean photo (45°), turned toward you                         // her head is fixed on the hen, turned toward you, and turns with the body
+function drawHead(cx, top, fh, squeeze = 1) {
   if (!head.complete || !head.naturalWidth) return;
-  const fw = fh * HEAD_FW / HEAD_FH, a = ((headAngle() % 360) + 360) % 360, i = Math.floor(a / 45) % 8, f = (a - i * 45) / 45, j = (i + 1) % 8;
+  const fw = fh * HEAD_FW / HEAD_FH * squeeze, a = ((headAngle() % 360) + 360) % 360, i = Math.floor(a / 45) % 8, f = (a - i * 45) / 45, j = (i + 1) % 8;
   ctx.drawImage(head, i * HEAD_FW, 0, HEAD_FW, HEAD_FH, cx - fw / 2, top, fw, fh);
-  const g = clamp((f - 0.3) / 0.4, 0, 1);                                 // quick blend in the middle, so it looks like one solid head
-  ctx.globalAlpha = 1 - g * 0; if (g > 0.02) { ctx.globalAlpha = g; ctx.drawImage(head, j * HEAD_FW, 0, HEAD_FW, HEAD_FH, cx - fw / 2, top, fw, fh); ctx.globalAlpha = 1; }
+  const g = clamp((f - 0.35) / 0.3, 0, 1);                                // quick switch in the middle of each 45°, so it looks like one solid head
+  if (g > 0.02) { ctx.globalAlpha = g; ctx.drawImage(head, j * HEAD_FW, 0, HEAD_FW, HEAD_FH, cx - fw / 2, top, fw, fh); ctx.globalAlpha = 1; }
 }
 
 // ---------- Sound ----------
@@ -236,10 +236,11 @@ function drawWindow() {
     ctx.fillStyle = pg; ctx.fillRect(px - 5, hy + hh * 0.8, 10, c.wy + c.wh - hy - hh * 0.8);
     // turn the body like a cutout spinning on a pole: it narrows edge-on and flips when it faces the other way
     const sx = Math.sin(bodyAngle() * Math.PI / 180), sxv = Math.sign(sx || 1) * Math.max(0.2, Math.abs(sx)), mid = hx + hw / 2;
+    // Abby's head goes on first, its neck tucked down into the hen's feathered collar, then the hen is drawn over it
+    const fh = hh * 0.43; drawHead(mid + (0.763 - 0.5) * hw * sxv, hy + hh * 0.34 - fh, fh, 0.8 + 0.2 * Math.abs(sx));
     ctx.save(); ctx.translate(mid, 0); ctx.scale(sxv, 1);
     ctx.filter = "brightness(" + (0.75 + 0.25 * Math.abs(sx)).toFixed(2) + ")";   // a little darker as it turns edge-on
     ctx.drawImage(hen, -hw / 2, hy, hw, hh); ctx.restore();
-    const fh = hh * 0.34; drawHead(mid + (0.83 - 0.5) * hw * sxv, hy + hh * 0.249 - fh * 0.8, fh);   // Abby's turning head sits right on the hen's neck (the chicken's own head was erased)
   }
   // the bed of eggs in front of her
   const er = c.ww * 0.05;
