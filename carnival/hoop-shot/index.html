@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Hoop Shot</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(38px, 12vw, 56px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .icon { font-size: 50px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <div class="icon">🏀</div>
+    <h1>Hoop Shot</h1>
+    <div class="rules">
+      <p><b>Swipe up</b> to shoot. Start your swipe where you want the ball across, angle it to steer, and swipe <b>faster to shoot farther</b>. Too soft hits the front of the rim; a little long can bank off the backboard.</p>
+      <p>You have <b>30 seconds</b>. Shoot as fast as you can: each basket is 2 points, and 3 in the last 10 seconds of 🔥 bonus time.</p>
+      <p>Score the goal to beat the round, or lose one of 3 tries. The goal goes up each round, and from round 3 the hoop slides side to side.</p>
+      <p>Make the 🟡 <b>gold ball</b> (one each round) to win 🪙 +1.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, TIME = 30, BONUS_TIME = 10, RELOAD = 0.35, FLY = 0.6;
+const goalFor  = n => Math.min(32, 14 + 2 * (n - 1));                   // points to score in 30 seconds
+const slideFor = n => n < 3 ? 0 : Math.min(2.2, 0.6 + 0.14 * (n - 3));  // how fast the hoop slides (from round 3)
+const SWIPE_FULL = 3.2;                                                 // swipe speed (lane lengths per second) that reaches the hoop
+const STEER = 0.5;
+const TOL_D = 0.09, TOL_U = 0.2, BANK = 0.3;                            // how close a shot must be; how much too long can still bank in
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.005, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.008, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  shoot() { noise(0.08, "bandpass", 700, 0.2, 1.5); },
+  swish() { noise(0.25, "highpass", 3500, 0.25, 0.7); },
+  rim() { tone(420, 0.25, "triangle", 0.18, 0, 380); tone(860, 0.15, "sine", 0.05); },
+  board() { tone(150, 0.12, "square", 0.15, 0, 90); noise(0.08, "lowpass", 900, 0.25); },
+  bounce() { tone(110, 0.08, "sine", 0.18, 0, 70); },
+  buzzer() { tone(180, 0.7, "sawtooth", 0.12); tone(185, 0.7, "square", 0.06); },
+  tick() { tone(1000, 0.03, "square", 0.04); },
+  gold() { [1568, 2093, 2637].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, 0.05 + i * 0.05)); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, pts: 0, lives: LIVES, best: +store.get("hs-best") || 0, stateT: 0, t: 0, timeLeft: TIME,
+  balls: [], reload: 0, shots: 0, goldAt: 0, swipe: null, holdU: 0, hoopU: 0, pops: [], banner: null, pausedFrom: null, lastTick: 0, net: 0 };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function startRound() {
+  G.pts = 0; G.balls = []; G.reload = 0; G.shots = 0; G.goldAt = Math.floor(rand(3, 12)); G.timeLeft = TIME; G.swipe = null; G.holdU = 0; G.hoopU = 0;
+  G.banner = { big: "Round " + G.round, small: "Score " + goalFor(G.round) + " in 30 seconds", note: slideFor(G.round) ? "Watch out: the hoop is moving!" : "Shoot fast!" };
+  setState("intro");
+}
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; hideOverlays(); layout(); startRound();
+}
+const nextIsGold = () => G.shots === G.goldAt;
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 58 + L.safeT; L.foot = (W > H ? 34 : 54) + L.safeB;
+  const top = L.hudH + 4, bottom = H - L.foot, h = bottom - top;
+  L.cx = W / 2;
+  L.boardTop = top + 6; L.boardH = h * 0.27;                              // backboard with the clock and score
+  L.rimY = L.boardTop + L.boardH * 0.92;                                  // the rim, at the bottom of the backboard
+  L.laneTop = L.rimY + h * 0.1; L.laneBot = bottom - 6; L.laneLen = L.laneBot - L.laneTop;
+  L.lw = Math.min(W / 2 - 16, h * 0.4);                                   // lane half-width at the bottom
+  L.bw = Math.min(L.lw * 1.15, W / 2 - 20);                               // backboard half-width
+  L.rimW = L.lw * 0.62 * 0.36;                                            // rim half-width in pixels
+}
+const laneHW = d => L.lw * (1 - 0.38 * clamp(d, 0, 1.4));
+const laneY = d => L.laneBot - d * L.laneLen;                             // floor of the lane at depth d (1 = under the hoop)
+const hoopX = () => L.cx + G.hoopU * laneHW(1);
+const ballR = d => L.lw * 0.13 * (1 - 0.4 * clamp(d, 0, 1.3));
+
+// ---------- Shooting ----------
+const uAt = x => clamp((x - L.cx) / (laneHW(0) * 0.85), -1, 1);
+function swipeStart(e) { if (G.state !== "play") return; audio(); G.swipe = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }; G.holdU = uAt(e.clientX); }
+function swipeMove(e) { const sw = G.swipe; if (!sw || sw.id !== e.pointerId || G.state !== "play") return; sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (sw.pts.length > 40) sw.pts.shift(); if (sw.pts[0].y - e.clientY < 12) G.holdU = uAt(e.clientX); }
+function swipeEnd(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId) return; G.swipe = null;
+  if (G.state !== "play" || G.reload > 0) return;
+  const now = performance.now(); sw.pts.push({ x: e.clientX, y: e.clientY, t: now });
+  const first = sw.pts[0], last = sw.pts[sw.pts.length - 1], up = first.y - last.y; if (up < 25) return;
+  const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
+  for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[i].y - rec[j].y) / dt * 1000); break; } }
+  const d = speed / (L.laneLen * SWIPE_FULL), u0 = uAt(first.x), u1 = clamp(u0 + STEER * (last.x - first.x) / up * L.laneLen / laneHW(0.5), -1.2, 1.2);
+  shoot(u0, u1, d);
+}
+function shoot(u0, u1, d) {
+  const gold = nextIsGold(); G.shots++;
+  G.balls.push({ u0, u1, d, t: 0, phase: "fly", gold, x: 0, y: 0, r: 0, result: null });
+  G.reload = RELOAD; G.holdU = 0; sfx.shoot();
+}
+function judge(b) {
+  // where the hoop is when the ball gets there
+  const du = Math.abs(b.u1 - G.hoopU) * laneHW(1) / L.rimW * 0.36;     // across error in rim units
+  const inX = Math.abs(b.u1 - G.hoopU) < TOL_U, nearX = Math.abs(b.u1 - G.hoopU) < TOL_U * 1.6;
+  void du;
+  if (inX && Math.abs(b.d - 1) < TOL_D) return "swish";
+  if (nearX && b.d > 1 + TOL_D && b.d < 1 + BANK) return Math.random() < 0.45 ? "bank" : "board";
+  if (nearX && b.d >= 1 - TOL_D * 2.2 && b.d <= 1 + TOL_D) return "rim";
+  if (b.d >= 1 + BANK) return "board";
+  return "short";
+}
+function score(b, kind) {
+  const p = G.timeLeft <= BONUS_TIME ? 3 : 2; G.pts += p; G.score += p * 10;
+  G.pops.push({ x: hoopX(), y: L.rimY - 30, text: (kind === "bank" ? "Bank! +" : "+") + p, color: b.gold ? "#ffd75e" : "#fff", t: 0 });
+  G.net = 1;
+  if (b.gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ x: hoopX(), y: L.rimY + 4, text: "🪙 +1", color: "#ffd75e", t: 0 }); }
+}
+
+// ---------- Update ----------
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.6) setState("play");
+  if ((G.state === "play" || G.state === "buzz") && slideFor(G.round)) G.hoopU = Math.sin(G.t * slideFor(G.round)) * 0.5;
+  if (G.state === "play") {
+    G.timeLeft -= dt; G.reload = Math.max(0, G.reload - dt);
+    if (G.timeLeft < 5 && G.t - G.lastTick > 1) { G.lastTick = G.t; sfx.tick(); }
+    if (G.timeLeft <= 0) { G.timeLeft = 0; G.swipe = null; sfx.buzzer(); setState("buzz"); }
+  }
+  for (const b of G.balls) {
+    b.t += dt;
+    if (b.phase === "fly") {
+      const k = Math.min(1, b.t / FLY), endD = Math.min(b.d, 1.35), u = b.u0 + (b.u1 - b.u0) * k, dd = endD * k;
+      const sx = L.cx + u * laneHW(dd), base = laneY(0) + (L.rimY - laneY(0)) * (dd / 1), arc = Math.sin(Math.PI * k) * L.laneLen * 0.5 * Math.min(1, b.d + 0.2);
+      b.x = sx; b.y = base - arc; b.r = ballR(dd);
+      if (k >= 1) {
+        const kind = judge(b); b.result = kind; b.t = 0;
+        if (kind === "swish" || kind === "bank") { b.phase = "in"; b.x = hoopX(); b.y = L.rimY; kind === "bank" ? sfx.board() : 0; sfx.swish(); score(b, kind); }
+        else { b.phase = "bounce"; b.vx = (kind === "rim" ? rand(-1, 1) * 180 : rand(-60, 60)); b.vy = kind === "short" ? 40 : -rand(60, 160); kind === "rim" ? sfx.rim() : kind === "board" ? sfx.board() : sfx.bounce();
+          G.pops.push({ x: b.x, y: b.y - 24, text: kind === "short" ? "Too short!" : kind === "board" ? "Too long!" : "Rim!", color: "#fff", t: 0 }); }
+      }
+    } else if (b.phase === "in") {
+      b.y += dt * 260; if (b.t > 0.3) { b.phase = "back"; b.t = 0; b.bx = b.x; b.by = b.y; }
+    } else if (b.phase === "bounce") {
+      b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.y > laneY(0.85)) { b.phase = "back"; b.t = 0; b.bx = b.x; b.by = b.y; sfx.bounce(); }
+    } else if (b.phase === "back") { // rolls back down the lane to you
+      const k = Math.min(1, b.t / 0.7); b.x = b.bx + (L.cx + L.lw * 0.9 - b.bx) * k; b.y = b.by + (L.laneBot + 20 - b.by) * k; b.r = ballR(1 - k);
+      if (k >= 1) b.done = true;
+    }
+  }
+  G.balls = G.balls.filter(b => !b.done);
+  if (G.state === "buzz" && G.balls.every(b => b.phase === "back" || b.done) && G.stateT > 0.6) endRound();
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  G.net = Math.max(0, G.net - dt * 2.5);
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1);
+}
+function endRound() {
+  const goal = goalFor(G.round);
+  if (G.pts >= goal) {
+    const bonus = 50 * G.round + (G.pts - goal) * 20; G.score += bonus;
+    G.banner = { big: "Round clear!", small: G.pts + " points · +" + bonus + " bonus", note: "Next round: a higher score to beat", win: true };
+    setState("clear"); sfx.win(); return;
+  }
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Not enough!", small: G.pts + " of " + goal + " · " + (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Try that round again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("hs-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawBooth() {
+  // purple back wall with an arch of lights
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#5a4a8a"); g.addColorStop(1, "#3a2a5a"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(0,0,0,.12)"; ctx.lineWidth = 2; for (let x = 0; x < W; x += 14) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, L.laneTop); ctx.stroke(); }
+  const n = 16; for (let i = 0; i < n; i++) { const a = Math.PI + i / (n - 1) * Math.PI, on = (Math.floor(G.t * 5) + i) % 3 === 0;
+    ctx.fillStyle = on ? "#fff3a0" : "#f2b02c"; ctx.beginPath(); ctx.arc(L.cx + Math.cos(a) * (L.bw + 26), L.boardTop + L.boardH * 0.75 + Math.sin(a) * (L.boardH * 0.75 + 10), on ? 6 : 4.5, 0, 7); ctx.fill(); }
+  // side nets
+  ctx.strokeStyle = "rgba(255,200,140,.45)"; ctx.lineWidth = 1.2;
+  for (const side of [-1, 1]) {
+    const x0 = L.cx + side * laneHW(1.1), x1 = L.cx + side * (L.lw + 10);
+    for (let k = 0; k < 12; k++) { const f = k / 11; ctx.beginPath(); ctx.moveTo(x0 + (x1 - x0) * f, L.rimY - 30); ctx.lineTo(x0 + (x1 - x0) * Math.min(1, f + 0.3), L.laneBot); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0 + (x1 - x0) * f, L.rimY - 30); ctx.lineTo(x0 + (x1 - x0) * Math.max(0, f - 0.3), L.laneBot); ctx.stroke(); }
+  }
+  // wooden lane sloping up to the hoop
+  const a = { x: L.cx - laneHW(0), y: laneY(0) }, b = { x: L.cx + laneHW(0), y: laneY(0) }, c = { x: L.cx + laneHW(1.15), y: laneY(1.15) }, d = { x: L.cx - laneHW(1.15), y: laneY(1.15) };
+  const lg = ctx.createLinearGradient(0, a.y, 0, d.y); lg.addColorStop(0, "#f0a04a"); lg.addColorStop(1, "#d07a2a");
+  ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(120,50,10,.2)"; ctx.lineWidth = 1;
+  for (let k = 1; k < 10; k++) { const u = -1 + k * 0.2; ctx.beginPath(); ctx.moveTo(L.cx + u * laneHW(0), laneY(0)); ctx.lineTo(L.cx + u * laneHW(1.15), laneY(1.15)); ctx.stroke(); }
+  // front of the cabinet
+  ctx.fillStyle = "#7a5a9a"; rr(a.x - 14, a.y, b.x - a.x + 28, H - a.y, 8); ctx.fill();
+  ctx.fillStyle = "#d8702a"; rr(a.x - 14, a.y, b.x - a.x + 28, 10, 5); ctx.fill();
+}
+function drawBackboard() {
+  const x = L.cx - L.bw, y = L.boardTop, w = L.bw * 2, h = L.boardH;
+  ctx.fillStyle = "#d8702a"; rr(x - 6, y - 6, w + 12, h + 12, 12); ctx.fill();
+  ctx.fillStyle = "#fff4e0"; rr(x, y, w, h, 8); ctx.fill();
+  // target square over the rim (moves with the hoop)
+  const hx = hoopX(), sq = L.rimW * 1.5;
+  ctx.strokeStyle = "#e05a2a"; ctx.lineWidth = 4; ctx.strokeRect(hx - sq * 0.7, L.rimY - sq * 1.1, sq * 1.4, sq * 1.0);
+  // clock and score
+  const dy = y + h * 0.12, dh = Math.min(34, h * 0.26), dw = w * 0.3;
+  ctx.fillStyle = "#16163a"; rr(x + w * 0.06, dy, dw, dh, 5); ctx.fill(); rr(x + w * 0.64, dy, dw, dh, 5); ctx.fill();
+  ctx.font = `800 ${Math.round(dh * 0.72)}px ui-monospace, Menlo, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = G.timeLeft <= BONUS_TIME && G.state === "play" ? "#ff7a5a" : "#7aff8a"; const s = Math.ceil(G.timeLeft);
+  ctx.fillText("0:" + String(s).padStart(2, "0"), x + w * 0.06 + dw / 2, dy + dh / 2 + 1);
+  ctx.fillStyle = "#7aff8a"; ctx.fillText(String(G.pts).padStart(3, "0"), x + w * 0.64 + dw / 2, dy + dh / 2 + 1);
+  ctx.font = "700 11px system-ui, sans-serif"; ctx.fillStyle = "#8a5a3a"; ctx.fillText("TIME", x + w * 0.06 + dw / 2, dy + dh + 9); ctx.fillText("SCORE", x + w * 0.64 + dw / 2, dy + dh + 9);
+  if (G.timeLeft <= BONUS_TIME && G.state === "play" && Math.floor(G.t * 3) % 2) { ctx.fillStyle = "#e05a2a"; ctx.font = "800 13px system-ui, sans-serif"; ctx.fillText("🔥 BONUS TIME 3 PTS", L.cx, dy + dh / 2); }
+}
+function drawRim(front) {
+  const hx = hoopX(), rw = L.rimW, rh = rw * 0.32;
+  ctx.strokeStyle = "#e8501a"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.ellipse(hx, L.rimY, rw, rh, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); ctx.stroke();
+  if (front) { // net
+    const sway = Math.sin(G.t * 20) * G.net * 4, nh = rw * 1.1;
+    ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1.4;
+    for (let k = 0; k <= 8; k++) { const f = k / 8, x0 = hx - rw + 2 * rw * f, x1 = hx - rw * 0.55 + 1.1 * rw * f + sway;
+      ctx.beginPath(); ctx.moveTo(x0, L.rimY + Math.sin(Math.PI * f) * rh); ctx.lineTo(x1, L.rimY + nh + G.net * 6); ctx.stroke(); }
+    for (let j = 1; j <= 3; j++) { const f = j / 4, w = rw * (1 - 0.45 * f), yy = L.rimY + nh * f + G.net * 6 * f; ctx.beginPath(); ctx.ellipse(hx + sway * f, yy, w, rh * (1 - 0.4 * f), 0, 0, Math.PI); ctx.stroke(); }
+  }
+}
+function ballAt(x, y, r, gold) {
+  ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x + 3, y + r * 0.9, r * 0.9, r * 0.3, 0, 0, 7); ctx.fill();
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+  if (gold) { g.addColorStop(0, "#fff6b0"); g.addColorStop(1, "#c8960c"); } else { g.addColorStop(0, "#ffb070"); g.addColorStop(1, "#c8501a"); }
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = "rgba(40,16,6,.7)"; ctx.lineWidth = Math.max(1, r * 0.08);
+  ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x - r * 1.35, y, r * 1.05, -0.75, 0.75); ctx.stroke(); ctx.beginPath(); ctx.arc(x + r * 1.35, y, r * 1.05, Math.PI - 0.75, Math.PI + 0.75); ctx.stroke();
+}
+function drawBalls(behind) {
+  for (const b of G.balls) {
+    const isBehind = b.phase === "in" || (b.phase === "fly" && b.t / FLY > 0.75 && b.d > 0.9);
+    if (isBehind !== behind) continue;
+    ballAt(b.x, b.y, b.r, b.gold);
+  }
+}
+function drawHand() {
+  if (G.state !== "play") return;
+  const ready = G.reload <= 0, p = { x: L.cx + (G.holdU || 0) * laneHW(0) * 0.85, y: laneY(0) - ballR(0) - 4 };
+  ctx.globalAlpha = ready ? 1 : 0.35; ballAt(p.x, p.y, ballR(0), nextIsGold()); ctx.globalAlpha = 1;
+  if (ready && !G.swipe) { const k = (G.t * 1.6) % 1; ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.lineCap = "round";
+    for (let j = 0; j < 3; j++) { const y = p.y - ballR(0) - 14 - j * 16 - k * 16; ctx.globalAlpha = 0.85 - j * 0.25; ctx.beginPath(); ctx.moveTo(p.x - 12, y + 8); ctx.lineTo(p.x, y - 4); ctx.lineTo(p.x + 12, y + 8); ctx.stroke(); }
+    ctx.globalAlpha = 1; }
+}
+function drawHUD() {
+  const y = L.safeT + 29; ctx.fillStyle = "rgba(20,4,10,.8)"; ctx.fillRect(0, 0, W, L.hudH - 4);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 26px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 3);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Points " + G.pts + "/" + goalFor(G.round) + "   Tries: " + G.lives, W / 2, y + 17);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  if (G.state === "play") { ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+    ctx.fillText(nextIsGold() ? "🟡 GOLD BALL! Swipe up to shoot" : "SWIPE UP to shoot", W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0; }
+}
+function drawFx() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = clamp(1 - p.t, 0, 1); ctx.font = "800 22px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    const px = clamp(p.x, 70, W - 70); ctx.strokeText(p.text, px, p.y - p.t * 34); ctx.fillStyle = p.color; ctx.fillText(p.text, px, p.y - p.t * 34); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.laneTop + L.laneLen * 0.4, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.9)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14, bw - 20);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26, bw - 20);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52, bw - 20); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawBooth(); drawBackboard(); drawRim(false); drawBalls(true); drawRim(true); drawBalls(false); drawHand(); drawFx(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} swipeStart(e); });
+cv.addEventListener("pointermove", e => { e.preventDefault(); swipeMove(e); });
+cv.addEventListener("pointerup", e => swipeEnd(e));
+cv.addEventListener("pointercancel", () => { G.swipe = null; });
+addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; G.swipe = null; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Make the gold ball for +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
