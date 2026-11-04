@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Frog Bog</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(38px, 12vw, 56px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .icon { font-size: 50px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <div class="icon">🐸</div>
+    <h1>Frog Bog</h1>
+    <div class="rules">
+      <p>The lily pads spin around the pond. <b>Swipe down on the mallet</b> to smack the lever and launch a frog. Swipe <b>harder to send it farther</b>.</p>
+      <p>Time it so a lily pad is where your frog lands: the near side of the pond or the far side. Miss and it’s a splash!</p>
+      <p>You get <b>5 frogs</b> a round. Land enough to beat the round, or lose one of 3 tries. Each round the pads spin faster and get smaller.</p>
+      <p>Land on the 🌼 <b>gold lily pad</b> to win 🪙 +1.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, FROGS = 5, PADS = 6, PAD_RING = 0.62;
+const goalFor  = n => n < 4 ? 2 : n < 10 ? 3 : 4;                        // frogs to land with 5
+const spinFor  = n => Math.min(2.1, 0.55 + 0.09 * (n - 1));              // how fast the pads go round (radians per second)
+const padFor   = n => Math.max(0.12, 0.2 - 0.006 * (n - 1));            // lily pad size
+const flipsFrom = 6;                                                    // from this round the spin sometimes changes direction
+const FLY = 0.75;                                                       // seconds a frog is in the air
+const SWIPE_MIN = 250, SWIPE_PER = 500;                                 // swipe speed (px/s) to start reaching the pond, and per pond-radius after that
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.005, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.008, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  smack() { tone(160, 0.1, "square", 0.25, 0, 70); noise(0.08, "lowpass", 900, 0.45); },
+  boing() { tone(220, 0.35, "sine", 0.18, 0, 660); },
+  ribbit() { tone(180, 0.07, "sawtooth", 0.12, 0, 120); tone(200, 0.09, "sawtooth", 0.12, 0.1, 130); },
+  splash() { noise(0.5, "bandpass", 900, 0.4, 0.8); noise(0.25, "highpass", 3000, 0.12, 1, 0.05); },
+  gold() { [1568, 2093, 2637].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, 0.05 + i * 0.05)); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, lives: LIVES, frogs: FROGS, landed: 0, best: +store.get("fb-best") || 0,
+  stateT: 0, t: 0, ang: 0, spin: 1, flipT: 0, gold: 0, frog: null, riders: [], ripples: [], pops: [], swipe: null, mallet: 0, banner: null, pausedFrom: null };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function startRound() {
+  G.frogs = FROGS; G.landed = 0; G.frog = null; G.riders = []; G.ripples = []; G.ang = rand(0, 6.28); G.spin = Math.random() < 0.5 ? 1 : -1; G.flipT = rand(3, 6);
+  G.gold = Math.floor(Math.random() * PADS);
+  G.banner = { big: "Round " + G.round, small: "Land " + goalFor(G.round) + " frogs on the lily pads", note: G.round >= flipsFrom ? "Watch out: the pads change direction!" : G.round > 1 ? "The pads spin faster now" : "" };
+  setState("intro");
+}
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; hideOverlays(); layout(); startRound();
+}
+const playing = () => ["aim", "flying", "result"].includes(G.state);
+const padPos = (i, ang = G.ang) => { const a = ang + i * Math.PI * 2 / PADS; return { x: Math.cos(a) * PAD_RING, y: Math.sin(a) * PAD_RING }; };
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 58 + L.safeT; L.foot = (W > H ? 34 : 54) + L.safeB;
+  const top = L.hudH + 6, bottom = H - L.foot, h = bottom - top;
+  L.cx = W / 2;
+  L.launchH = Math.min(h * 0.3, 190);
+  const ph = h - L.launchH - 10;
+  L.rx = Math.min(W / 2 - 16, ph / 0.62 / 2 * 0.98); L.ry = L.rx * 0.6;
+  L.cy = top + Math.max(L.ry + 6, ph / 2);
+  L.baseY = bottom - 12;                                                 // bottom of the launcher
+}
+const pondPt = (x, y) => ({ x: L.cx + x * L.rx, y: L.cy + y * L.ry });
+const frogStart = () => ({ x: L.cx - 30, y: L.baseY - 36 });
+
+// ---------- Swiping the mallet ----------
+function swipeStart(e) { if (G.state !== "aim") return; audio(); G.swipe = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }; }
+function swipeMove(e) { const sw = G.swipe; if (!sw || sw.id !== e.pointerId || G.state !== "aim") return; sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (sw.pts.length > 40) sw.pts.shift();
+  G.mallet = clamp((e.clientY - sw.pts[0].y) / 80, 0, 1) * -0.5; }
+function swipeEnd(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId) return; G.swipe = null; G.mallet = 0;
+  if (G.state !== "aim") return;
+  const now = performance.now(); sw.pts.push({ x: e.clientX, y: e.clientY, t: now });
+  const down = sw.pts[sw.pts.length - 1].y - sw.pts[0].y; if (down < 25) return;
+  const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
+  for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[j].y - rec[i].y) / dt * 1000); break; } }
+  launch(speed);
+}
+function launch(speed) {
+  // how far up the pond: 0 = the near edge, 2 = the far edge
+  const d = (speed - SWIPE_MIN) / SWIPE_PER;
+  G.frog = { d, ly: 1 - d, t: 0 }; G.frogs--; G.mallet = 1; sfx.smack(); sfx.boing(); setState("flying");
+}
+function land() {
+  const f = G.frog, ly = f.ly, size = padFor(G.round);
+  if (ly < -1.1 || f.d < -0.15) {                                       // over the pond or short of it
+    G.pops.push({ ...pondPt(0, clamp(ly, -1.05, 1.1)), text: f.d < -0.15 ? "Too soft!" : "Too hard!", color: "#fff", t: 0 });
+    if (ly < -1.1) { G.ripples.push({ x: 0, y: -1.02, t: 0 }); sfx.splash(); } setState("result"); return;
+  }
+  let hit = -1;
+  for (let i = 0; i < PADS; i++) { const p = padPos(i); if (Math.hypot(p.x, (p.y - ly) * 1) < size * 1.05) { hit = i; break; } }
+  if (hit < 0) { G.ripples.push({ x: 0, y: ly, t: 0 }); sfx.splash(); G.pops.push({ ...pondPt(0, ly), text: "Splash!", color: "#cfeaff", t: 0 }); setState("result"); return; }
+  // ride along on the pad
+  const p = padPos(hit), a0 = G.ang + hit * Math.PI * 2 / PADS;
+  G.riders.push({ pad: hit, dx: (0 - p.x), dy: (ly - p.y), a0 });
+  G.landed++; sfx.ribbit();
+  const gold = hit === G.gold, pts = gold ? 30 : 10; G.score += pts;
+  G.pops.push({ ...pondPt(0, ly), text: gold ? "+30 GOLD!" : "+10", color: gold ? "#ffd75e" : "#fff", t: 0 });
+  if (gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ ...pondPt(0, ly + 0.25), text: "🪙 +1", color: "#ffd75e", t: 0 }); G.gold = -1; }
+  setState("result");
+}
+function afterFrog() {
+  const goal = goalFor(G.round);
+  if (G.frogs > 0) { G.frog = null; setState("aim"); return; }
+  if (G.landed >= goal) {
+    const bonus = 50 * G.round * (G.landed - goal + 1); G.score += bonus;
+    G.banner = { big: G.landed === FROGS ? "5 for 5!" : "Round clear!", small: G.landed + " frogs landed · +" + bonus + " points", note: "Next round: faster pads", win: true };
+    setState("clear"); sfx.win(); return;
+  }
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Not enough frogs", small: G.landed + " of " + goal + " · " + (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Try that round again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("fb-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.6) setState("aim");
+  if (playing() || G.state === "intro") {
+    G.ang += dt * spinFor(G.round) * G.spin;
+    if (G.round >= flipsFrom && playing()) { G.flipT -= dt; if (G.flipT <= 0) { G.spin *= -1; G.flipT = rand(2.5, 5.5); } }
+  }
+  if (G.state === "flying") { G.frog.t += dt / FLY; if (G.frog.t >= 1) land(); }
+  if (G.state === "result" && G.stateT > 0.55) afterFrog();
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  if (G.mallet > 0) G.mallet = Math.max(0, G.mallet - dt * 3);
+  for (const r of G.ripples) r.t += dt; G.ripples = G.ripples.filter(r => r.t < 1.2);
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.1);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawPond() {
+  // grass
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#4f8a3a"); g.addColorStop(1, "#2f5a22"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // stone rim and water
+  ctx.fillStyle = "#8a7a62"; ctx.beginPath(); ctx.ellipse(L.cx, L.cy + 6, L.rx + 12, L.ry + 10, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#a89a80"; ctx.beginPath(); ctx.ellipse(L.cx, L.cy, L.rx + 10, L.ry + 8, 0, 0, 7); ctx.fill();
+  const w = ctx.createRadialGradient(L.cx, L.cy - L.ry * 0.3, L.rx * 0.1, L.cx, L.cy, L.rx); w.addColorStop(0, "#5ab8d8"); w.addColorStop(1, "#2a6a98");
+  ctx.fillStyle = w; ctx.beginPath(); ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, 7); ctx.fill();
+  // the spinning turntable ring under the pads
+  ctx.strokeStyle = "rgba(20,60,90,.45)"; ctx.lineWidth = Math.max(4, L.ry * 0.08);
+  ctx.beginPath(); ctx.ellipse(L.cx, L.cy, PAD_RING * L.rx, PAD_RING * L.ry, 0, 0, 7); ctx.stroke();
+  // shimmer
+  ctx.strokeStyle = "rgba(255,255,255,.18)"; ctx.lineWidth = 2;
+  for (let k = 0; k < 5; k++) { const a = G.t * 0.3 + k * 1.3; ctx.beginPath(); ctx.ellipse(L.cx + Math.cos(a) * L.rx * 0.3, L.cy + Math.sin(a * 1.3) * L.ry * 0.4, L.rx * 0.12, L.ry * 0.05, 0, 0, Math.PI); ctx.stroke(); }
+  // center fountain
+  ctx.fillStyle = "#c8c0b0"; ctx.beginPath(); ctx.ellipse(L.cx, L.cy, L.rx * 0.13, L.ry * 0.13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(220,245,255,.85)";
+  for (let k = 0; k < 6; k++) { const ph = (G.t * 1.5 + k / 6) % 1, a = k * 1.05; ctx.globalAlpha = 1 - ph;
+    ctx.beginPath(); ctx.arc(L.cx + Math.cos(a) * L.rx * 0.09 * ph * 1.5, L.cy - L.ry * 0.35 * Math.sin(Math.PI * ph) + Math.sin(a) * L.ry * 0.05, 2.5, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // landing line straight out from the launcher
+  if (G.state === "aim") { ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.setLineDash([5, 7]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L.cx, L.cy + L.ry); ctx.lineTo(L.cx, L.cy - L.ry); ctx.stroke(); ctx.setLineDash([]); }
+  for (const r of G.ripples) { const p = pondPt(r.x, r.y), k = r.t / 1.2; ctx.strokeStyle = `rgba(230,250,255,${1 - k})`; ctx.lineWidth = 2;
+    for (let j = 0; j < 3; j++) { const s = k * (1 + j * 0.5); ctx.beginPath(); ctx.ellipse(p.x, p.y, 8 + s * 30, (8 + s * 30) * 0.6, 0, 0, 7); ctx.stroke(); } }
+}
+function drawPad(i) {
+  const p = padPos(i), q = pondPt(p.x, p.y), r = padFor(G.round) * L.rx, a = G.ang + i * Math.PI * 2 / PADS;
+  ctx.save(); ctx.translate(q.x, q.y); ctx.scale(1, 0.6);
+  ctx.fillStyle = "rgba(0,30,50,.3)"; ctx.beginPath(); ctx.arc(3, 5, r, 0, 7); ctx.fill();
+  const gold = i === G.gold;
+  ctx.fillStyle = gold ? "#e8c22c" : "#3aa84a"; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, a + 0.35, a - 0.35 + Math.PI * 2); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = gold ? "#a8860c" : "#22782e"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = gold ? "rgba(255,255,255,.5)" : "rgba(160,230,140,.5)"; ctx.lineWidth = 1.2;
+  for (let k = 1; k < 6; k++) { const b = a + 0.35 + k * (Math.PI * 2 - 0.7) / 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(b) * r * 0.9, Math.sin(b) * r * 0.9); ctx.stroke(); }
+  ctx.restore();
+  if (gold) { // a flower on the gold pad
+    const tw = 0.6 + 0.4 * Math.sin(G.t * 5);
+    for (let k = 0; k < 6; k++) { const b = k * 1.047 + G.t; ctx.fillStyle = "#fff8d8"; ctx.beginPath(); ctx.ellipse(q.x + Math.cos(b) * r * 0.22, q.y - r * 0.12 + Math.sin(b) * r * 0.13, r * 0.14, r * 0.09, b, 0, 7); ctx.fill(); }
+    ctx.fillStyle = "#f2a01c"; ctx.beginPath(); ctx.arc(q.x, q.y - r * 0.12, r * 0.12, 0, 7); ctx.fill();
+    ctx.strokeStyle = `rgba(255,240,160,${tw})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(q.x, q.y, r * 1.18, r * 0.72, 0, 0, 7); ctx.stroke();
+  }
+}
+function drawFrog(x, y, s, jump) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = "#2f9a3a";
+  // legs
+  ctx.beginPath(); ctx.ellipse(-12, 6 - jump * 4, 8, 4 + jump * 4, -0.5 - jump, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(12, 6 - jump * 4, 8, 4 + jump * 4, 0.5 + jump, 0, 7); ctx.fill();
+  // body
+  ctx.fillStyle = "#4ac84a"; ctx.beginPath(); ctx.ellipse(0, 0, 13, 10, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#c8f0a0"; ctx.beginPath(); ctx.ellipse(0, 3, 8, 5, 0, 0, 7); ctx.fill();
+  // eyes
+  for (const ex of [-6, 6]) { ctx.fillStyle = "#4ac84a"; ctx.beginPath(); ctx.arc(ex, -9, 5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex, -9, 3.4, 0, 7); ctx.fill(); ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(ex, -9, 1.7, 0, 7); ctx.fill(); }
+  ctx.strokeStyle = "#1a5a22"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -2, 5, 0.3, Math.PI - 0.3); ctx.stroke();
+  ctx.restore();
+}
+function drawLauncher() {
+  const fs = frogStart(), y = L.baseY, s = Math.min(1.4, L.launchH / 120);
+  // wooden stand
+  ctx.fillStyle = "#6a3a1a"; rr(L.cx - 70 * s, y - 14 * s, 140 * s, 18 * s, 6); ctx.fill();
+  ctx.fillStyle = "#8a5228"; ctx.beginPath(); ctx.moveTo(L.cx - 8 * s, y - 14 * s); ctx.lineTo(L.cx + 8 * s, y - 14 * s); ctx.lineTo(L.cx, y - 32 * s); ctx.fill();
+  // the lever (seesaw): smacked end goes down, frog end goes up
+  const tilt = (G.mallet > 0 ? -0.35 * G.mallet : 0.12);
+  ctx.save(); ctx.translate(L.cx, y - 32 * s); ctx.rotate(tilt);
+  ctx.fillStyle = "#c8873c"; rr(-62 * s, -5 * s, 124 * s, 10 * s, 4); ctx.fill();
+  ctx.fillStyle = "#e8302a"; ctx.beginPath(); ctx.arc(56 * s, -6 * s, 9 * s, Math.PI, 0); ctx.fill();          // the target the mallet hits
+  ctx.restore();
+  // the frog waiting on the lever
+  if (G.state === "aim" || G.state === "intro") drawFrog(fs.x, fs.y - 6 * s, 0.9 * s, 0);
+  // the mallet
+  const up = G.swipe ? -0.6 + G.mallet * 0 : 0, swing = G.mallet > 0 ? 0.9 * G.mallet : (G.swipe ? -0.4 : -0.2);
+  ctx.save(); ctx.translate(L.cx + 95 * s, y - 40 * s); ctx.rotate(-swing - up * 0);
+  ctx.fillStyle = "#8a5a2a"; rr(-4 * s, -70 * s, 8 * s, 70 * s, 3); ctx.fill();
+  ctx.fillStyle = "#b03028"; rr(-24 * s, -88 * s, 48 * s, 26 * s, 8); ctx.fill();
+  ctx.fillStyle = "#d84a3a"; rr(-24 * s, -88 * s, 48 * s, 8 * s, 4); ctx.fill();
+  ctx.restore();
+  if (G.state === "aim" && !G.swipe) { // swipe-down hint over the mallet
+    const k = (G.t * 1.6) % 1, x = L.cx + 95 * s; ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.lineCap = "round";
+    for (let j = 0; j < 3; j++) { const yy = y - 150 * s + j * 14 + k * 14; ctx.globalAlpha = 0.85 - j * 0.25; ctx.beginPath(); ctx.moveTo(x - 11, yy - 6); ctx.lineTo(x, yy + 5); ctx.lineTo(x + 11, yy - 6); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+}
+function drawFlying() {
+  const f = G.frog; if (!f || G.state !== "flying") return;
+  const a = frogStart(), b = pondPt(0, clamp(f.ly, -1.05, 1.15)), t = f.t;
+  const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t - Math.sin(Math.PI * t) * (L.ry * 1.2 + 60);
+  ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x, a.y + (b.y - a.y) * t + 6, 10, 4, 0, 0, 7); ctx.fill();
+  drawFrog(x, y, (0.9 + Math.sin(Math.PI * t) * 0.5) * clamp(L.rx / 170, 0.6, 1.2), 1);
+}
+function drawHUD() {
+  const y = L.safeT + 29; ctx.fillStyle = "rgba(20,4,10,.8)"; ctx.fillRect(0, 0, W, L.hudH - 4);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 26px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 3);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Frogs: " + G.frogs + "   Landed: " + G.landed + "/" + goalFor(G.round) + "   Tries: " + G.lives, W / 2, y + 17);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  if (G.state === "aim") { ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+    ctx.fillText("SWIPE DOWN to smack the mallet", W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0; }
+}
+function drawFx() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = clamp(1.1 - p.t, 0, 1); ctx.font = "800 22px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    const px = clamp(p.x, 70, W - 70); ctx.strokeText(p.text, px, p.y - 22 - p.t * 34); ctx.fillStyle = p.color; ctx.fillText(p.text, px, p.y - 22 - p.t * 34); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.cy, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.9)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14, bw - 20);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26, bw - 20);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52, bw - 20); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawPond();
+  // pads and the frogs riding them, back to front
+  const order = [...Array(PADS).keys()].sort((a, b) => padPos(a).y - padPos(b).y);
+  for (const i of order) {
+    drawPad(i);
+    for (const r of G.riders) if (r.pad === i) { const p = padPos(i), d = G.ang + i * Math.PI * 2 / PADS - r.a0, c = Math.cos(d), sn = Math.sin(d), q = pondPt(p.x + (r.dx * c - r.dy * sn) * 0.6, p.y + (r.dx * sn + r.dy * c) * 0.6); drawFrog(q.x, q.y - 6, 0.75 * (L.rx / 170), 0); }
+  }
+  drawLauncher(); drawFlying(); drawFx(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} swipeStart(e); });
+cv.addEventListener("pointermove", e => { e.preventDefault(); swipeMove(e); });
+cv.addEventListener("pointerup", e => swipeEnd(e));
+cv.addEventListener("pointercancel", () => { G.swipe = null; G.mallet = 0; });
+addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; G.swipe = null; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". The gold lily pad pays +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
