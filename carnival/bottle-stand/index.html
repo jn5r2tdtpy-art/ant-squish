@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Bottle Stand</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(36px, 11vw, 54px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .icon { font-size: 50px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <div class="icon">🍾🎣</div>
+    <h1>Bottle Stand</h1>
+    <div class="rules">
+      <p>The ring on your fishing pole is hooked on the bottle’s neck. <b>Hold your finger down and slide it</b> to move the pole and slowly pull the bottle up straight.</p>
+      <p><b>Go easy!</b> The string turns red when you pull too hard, and if you yank it the ring slips off.</p>
+      <p>When the bottle is standing straight, <b>lift your finger</b> to let go. If it stays standing, you win the round. If it tips over, you lose one of 3 tries.</p>
+      <p>Beat the clock. Each round the clock is shorter and the bottle is wobblier. Every 5th round is a 🟡 <b>gold bottle</b> that pays 🪙 +1.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3;
+const timeFor   = n => Math.max(12, 30 - 1.5 * (n - 1));                 // seconds to stand the bottle
+const slipFor   = n => Math.max(0.15, 0.3 - 0.012 * (n - 1));           // how far the string can stretch before the ring slips (bottle lengths)
+const zoneFor   = n => Math.max(0.05, 0.09 - 0.004 * (n - 1));          // how close to straight it must be to stand (radians)
+const wobbleFor = n => Math.min(3, 0.6 * (n - 1));                      // random wobble on the bottle
+const lagFor    = n => Math.max(5, 14 - 0.7 * (n - 1));                  // how quickly the pole follows your finger (lower = heavier)
+const isGold    = n => n % 5 === 0;
+const STRING = 0.55, K = 60, GRAV = 6, DAMP = 1.6, LYING = 1.32;          // bottle physics (lengths are in bottle lengths)
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.005, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.008, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  clink() { tone(2200, 0.25, "sine", 0.12); tone(3300, 0.18, "sine", 0.05, 0.01); },
+  slip() { tone(1200, 0.15, "triangle", 0.1, 0, 500); },
+  thud() { tone(120, 0.18, "triangle", 0.3, 0, 60); noise(0.12, "lowpass", 600, 0.3); tone(1800, 0.2, "sine", 0.06, 0.02); },
+  tick() { tone(1000, 0.03, "square", 0.04); },
+  gold() { [1568, 2093, 2637].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, 0.05 + i * 0.05)); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+// bottle angle th: 0 = standing straight, negative = leaning left, positive = leaning right (math coords, y up, bottle length 1)
+const G = { state: "title", round: 1, score: 0, lives: LIVES, best: +store.get("bs-best") || 0, stateT: 0, t: 0, timeLeft: 0,
+  th: 0, w: 0, hooked: true, tip: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, ring: null, stretch: 0, touch: null, noise: 0, noiseT: 0, lastTick: 0, banner: null, pops: [], pausedFrom: null };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+const neck = th => ({ x: Math.sin(th), y: Math.cos(th) });
+function startRound() {
+  const side = G.round % 2 ? -1 : 1;
+  G.th = side * LYING; G.w = 0; G.hooked = true; G.ring = null; G.touch = null; G.stretch = 0; G.noise = 0;
+  const n = neck(G.th); G.tip = { x: n.x, y: n.y + STRING }; G.aim = { ...G.tip };
+  G.timeLeft = timeFor(G.round);
+  G.banner = { big: (isGold(G.round) ? "Gold Bottle! " : "Round ") + G.round, small: "Stand the bottle up in " + Math.round(timeFor(G.round)) + " seconds", note: isGold(G.round) ? "Stand it up to win 🪙 +1" : G.round > 1 ? "Wobblier bottle, shorter clock" : "Hold your finger down and slide it slowly" };
+  setState("intro");
+}
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; hideOverlays(); layout(); startRound();
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 58 + L.safeT; L.foot = (W > H ? 30 : 50) + L.safeB;
+  const top = L.hudH, bottom = H - L.foot, h = bottom - top;
+  L.unit = Math.min(h * 0.36, W * 0.42);                                 // one bottle length in pixels
+  L.bx = W / 2; L.by = bottom - Math.min(h * 0.18, 120);                 // base of the bottle, on the stand
+}
+const toScreen = p => ({ x: L.bx + p.x * L.unit, y: L.by - p.y * L.unit });
+const toWorld = (x, y) => ({ x: (x - L.bx) / L.unit, y: (L.by - y) / L.unit });
+
+// ---------- Touch: move the pole ----------
+function touchStart(e) {
+  if (G.state !== "play" || !G.hooked) return; audio();
+  const f = toWorld(e.clientX, e.clientY); G.touch = { id: e.pointerId, ox: G.aim.x - f.x, oy: G.aim.y - f.y };
+}
+function touchMove(e) { const t = G.touch; if (!t || t.id !== e.pointerId || G.state !== "play") return; const f = toWorld(e.clientX, e.clientY); G.aim = { x: clamp(f.x + t.ox, -1.6, 1.6), y: clamp(f.y + t.oy, 0.1, 2.2) }; }
+function touchEnd(e) {
+  const t = G.touch; if (!t || t.id !== e.pointerId) return; G.touch = null;
+  if (G.state === "play" && G.hooked) letGo();
+}
+function letGo() { G.hooked = false; G.ring = { ...neck(G.th), vx: 0, vy: 0 }; sfx.clink(); setState("letgo"); }
+
+// ---------- Physics ----------
+function step(dt) {
+  const n = G.round, zone = zoneFor(n), nk = neck(G.th);
+  let torque = 0;
+  // gravity: tips the bottle over unless it is close enough to straight to rest on its base
+  if (Math.abs(G.th) < zone) torque += -40 * G.th; else torque += GRAV * Math.sin(G.th);
+  // the string pulls the neck toward the pole tip once it is tight
+  G.stretch = 0;
+  if (G.hooked) {
+    const dx = G.tip.x - nk.x, dy = G.tip.y - nk.y, d = Math.hypot(dx, dy), s = d - STRING;
+    if (s > 0) { G.stretch = s; const fx = K * s * dx / d, fy = K * s * dy / d; torque += -(nk.x * fy - nk.y * fx); }
+  }
+  // wobble
+  G.noiseT -= dt; if (G.noiseT <= 0) { G.noise = rand(-1, 1) * wobbleFor(n); G.noiseT = rand(0.25, 0.6); }
+  if (G.hooked && Math.abs(G.th) < 1.2) torque += G.noise;
+  G.w += (torque - DAMP * G.w) * dt; G.th += G.w * dt;
+  // the table stops it lying down
+  if (G.th < -LYING) { G.th = -LYING; if (G.w < 0) { if (G.w < -1.5 && !G.hooked) sfx.thud(); G.w = 0; } }
+  if (G.th > LYING) { G.th = LYING; if (G.w > 0) { if (G.w > 1.5 && !G.hooked) sfx.thud(); G.w = 0; } }
+}
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.8) setState("play");
+  if (G.state === "play" || G.state === "letgo") {
+    // the pole tip follows your finger, a little heavy
+    const k = 1 - Math.exp(-lagFor(G.round) * dt); G.tip.x += (G.aim.x - G.tip.x) * k; G.tip.y += (G.aim.y - G.tip.y) * k;
+    const sub = 4; for (let i = 0; i < sub; i++) step(dt / sub);
+  }
+  if (G.state === "play") {
+    G.timeLeft -= dt;
+    if (G.timeLeft < 5 && G.t - G.lastTick > 1) { G.lastTick = G.t; sfx.tick(); }
+    if (G.stretch > slipFor(G.round)) { // yanked too hard
+      G.hooked = false; G.ring = { ...neck(G.th), vx: 0, vy: 0 }; sfx.slip(); G.touch = null;
+      const p = toScreen(neck(G.th)); G.pops.push({ x: p.x, y: p.y - 30, text: "It slipped off!", color: "#ff9a8a", t: 0 }); setState("letgo");
+    } else if (G.timeLeft <= 0) { G.timeLeft = 0; G.touch = null; letGo(); }
+  }
+  if (G.state === "letgo") {
+    // the empty ring swings on the string
+    if (G.ring) { const r = G.ring; r.vy -= 9 * dt; r.x += r.vx * dt; r.y += r.vy * dt;
+      const dx = r.x - G.tip.x, dy = r.y - G.tip.y, d = Math.hypot(dx, dy); if (d > STRING) { const ux = dx / d, uy = dy / d; r.x = G.tip.x + ux * STRING; r.y = G.tip.y + uy * STRING; const vr = r.vx * ux + r.vy * uy; r.vx -= vr * ux; r.vy -= vr * uy; r.vx *= 0.995; r.vy *= 0.995; } }
+    const zone = zoneFor(G.round);
+    if (Math.abs(G.th) >= LYING - 0.001 && G.stateT > 0.2) finish(false);
+    else if (Math.abs(G.th) < zone && Math.abs(G.w) < 0.25 && G.stateT > 1.3) finish(true);
+    else if (G.stateT > 4) finish(Math.abs(G.th) < zone);
+  }
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.4);
+}
+function finish(stood) {
+  if (stood) {
+    const bonus = Math.round(G.timeLeft) * 10, pts = 100 * G.round + bonus; G.score += pts;
+    G.banner = { big: "It stands!", small: "+" + pts + " points" + (isGold(G.round) ? " · 🪙 +1" : ""), note: "Next round: wobblier bottle", win: true };
+    if (isGold(G.round)) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); }
+    setState("clear"); sfx.win(); return;
+  }
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: G.timeLeft <= 0 ? "Time’s up!" : "It tipped over!", small: G.lives === 1 ? "1 try left" : G.lives + " tries left", note: "Try that bottle again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("bs-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawBack() {
+  // blue plank wall
+  ctx.fillStyle = "#2c4a8a"; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 2; for (let x = 0; x < W; x += 26) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  // a big lit-up star sign behind the bottle
+  const cx = L.bx, cy = L.by - L.unit * 0.75, R = L.unit * 0.8;
+  ctx.fillStyle = "#c8501a"; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+  ctx.fillStyle = "#f2902c"; ctx.beginPath(); ctx.arc(cx, cy, R * 0.86, 0, 7); ctx.fill();
+  ctx.strokeStyle = "rgba(200,80,20,.6)"; ctx.lineWidth = 2; for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R * 0.3, cy + Math.sin(a) * R * 0.3); ctx.lineTo(cx + Math.cos(a) * R * 0.84, cy + Math.sin(a) * R * 0.84); ctx.stroke(); }
+  for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2, on = (Math.floor(G.t * 4) + k) % 2; ctx.fillStyle = on ? "#fff3a0" : "#f2c419"; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * 0.93, cy + Math.sin(a) * R * 0.93, R * 0.04, 0, 7); ctx.fill(); }
+  ctx.fillStyle = "#ffe25a"; ctx.beginPath();
+  for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? R * 0.17 : R * 0.4; ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } ctx.closePath(); ctx.fill();
+  // floor and the red stand
+  ctx.fillStyle = "#a8652e"; ctx.fillRect(0, L.by + L.unit * 0.25, W, H);
+  const sw = L.unit * 1.0;
+  ctx.fillStyle = "#a82a22"; ctx.beginPath(); ctx.moveTo(L.bx - sw * 0.55, L.by + 2); ctx.lineTo(L.bx + sw * 0.55, L.by + 2); ctx.lineTo(L.bx + sw * 0.7, H); ctx.lineTo(L.bx - sw * 0.7, H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#c8382c"; ctx.beginPath(); ctx.ellipse(L.bx, L.by + 2, sw * 0.55, L.unit * 0.07, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#ffd75e"; ctx.font = `${Math.round(L.unit * 0.18)}px Rye, Georgia, serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("★", L.bx, L.by + L.unit * 0.25);
+}
+function drawBottle() {
+  const gold = isGold(G.round), s = L.unit;
+  ctx.save(); ctx.translate(L.bx, L.by); ctx.rotate(G.th);
+  const bw = s * 0.15, nw = s * 0.055;
+  const g = ctx.createLinearGradient(-bw, 0, bw, 0);
+  if (gold) { g.addColorStop(0, "#a87a10"); g.addColorStop(0.4, "#ffe27a"); g.addColorStop(1, "#b88a1a"); }
+  else { g.addColorStop(0, "#6a3008"); g.addColorStop(0.4, "#c87a2a"); g.addColorStop(1, "#7a3a0e"); }
+  ctx.fillStyle = g; ctx.beginPath();
+  ctx.moveTo(-bw, 0); ctx.lineTo(-bw, -s * 0.55); ctx.quadraticCurveTo(-bw, -s * 0.7, -nw, -s * 0.78); ctx.lineTo(-nw, -s * 0.97);
+  ctx.lineTo(nw, -s * 0.97); ctx.lineTo(nw, -s * 0.78); ctx.quadraticCurveTo(bw, -s * 0.7, bw, -s * 0.55); ctx.lineTo(bw, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = gold ? "#fff4c0" : "#e8c890"; rr(-nw * 1.25, -s * 1.0, nw * 2.5, s * 0.05, 3); ctx.fill();        // lip
+  ctx.fillStyle = gold ? "#fff8d8" : "#f2e2c0"; rr(-bw * 0.8, -s * 0.42, bw * 1.6, s * 0.18, 4); ctx.fill();       // label
+  ctx.fillStyle = gold ? "#b8860c" : "#a82a22"; ctx.font = `800 ${Math.round(s * 0.06)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("★", 0, -s * 0.33);
+  ctx.fillStyle = "rgba(255,255,255,.35)"; rr(-bw * 0.6, -s * 0.52, bw * 0.25, s * 0.46, 3); ctx.fill();
+  ctx.restore();
+}
+function drawPole() {
+  const tip = toScreen(G.tip), base = { x: W + 30, y: H - L.foot * 0.3 };
+  ctx.strokeStyle = "#a8652e"; ctx.lineCap = "round"; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+  ctx.strokeStyle = "#d8904a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(base.x - 2, base.y - 3); ctx.lineTo(tip.x, tip.y - 2); ctx.stroke();
+  // the string and the ring
+  const end = G.hooked ? toScreen(neck(G.th)) : G.ring ? toScreen(G.ring) : tip, tight = G.stretch / slipFor(G.round);
+  const col = !G.hooked ? "#f0f0f0" : tight > 0.75 ? "#ff3a2a" : tight > 0.45 ? "#ffa030" : "#f0f0f0";
+  ctx.strokeStyle = col; ctx.lineWidth = tight > 0.45 && G.hooked ? 2.5 : 1.6; ctx.beginPath();
+  if (G.hooked && G.stretch <= 0) { const mx = (tip.x + end.x) / 2, my = Math.max(tip.y, end.y) + 14; ctx.moveTo(tip.x, tip.y); ctx.quadraticCurveTo(mx, my, end.x, end.y); }
+  else { ctx.moveTo(tip.x, tip.y); ctx.lineTo(end.x, end.y); }
+  ctx.stroke();
+  ctx.strokeStyle = "#3ad07a"; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.ellipse(end.x, end.y + 3, L.unit * 0.07, L.unit * 0.03, G.hooked ? G.th : 0, 0, 7); ctx.stroke();
+}
+function drawHUD() {
+  const y = L.safeT + 29; ctx.fillStyle = "rgba(20,4,10,.8)"; ctx.fillRect(0, 0, W, L.hudH - 4);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 26px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 3);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = G.timeLeft < 5 && G.state === "play" ? "#ff8a8a" : "#cdb896";
+  ctx.fillText("Time: " + Math.ceil(G.timeLeft) + "s   Tries: " + G.lives, W / 2, y + 17);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  if (G.state === "play") {
+    const msg = !G.touch ? "HOLD your finger down and slide it slowly" : Math.abs(G.th) < zoneFor(G.round) ? "Straight! LIFT your finger to let go" : G.stretch / slipFor(G.round) > 0.6 ? "Easy! You’re pulling too hard" : "Slowly pull the bottle up straight";
+    ctx.textAlign = "center"; ctx.fillStyle = Math.abs(G.th) < zoneFor(G.round) && G.touch ? "#7aff8a" : "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+    ctx.fillText(msg, W / 2, H - L.foot / 2 - L.safeB / 2, W - 20); ctx.shadowBlur = 0;
+  }
+  // straight-o-meter: shows how close to standing the bottle is
+  if (["play", "letgo"].includes(G.state)) {
+    const mw = Math.min(220, W * 0.55), mx = W / 2 - mw / 2, my = L.hudH + 10;
+    ctx.fillStyle = "rgba(20,4,10,.6)"; rr(mx - 6, my - 6, mw + 12, 20, 10); ctx.fill();
+    const zw = mw * zoneFor(G.round) / LYING; ctx.fillStyle = "#3ad07a"; ctx.fillRect(W / 2 - zw, my, zw * 2, 8);
+    const px = W / 2 + clamp(G.th / LYING, -1, 1) * mw / 2; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(px, my + 4, 6, 0, 7); ctx.fill();
+  }
+}
+function drawFx() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = clamp(1.4 - p.t, 0, 1); ctx.font = "800 22px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    const px = clamp(p.x, 90, W - 90); ctx.strokeText(p.text, px, p.y - p.t * 30); ctx.fillStyle = p.color; ctx.fillText(p.text, px, p.y - p.t * 30); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.hudH + Math.min(130, (L.by - L.hudH) * 0.35), bw = Math.min(W - 32, 390);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.9)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14, bw - 20);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26, bw - 20);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52, bw - 20); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawBack(); drawBottle(); drawPole(); drawFx(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} touchStart(e); });
+cv.addEventListener("pointermove", e => { e.preventDefault(); touchMove(e); });
+cv.addEventListener("pointerup", e => touchEnd(e));
+cv.addEventListener("pointercancel", e => touchEnd(e));
+addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; G.touch = null; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Each gold bottle you stand pays +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
