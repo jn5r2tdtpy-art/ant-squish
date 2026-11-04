@@ -18,7 +18,7 @@
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
   #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
   .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
     padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
@@ -37,7 +37,13 @@
   .rules b { color: #ffd75e; }
   .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
   .muted { color: #cdb896; font-size: 14px; }
-  .face { width: 110px; filter: drop-shadow(0 6px 12px rgba(0,0,0,.5)); }
+  .faces { display: flex; gap: 6px; } .faces img { width: 70px; filter: drop-shadow(0 6px 12px rgba(0,0,0,.5)); }
+  .you { display: flex; align-items: center; gap: 12px; text-align: left; background: rgba(255,244,220,.08); border-radius: 14px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
+  .you canvas { width: 64px; height: 80px; flex: none; }
+  .you p { font-size: 14px; margin-bottom: 8px; }
+  .btn.small { min-width: 0; padding: 10px 14px; font-size: 15px; }
+  #headEd { width: 240px; height: 300px; border-radius: 16px; background: #120408; touch-action: none; cursor: grab; }
+  #headZoom { width: 240px; accent-color: #ffd75e; }
   #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
     border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
   #pauseBtn.show { display: block; }
@@ -50,20 +56,29 @@
 
 <div class="overlay show" id="titleScreen">
   <div class="card">
-    <img class="face" src="img/sonny.webp" alt="Sonny">
+    <div class="faces"><img src="img/sonny.webp" alt=""><img src="img/sonny.webp" alt=""><img src="img/sonny.webp" alt=""></div>
     <h1>Sonny’s<br>Harley Derby</h1>
     <div class="rules">
-      <p>Sonny’s racing his Harley against 3 other riders. <b>Roll the ball into a hole</b> to move him ahead: roll it up the lane to the triangle of holes at the end. The 🟡 front holes move him 1, the 🔴 middle row 2 and the 🔵 back row 3. Miss and he goes nowhere.</p>
+      <p>Race your Harley against <b>3 Sonnys</b>! <b>Roll the ball into a hole</b> to move your bike ahead: roll it up the lane to the triangle of holes at the end. The 🟡 front holes move you 1, the 🔴 middle row 2 and the 🔵 back row 3. Miss and you go nowhere.</p>
       <p><b>Tap once</b> to lock where across the ramp as the arrow slides side to side. <b>Tap again</b> to lock how hard you roll as the power meter beside the ramp slides up and down.</p>
-      <p>Beat the other riders to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
-      <p>Each race Sonny wins pays 🪙 +1.</p>
+      <p>Beat all the Sonnys to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
+      <p>Each race you win pays 🪙 +1.</p>
     </div>
+    <div class="you"><canvas id="youPrev" width="80" height="100"></canvas>
+      <div><p id="youLine">Your rider wears a helmet. Put your own head on your bike!</p>
+      <button class="btn ghost small" id="headBtn">📷 Add your head</button> <button class="btn ghost small" id="noHeadBtn" style="display:none">Remove</button></div></div>
+    <input type="file" id="headFile" accept="image/*" style="display:none">
     <button class="btn" id="playBtn">Start your engines!</button>
     <p class="muted" id="bestLine"></p>
     <p class="muted" id="coinLine"></p>
     <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
   </div>
 </div>
+<div class="overlay" id="headScreen"><div class="card"><h2>Your Head</h2>
+  <p>Drag the photo so your face fills the oval. Use the slider to zoom.</p>
+  <canvas id="headEd" width="480" height="600"></canvas>
+  <input type="range" id="headZoom" min="0.2" max="4" step="0.01" value="1">
+  <button class="btn" id="headUse">Use this head</button><button class="btn ghost" id="headCancel">Cancel</button></div></div>
 <div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
   <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
 <div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
@@ -87,18 +102,19 @@ const HOLES = [ // a triangle of holes at the far end of the lane, like the real
 const ROW_V = [0.62, 0.72, 0.82, 0.92];
 const TOL_U = 0.16, TOL_V = 0.05;                                      // how close the ball must stop to drop in
 const HOLE_COLOR = { 1: "#f2c419", 2: "#e0242e", 3: "#2f6ee0" };
-const RIVALS = [
-  { helmet: "#e0242e", jacket: "#2a2a30", tank: "#3a7af0" },
-  { helmet: "#f2c419", jacket: "#5a2a10", tank: "#2a8a3a" },
-  { helmet: "#ffffff", jacket: "#20304a", tank: "#8a4ad8" },
+const RIVALS = [ // three Sonnys
+  { jacket: "#1a1a1c", tank: "#2a8a3a" },
+  { jacket: "#2a2a30", tank: "#3a7af0" },
+  { jacket: "#3a2414", tank: "#e0242e" },
 ];
-const LINES = {
-  three: ["Vroom! Eat my dust!", "That’s how a Harley does it!", "Born to ride, baby!", "Did you see that? Pure talent."],
-  miss: ["The bike stalled. Not me. The bike.", "I meant to do that.", "Just warming up the engine.", "Hey! Roll it in the hole!"],
-  passed: ["Hey! That guy cheated!", "I let him pass. To be nice.", "He’s drafting off me!"],
-  win: ["Never in doubt. I’m Sonny!", "Another trophy for the garage!", "Too easy. Next!"],
-  lose: ["My bike needs a tune-up, that’s all.", "Rigged! This race was rigged!", "I wasn’t even trying."],
-};
+const LANE_GLOW = ["#3ad07a", "#3a8af0", "#f0484a", "#f2c419"];       // back to front; you ride the front (yellow) lane
+const LINES = { // the Sonnys talking to you
+  three: ["Hey! Slow down, that’s my lane!", "Beginner’s luck!", "Whoa! Who taught you that? Me?"],
+  miss: ["Ha! Nice roll, rookie!", "Roll it IN the hole, pal!", "Keep rolling like that. Please."],
+  passed: ["See ya, slowpoke!", "Eat my dust!", "That’s how a Harley does it!", "Born to ride, baby!"],
+  win: ["Rigged! This race was rigged!", "My bike needs a tune-up, that’s all.", "I let you win. To be nice."],
+  lose: ["Never in doubt. I’m Sonny!", "Another trophy for the garage!", "Too easy. Next!"],
+}
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 const $ = id => document.getElementById(id);
@@ -106,6 +122,8 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const face = new Image(); face.src = "img/sonny.webp";
+let myHead = null;                                                       // your own head, if you added one
+function loadMyHead() { const d = store.get("hd-head"); if (!d) { myHead = null; return; } const im = new Image(); im.onload = () => { myHead = im; showYou(); }; im.src = d; }
 
 // ---------- Sound ----------
 let ac = null, noiseBuf = null;
@@ -135,12 +153,13 @@ const sfx = {
 const G = { state: "title", round: 1, score: 0, lives: LIVES, best: +store.get("hd-best") || 0, stateT: 0, t: 0,
   aimPhase: 0, pPhase: 0, aimU: 0, power: 0, ball: null, steps: 0, shown: 0, riders: [], pops: [], banner: null, bubble: null, pausedFrom: null, place: 1, raceT: 0 };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
-function say(t) { G.bubble = { text: t, t: 0, life: Math.max(2.5, 1.2 + t.length * 0.06) }; }
+function say(t, lane) { if (lane == null) lane = leadSonny(); G.bubble = { text: t, lane, t: 0, life: Math.max(2.5, 1.2 + t.length * 0.06) }; }
+function leadSonny() { let k = 0; G.riders.forEach((r, i) => { if (r.p > G.riders[k].p) k = i; }); return k; }
 function startRound() {
   G.steps = 0; G.shown = 0; G.ball = null; G.raceT = 0;
-  G.riders = RIVALS.map(r => ({ ...r, p: 0, surge: 1, next: 0 }));
+  G.riders = RIVALS.map(r => ({ ...r, p: 0, surge: 1, next: 0 })); G.bubble = null;
   newRoll();
-  G.banner = { big: "Race " + G.round, small: "Roll the ball in the holes to beat the riders to the flag", note: G.round > 1 ? "The other riders are faster this time" : "" };
+  G.banner = { big: "Race " + G.round, small: "Roll the ball in the holes to beat the Sonnys to the flag", note: G.round > 1 ? "The Sonnys are faster this time" : "" };
   setState("intro");
 }
 function newRoll() { G.aimPhase = rand(0, 6.28); G.pPhase = rand(0, 1); G.ball = null; }
@@ -165,7 +184,7 @@ function layout() {
     const h = bottom - top; L.tx = 6; L.tw = W - 12; L.ty = top + 2; L.th = h * 0.46;
     L.ry = L.ty + L.th + 12; L.rh = bottom - L.ry - 4; L.rw = Math.min(W - 90, L.rh * 0.95); L.rx = (W - 60 - L.rw) / 2 + 6;
   }
-  L.lanes = 4; L.lh = L.th / (L.lanes + 0.6);
+  L.lanes = 4; L.lh = L.th / (L.lanes + 0.9);
   L.bikeW = Math.min(L.lh * 1.45, L.tw * 0.28);
   L.startX = L.tx + 8; L.finishX = L.tx + L.tw - 14;
   L.mx = L.rx + L.rw + 26;
@@ -174,7 +193,7 @@ function layout() {
 function rampPt(u, v) { const w = L.rw * (1 - 0.4 * v); return { x: L.rx + L.rw / 2 + u * w / 2 * 0.9, y: L.ry + L.rh - 30 - v * (L.rh - 66), s: 1 - 0.4 * v }; }
 const holeR = () => TOL_U * 0.82 * L.rw / 2 * 0.9;
 const ballR = () => holeR() * 0.7;
-const laneY = i => L.ty + L.lh * (i + 1.45);            // ground line of lane i (0 = back)
+const laneY = i => L.ty + L.lh * (i + 1.75);            // ground line of lane i (0 = back)
 const riderX = p => L.startX + (L.finishX - L.bikeW - L.startX) * clamp(p, 0, 1);
 
 // ---------- Rolling ----------
@@ -209,18 +228,18 @@ function settle() {
 function finishRace(won) {
   if (won) {
     const bonus = 100 * G.round; G.score += bonus; Coins.add(1); Coins.chime(); showCoins();
-    G.banner = { big: "Sonny wins!", small: "+" + bonus + " points · 🪙 +1", note: "Next race: faster riders", win: true };
+    G.banner = { big: "You win!", small: "+" + bonus + " points · 🪙 +1", note: "Next race: faster Sonnys", win: true };
     say(pick(LINES.win)); sfx.bell(); setTimeout(() => sfx.win(), 500); setState("clear"); return;
   }
-  G.lives--; say(pick(LINES.lose));
+  G.lives--; const winner = G.riders.findIndex(r => r.p >= 1); say(pick(LINES.lose), winner < 0 ? leadSonny() : winner);
   if (G.lives <= 0) { gameOver(); return; }
-  G.banner = { big: "Sonny lost!", small: (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Run that race again" };
+  G.banner = { big: "Sonny won!", small: (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Run that race again" };
   setState("fail"); sfx.lose();
 }
 function gameOver() {
   setState("over"); sfx.lose();
   const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("hd-best", String(G.best)); }
-  $("finalScore").textContent = G.score; $("finalLine").textContent = "Sonny made it to race " + G.round + ".";
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to race " + G.round + ".";
   $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
   setTimeout(() => $("overScreen").classList.add("show"), 1200);
 }
@@ -236,16 +255,16 @@ function update(dt) {
   if (G.state === "result") { if (G.ball && G.ball.back) G.ball.v = Math.max(-0.1, G.ball.v - dt * 2.2); if (G.stateT > 0.35) newRollOrEnd(); }
   if (racing()) {
     G.raceT += dt;
-    const before = sonnyPlace();
+    const before = playerPlace();
     const base = 1 / raceTime(G.round);
     for (const r of G.riders) {
       r.next -= dt; if (r.next <= 0) { r.surge = rand(0.55, 1.45); r.next = rand(0.5, 1.2); }
       r.p += dt * base * r.surge;
     }
-    if (sonnyPlace() > before && Math.random() < 0.5 && !G.bubble) say(pick(LINES.passed));
+    if (playerPlace() > before && Math.random() < 0.5 && !G.bubble) say(pick(LINES.passed));
     if (G.riders.some(r => r.p >= 1)) finishRace(false);
   }
-  // Sonny glides forward to his new spot
+  // your bike glides forward to its new spot
   G.shown += (G.steps - G.shown) * Math.min(1, dt * 4);
   if (racing() && G.steps >= STEPS) finishRace(true);
   if (G.state === "clear" && G.stateT > 3) { G.round++; startRound(); }
@@ -254,7 +273,7 @@ function update(dt) {
   if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
 }
 function newRollOrEnd() { if (G.steps < STEPS) { newRoll(); setState("aim"); } }
-function sonnyPlace() { const p = G.steps / STEPS; return 1 + G.riders.filter(r => r.p > p).length; }
+function playerPlace() { const p = G.steps / STEPS; return 1 + G.riders.filter(r => r.p > p).length; }
 
 // ---------- Drawing ----------
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
@@ -273,7 +292,7 @@ function drawTrack() {
   for (let i = 0; i < L.lanes; i++) {
     drawRider(i);
     ctx.fillStyle = BANDS[i % BANDS.length]; wavePath(laneY(i) - L.lh * 0.08, L.lh * 0.07, i * 1.3); ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = LANE_GLOW[i]; ctx.lineWidth = 3; ctx.stroke();
     ctx.fillStyle = "#111"; ctx.fillRect(fx, laneY(i) - L.lh * 0.08, sq * 2, L.th);
     for (let y = laneY(i) - L.lh * 0.08, k = 0; y < L.ty + L.th; y += sq, k++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (k + j) % 2 ? "#111" : "#fff"; ctx.fillRect(fx + j * sq, y, sq, sq); }
   }
@@ -281,15 +300,15 @@ function drawTrack() {
   ctx.strokeStyle = "#f2c419"; ctx.lineWidth = 3; rr(L.tx, L.ty, L.tw, L.th, 10); ctx.stroke();
 }
 function drawRider(i) {
-  const sonny = i === L.lanes - 1, r = sonny ? null : G.riders[i];
-  const p = sonny ? G.shown / STEPS : (r ? r.p : 0);
+  const you = i === L.lanes - 1, r = you ? null : G.riders[i];
+  const p = you ? G.shown / STEPS : (r ? r.p : 0);
   const x = riderX(p), bob = racing() ? Math.sin(G.t * 18 + i) * 1.2 : 0, gy = laneY(i) + bob, w = L.bikeW, s = w / 100, wy = gy - 14 * s;
-  const jacket = sonny ? "#1a1a1c" : r.jacket;
+  const jacket = you ? "#4a2a12" : r.jacket;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   // far leg, then the bike, then the rider on top
   ctx.strokeStyle = "#22304a"; ctx.lineWidth = 7 * s;
   ctx.beginPath(); ctx.moveTo(x + 38 * s, wy - 24 * s); ctx.lineTo(x + 56 * s, wy - 20 * s); ctx.lineTo(x + 62 * s, wy - 4 * s); ctx.stroke();
-  drawHarley(x, gy, w, sonny ? "#e8701c" : r.tank);
+  drawHarley(x, gy, w, you ? "#e8701c" : r.tank);
   ctx.strokeStyle = "#2a3a5a"; ctx.lineWidth = 8 * s;
   ctx.beginPath(); ctx.moveTo(x + 36 * s, wy - 26 * s); ctx.lineTo(x + 54 * s, wy - 22 * s); ctx.lineTo(x + 58 * s, wy - 4 * s); ctx.stroke();
   ctx.fillStyle = "#111"; rr(x + 54 * s, wy - 6 * s, 10 * s, 5 * s, 2 * s); ctx.fill();               // boot
@@ -299,13 +318,15 @@ function drawRider(i) {
   ctx.strokeStyle = jacket; ctx.lineWidth = 6 * s;
   ctx.beginPath(); ctx.moveTo(x + 44 * s, wy - 50 * s); ctx.lineTo(x + 58 * s, wy - 46 * s); ctx.lineTo(x + 66 * s, wy - 56 * s); ctx.stroke();  // arm up to the ape hangers
   ctx.fillStyle = "#e8b090"; ctx.beginPath(); ctx.arc(x + 66 * s, wy - 57 * s, 3 * s, 0, 7); ctx.fill();
-  if (sonny) {
-    if (face.complete && face.naturalWidth) { const fh = w * 0.72, fw = fh * face.naturalWidth / face.naturalHeight; ctx.drawImage(face, x + 43 * s - fw / 2, wy - 52 * s - fh * 0.92, fw, fh); }
-  } else {
-    const hx = x + 43 * s, hy = wy - 64 * s, hr = 10 * s;
-    ctx.fillStyle = r.helmet; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.fill();
+  const head = you ? myHead : (face.complete && face.naturalWidth ? face : null);
+  ctx.save(); ctx.shadowColor = LANE_GLOW[i]; ctx.shadowBlur = 12;
+  if (head) { const fh = w * 0.62, fw = fh * head.naturalWidth / head.naturalHeight; ctx.drawImage(head, x + 43 * s - fw / 2, wy - 52 * s - fh * 0.92, fw, fh); }
+  else { // your helmet until you add your own head
+    const hx = x + 43 * s, hy = wy - 64 * s, hr = 11 * s;
+    ctx.fillStyle = "#e8701c"; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     ctx.fillStyle = "#222"; rr(hx + hr * 0.05, hy - hr * 0.25, hr * 0.95, hr * 0.5, 2); ctx.fill();
   }
+  ctx.restore();
 }
 function wheel(x, y, r) {
   ctx.fillStyle = "#121212"; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();               // fat tire
@@ -374,11 +395,11 @@ function drawRamp() {
     ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(Math.max(9, vr * 1.2))}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(String(h.val), q.x, q.y + 1);
   }
-  // "Sonny" sign at the far end, like Player 1
+  // "Player 1" sign at the far end
   const sw = Math.abs(c.x - d.x) + 16, sx = d.x - 8, sy = d.y - 30;
   ctx.fillStyle = "#fbf6ff"; rr(sx, sy, sw, 26, 4); ctx.fill();
   ctx.save(); ctx.shadowColor = glow; ctx.shadowBlur = 10; ctx.strokeStyle = glow; ctx.lineWidth = 2; rr(sx, sy, sw, 26, 4); ctx.stroke(); ctx.restore();
-  ctx.fillStyle = "#4a1a7a"; ctx.font = "20px Rye, Georgia, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Sonny", sx + sw / 2, sy + 14, sw - 10);
+  ctx.fillStyle = "#4a1a7a"; ctx.font = "20px Rye, Georgia, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Player 1", sx + sw / 2, sy + 14, sw - 10);
 }
 function drawBall() {
   const b = G.ball; if (!b || !["rolling", "result"].includes(G.state)) return;
@@ -415,8 +436,8 @@ function drawHUD() {
   ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
   ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
   ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
-  const pl = ["1st", "2nd", "3rd", "4th"][sonnyPlace() - 1];
-  ctx.fillText("Sonny is " + pl + "   Tries: " + G.lives, W / 2, y + 18);
+  const pl = ["1st", "2nd", "3rd", "4th"][playerPlace() - 1];
+  ctx.fillText("You are " + pl + "   Tries: " + G.lives, W / 2, y + 18);
   ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
   const label = G.state === "aim" ? "TAP to lock where across" : G.state === "power" ? "TAP to lock how hard you roll" : "";
   ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
@@ -424,7 +445,7 @@ function drawHUD() {
 }
 function drawBubble() {
   const b = G.bubble; if (!b) return;
-  const x0 = riderX(G.shown / STEPS) + L.bikeW * 0.58, y0 = laneY(L.lanes - 1) - L.bikeW * 1.15;
+  const rd = G.riders[b.lane] || G.riders[0], x0 = riderX(rd.p) + L.bikeW * 0.43, y0 = laneY(b.lane) - L.bikeW * 1.18;
   ctx.font = "700 14px system-ui, sans-serif"; const tw = Math.min(ctx.measureText(b.text).width, L.tw - 40);
   const bw = tw + 22, bh = 30, bx = clamp(x0 - bw / 2, L.tx + 4, L.tx + L.tw - bw - 4), by = Math.max(L.ty + 4, y0 - bh);
   ctx.globalAlpha = clamp((b.life - b.t) / 0.3, 0, 1);
@@ -466,8 +487,55 @@ function togglePause() {
 }
 function showCoins(broke) {
   const n = Coins.get();
-  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Each race Sonny wins pays +1.";
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Each race you win pays +1.";
 }
+// ---------- Your head ----------
+const ed = $("headEd"), ex = ed.getContext("2d"), OV = { cx: 240, cy: 290, rx: 170, ry: 215 };
+const E = { img: null, x: 0, y: 0, z: 1, drag: null };
+function drawEd() {
+  ex.fillStyle = "#120408"; ex.fillRect(0, 0, ed.width, ed.height); if (!E.img) return;
+  const w = E.img.naturalWidth * E.z, h = E.img.naturalHeight * E.z;
+  ex.drawImage(E.img, OV.cx - w / 2 + E.x, OV.cy - h / 2 + E.y, w, h);
+  ex.save(); ex.fillStyle = "rgba(18,4,8,.65)"; ex.beginPath(); ex.rect(0, 0, ed.width, ed.height); ex.moveTo(OV.cx + OV.rx, OV.cy); ex.ellipse(OV.cx, OV.cy, OV.rx, OV.ry, 0, 0, 7, true); ex.fill("evenodd"); ex.restore();
+  ex.strokeStyle = "#ffd75e"; ex.lineWidth = 4; ex.setLineDash([12, 10]); ex.beginPath(); ex.ellipse(OV.cx, OV.cy, OV.rx, OV.ry, 0, 0, 7); ex.stroke(); ex.setLineDash([]);
+}
+$("headBtn").onclick = () => $("headFile").click();
+$("headFile").onchange = e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => {
+    E.img = im; E.x = 0; E.y = 0; E.z = Math.max(OV.rx * 2 / im.naturalWidth, OV.ry * 2 / im.naturalHeight);
+    const zr = $("headZoom"); zr.min = (E.z * 0.4).toFixed(3); zr.max = (E.z * 4).toFixed(3); zr.value = E.z;
+    hideOverlays(); $("headScreen").classList.add("show"); drawEd();
+  };
+  im.src = url; e.target.value = "";
+};
+$("headZoom").oninput = e => { E.z = +e.target.value; drawEd(); };
+const edPt = e => { const r = ed.getBoundingClientRect(); return { x: (e.clientX - r.left) * ed.width / r.width, y: (e.clientY - r.top) * ed.height / r.height }; };
+ed.addEventListener("pointerdown", e => { ed.setPointerCapture(e.pointerId); const p = edPt(e); E.drag = { x: p.x - E.x, y: p.y - E.y }; });
+ed.addEventListener("pointermove", e => { if (!E.drag) return; const p = edPt(e); E.x = p.x - E.drag.x; E.y = p.y - E.drag.y; drawEd(); });
+ed.addEventListener("pointerup", () => { E.drag = null; });
+$("headCancel").onclick = () => { hideOverlays(); $("titleScreen").classList.add("show"); };
+$("headUse").onclick = () => {
+  const c = document.createElement("canvas"); c.width = 200; c.height = 250; const k = c.width / (OV.rx * 2), x = c.getContext("2d");
+  x.beginPath(); x.ellipse(100, 125, 100, 125, 0, 0, 7); x.clip();
+  const w = E.img.naturalWidth * E.z * k, h = E.img.naturalHeight * E.z * k;
+  x.drawImage(E.img, 100 + (E.x - E.img.naturalWidth * E.z / 2) * k, 125 + (E.y - E.img.naturalHeight * E.z / 2) * k, w, h);
+  const d = c.toDataURL("image/png"); store.set("hd-head", d);
+  const im = new Image(); im.onload = () => { myHead = im; showYou(); }; im.src = d;
+  hideOverlays(); $("titleScreen").classList.add("show");
+};
+$("noHeadBtn").onclick = () => { try { localStorage.removeItem("hd-head"); } catch (e) {} myHead = null; showYou(); };
+function showYou() {
+  const c = $("youPrev"), x = c.getContext("2d"); x.clearRect(0, 0, c.width, c.height);
+  if (myHead) x.drawImage(myHead, 0, 0, c.width, c.height);
+  else { x.fillStyle = "#e8701c"; x.beginPath(); x.arc(40, 50, 32, 0, 7); x.fill(); x.fillStyle = "#222"; x.fillRect(42, 40, 30, 16); }
+  $("youLine").textContent = myHead ? "That’s you on your Harley!" : "Your rider wears a helmet. Put your own head on your bike!";
+  $("headBtn").textContent = myHead ? "📷 Change your head" : "📷 Add your head";
+  $("noHeadBtn").style.display = myHead ? "" : "none";
+}
+showYou(); loadMyHead();
+
 $("playBtn").onclick = () => { audio(); newGame(); };
 $("againBtn").onclick = () => { audio(); newGame(); };
 $("restartBtn").onclick = () => newGame();
