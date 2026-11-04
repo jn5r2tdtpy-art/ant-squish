@@ -62,6 +62,7 @@
       <p>From round 2 her teeth <b>grow back</b> if you’re too slow, and faster every round.</p>
       <p>From round 3 some teeth wear <b>braces</b>: the first hit knocks the braces off, the second knocks the tooth out for <b>20</b>.</p>
       <p>When the light on top flashes, the <b>gold tooth</b> is worth double.</p>
+      <p>Every 10 rounds: the <b>Chattering Teeth bonus round</b>! Shoot enough wind-up teeth before time runs out to win 🪙 +1.</p>
       <p>Hurry: her <b>mouth slowly closes</b> as the clock runs down.</p>
       <p id="howTo" class="muted"></p>
     </div>
@@ -320,7 +321,7 @@ function muzzle() {
 }
 
 function fire() {
-  if (G.state !== "play" || G.reload > 0) return;
+  if ((G.state !== "play" && G.state !== "bonus") || G.reload > 0) return;
   const s = sights(), m = muzzle();
   G.balls.push({ sx: m.x, sy: m.y, tx: s.x, ty: s.y, t: 0 });
   G.reload = RELOAD; G.recoil = 1;
@@ -336,6 +337,7 @@ function say(kind, force) {
 function toothUp(th) { return th.state === "up" || (th.state === "rising" && th.t > 0.15); }
 
 function land(b) {
+  if (G.state === "bonus") return bonusLand(b);
   if (G.state !== "play") return;
   const f = toFace(b.tx, b.ty);
   const ballBits = () => G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-50, 50), vy: -80, r: ballR(1), life: 0.8, t: 0 });
@@ -374,16 +376,108 @@ function hitTooth(th, b) {
   G.parts.push({ kind: "tooth", x: b.tx, y: b.ty, vx: rand(-120, 120), vy: rand(-260, -160), r: L.toothW * 0.5, rot: 0, life: 1.1, t: 0, gold: mult > 1 });
   const cols = ["#ffd75e", "#ff5a7a", "#5ad1ff", "#8dff7a", "#fff4dc"];
   for (let i = 0; i < 12; i++) G.parts.push({ kind: "confetti", x: b.tx, y: b.ty, vx: rand(-160, 160), vy: rand(-230, -40), r: rand(3, 6), color: cols[i % cols.length], rot: rand(0, 6), life: rand(0.6, 1.0), t: 0 });
-  sfx.clack(); if (mult > 1) { sfx.bonus(); Coins.add(Coins.BONUS); Coins.chime(); showCoins(); G.pops.push({ x: p.x, y: p.y + 40, text: "🪙 +1", sub: "", color: "#ffd75e", t: 0 }); }
+  sfx.clack(); if (mult > 1) sfx.bonus();
   say("hit");
   if (G.teeth.every(t => t.state === "falling" || t.state === "down")) roundCleared();
+}
+
+// ---------- Chattering Teeth bonus round (after rounds 10, 20, 30...) ----------
+const chatterImg = img("img/chatter.webp"), CH_W = 300, CH_H = 274;
+const BONUS_TIME = 15;
+const bonusNeed = n => Math.min(8, 4 + Math.floor(n / 10));         // teeth to hit: 5 after round 10, 6 after 20, ...
+const bonusSpeed = n => 0.16 + 0.03 * Math.floor(n / 10);           // walking speed, share of the stage width per second
+const inBonus = () => ["bonusIntro", "bonus", "bonusEnd"].includes(G.state);
+function bonusLanes() { return [0.36, 0.6, 0.84].map(f => L.fy + L.fh * f); }
+function spawnWalker(lane) {
+  const dir = Math.random() < 0.5 ? 1 : -1, w = L.fw * 0.3;
+  return { lane, dir, x: dir > 0 ? L.fx - w * 0.4 : L.fx + L.fw + w * 0.4, w, speed: bonusSpeed(G.round) * L.fw * rand(0.8, 1.35),
+    ph: rand(0, 6.28), state: "walk", t: 0, vy: 0, dy: 0, rot: 0 };
+}
+function startBonus() {
+  G.bNeed = bonusNeed(G.round); G.bHits = 0; G.balls = []; G.bWon = false;
+  G.timeMax = BONUS_TIME; G.timeLeft = BONUS_TIME;
+  G.walkers = [0, 1, 2].map(l => { const w = spawnWalker(l); w.x = L.fx + L.fw * rand(0.15, 0.85); return w; });
+  G.banner = { big: "Bonus round!", small: "Shoot " + G.bNeed + " chattering teeth in " + BONUS_TIME + " seconds", note: "Win it for 🪙 +1 coin" };
+  G.bubble = null; setState("bonusIntro"); sfx.bonus();
+}
+function updateBonus(dt) {
+  if (G.state === "bonus") {
+    G.timeLeft -= dt;
+    if (G.timeLeft <= 5 && Math.ceil(G.timeLeft) !== G.lastTick) { G.lastTick = Math.ceil(G.timeLeft); if (G.timeLeft > 0) sfx.tick(); }
+    if (G.timeLeft <= 0) { G.timeLeft = 0; endBonus(false); }
+  }
+  const lanes = bonusLanes();
+  for (const w of G.walkers) {
+    w.t += dt; w.ph += dt * 14;
+    if (w.state === "walk") {
+      w.x += w.dir * w.speed * dt;
+      // turn around at the edges of the stage
+      if (w.x > L.fx + L.fw - w.w * 0.35 && w.dir > 0 && w.t > 1) w.dir = -1;
+      if (w.x < L.fx + w.w * 0.35 && w.dir < 0 && w.t > 1) w.dir = 1;
+    } else { w.vy += 1400 * dt * (L.fw / 400); w.dy += w.vy * dt; w.rot += w.dir * 9 * dt; w.x += w.dir * 120 * dt; }
+  }
+  // knocked-over teeth leave, and a new pair walks in
+  for (let i = 0; i < G.walkers.length; i++) if (G.walkers[i].state === "hit" && G.walkers[i].t > 0.9 && G.state === "bonus") G.walkers[i] = spawnWalker(G.walkers[i].lane);
+}
+function walkerBox(w) {
+  const lane = bonusLanes()[w.lane], h = w.w * CH_H / CH_W, hop = Math.abs(Math.sin(w.ph * 0.5)) * h * 0.08;
+  return { x: w.x - w.w / 2, y: lane - h - hop + (w.dy || 0), w: w.w, h };
+}
+function bonusLand(b) {
+  const hit = G.walkers.filter(w => w.state === "walk").find(w => { const r = walkerBox(w); return b.tx > r.x + r.w * 0.08 && b.tx < r.x + r.w * 0.92 && b.ty > r.y + r.h * 0.05 && b.ty < r.y + r.h * 0.95; });
+  if (!hit) { sfx.thud(); G.parts.push({ kind: "ball", x: b.tx, y: b.ty, vx: rand(-50, 50), vy: -80, r: ballR(1), life: 0.8, t: 0 }); return; }
+  hit.state = "hit"; hit.t = 0; hit.vy = -520 * (L.fw / 400); hit.dir = b.tx < hit.x ? 1 : -1;
+  G.bHits++; G.score += 25; sfx.clack();
+  G.pops.push({ x: b.tx, y: b.ty - 10, text: "+25", sub: G.bHits < G.bNeed ? (G.bNeed - G.bHits) + " to go" : "", color: "#fff4dc", t: 0 });
+  if (G.bHits >= G.bNeed && G.state === "bonus") endBonus(true);
+}
+function endBonus(won) {
+  G.bWon = won; G.balls = [];
+  if (won) {
+    Coins.add(1); Coins.chime(); showCoins(); const pts = 50 * Math.ceil(G.timeLeft); G.score += pts;
+    G.banner = { big: "Bonus won!", small: "🪙 +1 coin · time bonus +" + pts, note: "On to round " + (G.round + 1) };
+    sfx.clear();
+  } else {
+    G.banner = { big: "Bonus over", small: G.bHits + " of " + G.bNeed + " chattering teeth", note: "No coin this time · on to round " + (G.round + 1) };
+    sfx.timeup();
+  }
+  setState("bonusEnd");
+}
+function drawChatter(w) {
+  if (!(chatterImg.complete && chatterImg.naturalWidth)) return;
+  const r = walkerBox(w), s = r.w / CH_W, open = w.state === "walk" ? Math.max(0, Math.sin(w.ph)) : 0.6;
+  ctx.save(); ctx.translate(r.x + r.w / 2, r.y + r.h / 2); ctx.rotate(w.rot + (w.state === "walk" ? Math.sin(w.ph * 0.5) * 0.06 : 0));
+  if (w.dir > 0) ctx.scale(-1, 1);   // the picture faces left; flip it to walk right
+  ctx.translate(-r.w / 2, -r.h / 2); ctx.scale(s, s);
+  // the teeth meet along a slanted line; the top jaw hinges open at the back
+  const gapL = 130, gapR = 62, hingeX = 300, hingeY = 40, ang = -0.2 * open;
+  ctx.fillStyle = "#5a0a12"; ctx.beginPath(); ctx.moveTo(20, gapL - 6); ctx.lineTo(CH_W, gapR - 6); ctx.lineTo(CH_W, gapR + 14); ctx.lineTo(20, gapL + 14); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.moveTo(0, gapL); ctx.lineTo(CH_W, gapR); ctx.lineTo(CH_W, CH_H); ctx.lineTo(0, CH_H); ctx.closePath(); ctx.clip();
+  ctx.drawImage(chatterImg, 0, 0, CH_W, CH_H); ctx.restore();
+  ctx.save(); ctx.translate(hingeX, hingeY); ctx.rotate(ang); ctx.translate(-hingeX, -hingeY);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(CH_W, 0); ctx.lineTo(CH_W, gapR); ctx.lineTo(0, gapL); ctx.closePath(); ctx.clip();
+  ctx.drawImage(chatterImg, 0, 0, CH_W, CH_H); ctx.restore();
+  ctx.restore();
+}
+function drawBonusStage() {
+  const { fx, fy, fw, fh } = L;
+  ctx.fillStyle = "rgba(0,0,0,.35)"; rr(fx + 6, fy + 8, fw, fh, 14); ctx.fill();
+  const g = ctx.createLinearGradient(0, fy, 0, fy + fh); g.addColorStop(0, "#3a1060"); g.addColorStop(1, "#1a0630"); ctx.fillStyle = g; rr(fx, fy, fw, fh, 14); ctx.fill();
+  ctx.strokeStyle = "#ffd75e"; ctx.lineWidth = 4; rr(fx, fy, fw, fh, 14); ctx.stroke();
+  ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(fw * 0.085); ctx.font = `${fs}px Rye, Georgia, serif`; ctx.fillText("CHATTERING TEETH", fx + fw / 2, fy + fh * 0.09);
+  ctx.font = `700 ${Math.round(fs * 0.45)}px system-ui, sans-serif`; ctx.fillStyle = "#fff4dc"; ctx.fillText("BONUS ROUND", fx + fw / 2, fy + fh * 0.16);
+  for (const y of bonusLanes()) { ctx.fillStyle = "#e0424e"; ctx.fillRect(fx + 10, y, fw - 20, 8); ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(fx + 10, y, fw - 20, 2); }
+  ctx.save(); ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip();
+  for (const w of G.walkers || []) drawChatter(w);
+  ctx.restore();
 }
 
 function roundCleared() {
   const bonus = Math.ceil(G.timeLeft) * TIME_BONUS;
   G.score += bonus;
   const nb = bracesCount(G.round + 1) > bracesCount(G.round);
-  G.banner = { big: "Toothless!", small: "Time bonus +" + bonus, note: nb ? "Next round: more braces" : (regrowTime(G.round + 1) ? "Next round: teeth grow back faster" : "") };
+  G.banner = { big: "Toothless!", small: "Time bonus +" + bonus, note: G.round % 10 === 0 ? "Bonus round next: Chattering Teeth! 🪙" : nb ? "Next round: more braces" : (regrowTime(G.round + 1) ? "Next round: teeth grow back faster" : "") };
   G.bubble = null;
   setState("clear"); sfx.clear();
 }
@@ -425,7 +519,10 @@ function update(dt) {
   G.close += (closeTo - G.close) * Math.min(1, dt * (G.state === "play" ? 8 : 5));
 
   if (G.state === "intro" && G.stateT > 1.7) setState("play");
-  if (G.state === "clear" && G.stateT > 2.4) { G.round++; startRound(); }
+  if (G.state === "clear" && G.stateT > 2.4) { if (G.round % 10 === 0) startBonus(); else { G.round++; startRound(); } }
+  if (G.state === "bonusIntro" && G.stateT > 2.2) setState("bonus");
+  if (G.state === "bonus") updateBonus(dt);
+  if (G.state === "bonusEnd") { updateBonus(dt); if (G.stateT > 2.8) { G.round++; startRound(); } }
   if (G.state === "timeout" && G.stateT > 2.4) startRound();
 
   if (G.state === "play") {
@@ -686,7 +783,7 @@ function drawPops() {
 }
 
 function drawSights() {
-  if (G.state !== "play" && G.state !== "intro") return;
+  if (!["play", "intro", "bonus", "bonusIntro"].includes(G.state)) return;
   const s = sights(), r = clamp(L.toothW * 0.55, 10, 20);
   ctx.strokeStyle = G.reload > 0 ? "rgba(255,255,255,.45)" : "#7aff8a";
   ctx.lineWidth = 2.5; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
@@ -716,7 +813,7 @@ function drawLives(x, y, centered) {
 }
 function drawHUD() {
   ctx.textBaseline = "middle";
-  const left = teethLeft();
+  const left = inBonus() ? Math.max(0, G.bNeed - G.bHits) : teethLeft();
   if (L.land) {
     const x = L.safeL + L.side / 2, w = L.side - 24;
     let y = L.safeT + 74;
@@ -727,7 +824,7 @@ function drawHUD() {
     y += 28; drawClock(x - w / 2, y, w);
     ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif";
     ctx.fillText(Math.ceil(G.timeLeft) + " seconds", x, y + 20);
-    ctx.fillText(left + " teeth left", x, y + 38);
+    ctx.fillText(left + (inBonus() ? " to go" : " teeth left"), x, y + 38);
     return;
   }
   const y = L.safeT + 29;
@@ -740,11 +837,11 @@ function drawHUD() {
   const by = L.hudH - 24;
   drawClock(12, by, W - 24);
   ctx.textAlign = "center"; ctx.fillStyle = "#cdb896"; ctx.font = "700 12px system-ui, sans-serif";
-  ctx.fillText(Math.ceil(G.timeLeft) + "s  ·  " + left + (left === 1 ? " tooth" : " teeth") + " left", W / 2, by + 14);
+  ctx.fillText(Math.ceil(G.timeLeft) + "s  ·  " + (inBonus() ? "BONUS: " + left + " chattering teeth to go" : left + (left === 1 ? " tooth" : " teeth") + " left"), W / 2, by + 14);
 }
 
 function drawBanner() {
-  if (!G.banner || !["intro", "clear", "timeout"].includes(G.state)) return;
+  if (!G.banner || !["intro", "clear", "timeout", "bonusIntro", "bonusEnd"].includes(G.state)) return;
   const k = clamp(G.stateT / 0.25, 0, 1), y = L.fy + Math.max(62, L.fh * 0.2);
   const bw = Math.min(W - 32, 360);
   ctx.globalAlpha = k;
@@ -774,7 +871,8 @@ function draw() {
   if (G.state === "title") return;
   ctx.save();
   if (G.shake > 0) ctx.translate(rand(-1, 1) * G.shake * 14, rand(-1, 1) * G.shake * 14);
-  drawCabinet(); drawTeeth(); drawLips(); drawFace(); drawCannon(); drawBubble(); drawBalls(); drawParts(); drawPops(); drawSights();
+  if (inBonus()) drawBonusStage(); else { drawCabinet(); drawTeeth(); drawLips(); drawFace(); }
+  drawCannon(); drawBubble(); drawBalls(); drawParts(); drawPops(); drawSights();
   ctx.restore();
   drawHUD(); drawBanner(); drawHint();
 }
@@ -793,7 +891,7 @@ function clampAim() {
   G.aim.x = clamp(G.aim.x, L.fx, L.fx + L.fw);
   G.aim.y = clamp(G.aim.y, L.fy, L.fy + L.fh);
 }
-const canAim = () => G.state === "play" || G.state === "intro";
+const canAim = () => ["play", "intro", "bonus", "bonusIntro"].includes(G.state);
 cv.addEventListener("pointerdown", e => {
   audio();
   if (!canAim()) return;
@@ -820,7 +918,7 @@ addEventListener("keyup", e => keys.delete(e.key));
 function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
 function togglePause() {
   if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
-  if (["intro", "play", "clear", "timeout"].includes(G.state)) {
+  if (["intro", "play", "clear", "timeout", "bonusIntro", "bonus", "bonusEnd"].includes(G.state)) {
     G.pausedFrom = { state: G.state, t: G.stateT }; ptr = null;
     G.state = "paused"; $("pauseScreen").classList.add("show");
   }
@@ -837,7 +935,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden && G.s
 function showCoins(broke) {
   const n = Coins.get(), el = document.getElementById("coinLine");
   el.innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"
-    : "🪙 A game costs 1 coin. You have " + n + ". Knock out a gold tooth to win +1.";
+    : "🪙 A game costs 1 coin. You have " + n + ". Win the bonus round (every 10 rounds) for +1.";
 }
 showCoins();
 $("bestLine").textContent = G.best ? "Best score: " + G.best : "";
