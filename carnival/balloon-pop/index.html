@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Balloon Pop</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(36px, 11vw, 54px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .balloons { font-size: 40px; letter-spacing: 4px; }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <div class="balloons">🎈🎈🎈</div>
+    <h1>Balloon Pop</h1>
+    <div class="rules">
+      <p>Throw darts and <b>pop the balloons</b>. You get <b>5 darts</b> a round. Pop enough to beat the round.</p>
+      <p><b>Tap once</b> to lock where across the board as the marker slides side to side. <b>Tap again</b> to lock how high as the marker slides up and down.</p>
+      <p>Each round the markers get faster and the balloons get smaller, and from round 3 some balloons are missing.</p>
+      <p>Pop the shiny <b>gold balloon</b> to win 🪙 +1. Miss the goal and you lose one of 3 tries.</p>
+    </div>
+    <button class="btn" id="playBtn">Step right up!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, DARTS = 5, ROWS = 7, COLS = 7;
+const goalFor    = n => n < 9 ? 2 : n < 18 ? 3 : 4;      // balloons to pop with 5 darts
+const aimSpeed   = n => 1.3 + 0.07 * Math.min(n - 1, 25);                          // side-to-side marker
+const heightSpeed = n => 0.55 + 0.03 * Math.min(n - 1, 25);                         // up-and-down marker (trips per second)
+const sizeFor    = n => Math.max(0.65, 1 - 0.02 * (n - 1));           // balloons get smaller
+const missingFor = n => n < 3 ? 0 : Math.min(24, 3 * (n - 2));         // balloons missing from the board
+const COLORS = ["#e8304a", "#f08a2c", "#f2d23c", "#7ad04a", "#2fb0a8", "#3a7af0", "#8fb8f0", "#8a4ad8", "#f07ab0"];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.002, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.008, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  lock() { tone(880, 0.06, "square", 0.06); },
+  throw() { noise(0.12, "bandpass", 2200, 0.25, 1.5); },
+  pop() { noise(0.12, "highpass", 900, 0.9); tone(160, 0.08, "sine", 0.4, 0, 60); },
+  thunk() { tone(220, 0.08, "triangle", 0.25, 0, 110); noise(0.05, "lowpass", 900, 0.25); },
+  gold() { [1568, 2093, 2637].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, 0.05 + i * 0.05)); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, lives: LIVES, darts: DARTS, popped: 0, best: +store.get("bp-best") || 0,
+  stateT: 0, t: 0, aimPhase: 0, hPhase: 0, aimX: 0, aimY: 0, dart: null, stuck: [], balloons: [], bits: [], pops: [], banner: null, pausedFrom: null };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function buildBoard() {
+  const cells = []; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push({ r, c });
+  cells.sort(() => Math.random() - 0.5);
+  const keep = cells.slice(missingFor(G.round));
+  const gold = Math.floor(Math.random() * keep.length);
+  G.balloons = keep.map((cell, k) => ({ ...cell, color: COLORS[Math.floor(Math.random() * COLORS.length)], gold: k === gold, up: true, wob: rand(0, 6.28), sz: rand(0.92, 1.06) }));
+}
+function startRound() {
+  G.darts = DARTS; G.popped = 0; G.stuck = []; buildBoard(); newThrow();
+  const miss = missingFor(G.round);
+  G.banner = { big: "Round " + G.round, small: "Pop " + goalFor(G.round) + " balloons with 5 darts", note: miss ? miss + " balloons missing · watch the gaps" : "" };
+  setState("intro");
+}
+function newThrow() { G.aimPhase = rand(0, 6.28); G.hPhase = rand(0, 1); G.dart = null; }
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; G.bits = []; hideOverlays(); layout(); startRound();
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 60 + L.safeT; L.foot = (W > H ? 44 : 70) + L.safeB;
+  const top = L.hudH + 6, bottom = H - L.foot, h = bottom - top;
+  L.signH = Math.min(h * 0.16, 110);
+  const bh = h - L.signH - 10, bw = Math.min(W - 40, bh * 1.05, 700);
+  L.bx = (W - bw) / 2; L.by = top + L.signH + 6; L.bw = bw; L.bh = bh; L.sy = top;
+  L.rail = Math.max(10, bw * 0.03);
+  L.ix = L.bx + L.rail; L.iy = L.by + L.rail; L.iw = bw - 2 * L.rail; L.ih = bh - 2 * L.rail;
+  L.cw = L.iw / COLS; L.ch = L.ih / ROWS;
+}
+function cellCenter(r, c) { return { x: L.ix + (c + 0.5) * L.cw, y: L.iy + (r + 0.5) * L.ch }; }
+function balloonSize(b) { const s = sizeFor(G.round) * b.sz; return { rx: L.cw * 0.4 * s, ry: Math.min(L.ch * 0.46, L.cw * 0.5) * s }; }
+
+// ---------- Throwing ----------
+const aimNow = () => L.ix + L.iw / 2 + Math.sin(G.aimPhase) * L.iw * 0.52;
+const hNow = () => { const p = G.hPhase % 2; return p < 1 ? p : 2 - p; };        // 0 = bottom, 1 = top
+const yFromH = h => L.iy + L.ih + L.ch * 0.3 - h * (L.ih + L.ch * 0.6);
+function tap() {
+  audio();
+  if (G.state === "aim") { G.aimX = aimNow(); sfx.lock(); setState("height"); }
+  else if (G.state === "height") { G.aimY = yFromH(hNow()); sfx.lock(); throwDart(); }
+}
+function throwDart() { G.dart = { sx: W / 2, sy: H - L.foot * 0.2, tx: G.aimX, ty: G.aimY, t: 0 }; G.darts--; sfx.throw(); setState("flying"); }
+function hitBalloon(x, y) {
+  for (const b of G.balloons) {
+    if (!b.up) continue;
+    const c = cellCenter(b.r, b.c), s = balloonSize(b), dx = (x - c.x) / s.rx, dy = (y - (c.y - s.ry * 0.05)) / s.ry;
+    if (dx * dx + dy * dy <= 1) return b;
+  }
+  return null;
+}
+function land() {
+  const d = G.dart, b = hitBalloon(d.tx, d.ty);
+  if (b) {
+    b.up = false; G.popped++; sfx.pop();
+    const c = cellCenter(b.r, b.c), pts = b.gold ? 50 : 10; G.score += pts;
+    for (let i = 0; i < 14; i++) G.bits.push({ x: c.x, y: c.y, vx: rand(-260, 260), vy: rand(-300, 80), r: rand(2, 5), color: b.gold ? "#ffd75e" : b.color, rot: rand(0, 6), life: rand(0.5, 0.9), t: 0 });
+    G.pops.push({ x: c.x, y: c.y - 10, text: "POP! +" + pts, color: b.gold ? "#ffd75e" : "#fff", t: 0 });
+    if (b.gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ x: c.x, y: c.y + 18, text: "🪙 +1", color: "#ffd75e", t: 0 }); }
+  } else {
+    sfx.thunk();
+    const inside = d.tx > L.ix && d.tx < L.ix + L.iw && d.ty > L.iy && d.ty < L.iy + L.ih;
+    G.pops.push({ x: d.tx, y: d.ty - 16, text: inside ? "Missed!" : "Off the board!", color: "#fff", t: 0 });
+  }
+  if (d.tx > L.bx && d.tx < L.bx + L.bw && d.ty > L.by && d.ty < L.by + L.bh) G.stuck.push({ x: d.tx, y: d.ty });
+  setState("result");
+}
+function afterThrow() {
+  const goal = goalFor(G.round);
+  if (G.darts > 0 && G.balloons.some(b => b.up)) { newThrow(); setState("aim"); return; }
+  if (G.popped >= goal) {
+    const bonus = 50 * G.round * (G.popped - goal + 1); G.score += bonus;
+    G.banner = { big: G.popped === DARTS ? "5 for 5!" : "Round clear!", small: G.popped + " popped · +" + bonus + " points", note: "Next round: faster markers, smaller balloons", win: true };
+    setState("clear"); sfx.win(); return;
+  }
+  G.lives--;
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Not enough pops", small: G.popped + " of " + goal + " · " + (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Try that round again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("bp-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "You made it to round " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 900);
+}
+
+// ---------- Update ----------
+const FLY = 0.42;
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.5) setState("aim");
+  if (G.state === "aim") G.aimPhase += dt * aimSpeed(G.round);
+  if (G.state === "height") G.hPhase += dt * heightSpeed(G.round) * 2;
+  if (G.state === "flying") { G.dart.t += dt / FLY; if (G.dart.t >= 1) land(); }
+  if (G.state === "result" && G.stateT > 0.9) afterThrow();
+  if (G.state === "clear" && G.stateT > 2.6) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.4) startRound();
+  for (const p of G.bits) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt; p.rot += dt * 10; }
+  G.bits = G.bits.filter(p => p.t < p.life);
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1);
+}
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function shadeC(hex, amt) { const n = parseInt(hex.slice(1), 16); const r = clamp((n >> 16) + amt, 0, 255), g = clamp(((n >> 8) & 255) + amt, 0, 255), b = clamp((n & 255) + amt, 0, 255); return `rgb(${r},${g},${b})`; }
+let mosaic = null;
+function drawScene() {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#f2ede4"); g.addColorStop(0.6, "#e4ddd0"); g.addColorStop(1, "#5a8a3a"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#4f7f32"; ctx.fillRect(0, L.by + L.bh - 6, W, H - L.by - L.bh + 6);
+  // sign with the colorful mosaic
+  const sw = Math.min(L.bw * 0.82, 560), sx = W / 2 - sw / 2, sy = L.sy, sh = L.signH;
+  if (!mosaic || mosaic.w !== Math.round(sw)) {
+    mosaic = { w: Math.round(sw), c: [] }; const n = Math.ceil(sw / 10) * Math.ceil(sh / 10);
+    for (let i = 0; i < n; i++) mosaic.c.push(COLORS[Math.floor(Math.random() * COLORS.length)]);
+  }
+  ctx.save(); rr(sx, sy, sw, sh, 6); ctx.clip();
+  const cols = Math.ceil(sw / 10); mosaic.c.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(sx + (i % cols) * 10, sy + Math.floor(i / cols) * 10, 9, 9); });
+  ctx.restore();
+  ctx.fillStyle = "#3a1408"; rr(sx + sw * 0.06, sy + sh * 0.14, sw * 0.88, sh * 0.72, 10); ctx.fill();
+  ctx.fillStyle = "#fff4dc"; rr(sx + sw * 0.075, sy + sh * 0.18, sw * 0.85, sh * 0.64, 8); ctx.fill();
+  ctx.fillStyle = "#f2b81c"; ctx.strokeStyle = "#5a2a08"; ctx.lineWidth = Math.max(2, sh * 0.03); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(sh * 0.5); ctx.font = `${fs}px Rye, Georgia, serif`;
+  while (ctx.measureText("BALLOON POP").width > sw * 0.8 && fs > 12) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.strokeText("BALLOON POP", W / 2, sy + sh * 0.52); ctx.fillText("BALLOON POP", W / 2, sy + sh * 0.52);
+  // board: white frame, red back, white rails
+  ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.fillRect(L.bx + 6, L.by + 8, L.bw, L.bh);
+  ctx.fillStyle = "#f8f6f0"; ctx.fillRect(L.bx, L.by, L.bw, L.bh);
+  ctx.fillStyle = "#c8202c"; ctx.fillRect(L.ix, L.iy, L.iw, L.ih);
+  ctx.fillStyle = "#b81a26"; ctx.fillRect(L.bx - 10, L.by + L.bh - 4, L.bw + 20, 10);
+  for (let r = 0; r <= ROWS; r++) { const y = L.iy + r * L.ch - 3; ctx.fillStyle = "#f8f6f0"; ctx.fillRect(L.ix, y, L.iw, 6); ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(L.ix, y + 5, L.iw, 2); }
+  // little nail heads where missing balloons were
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) { const p = cellCenter(r, c); ctx.fillStyle = "#c9a060"; ctx.beginPath(); ctx.arc(p.x, p.y - L.ch * 0.3, 2.2, 0, 7); ctx.fill(); }
+}
+function drawBalloon(b) {
+  const c = cellCenter(b.r, b.c), s = balloonSize(b), sway = Math.sin(G.t * 1.4 + b.wob) * s.rx * 0.04;
+  const x = c.x + sway, y = c.y - s.ry * 0.05;
+  const base = b.gold ? "#f2c22c" : b.color;
+  const g = ctx.createRadialGradient(x - s.rx * 0.35, y - s.ry * 0.4, s.rx * 0.1, x, y, s.ry * 1.05);
+  g.addColorStop(0, shadeC(base, 70)); g.addColorStop(0.5, base); g.addColorStop(1, shadeC(base, -50));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(x, y + s.ry);
+  ctx.bezierCurveTo(x + s.rx * 1.35, y + s.ry * 0.6, x + s.rx * 1.2, y - s.ry * 1.05, x, y - s.ry);
+  ctx.bezierCurveTo(x - s.rx * 1.2, y - s.ry * 1.05, x - s.rx * 1.35, y + s.ry * 0.6, x, y + s.ry); ctx.fill();
+  ctx.fillStyle = shadeC(base, -40); ctx.beginPath(); ctx.moveTo(x - s.rx * 0.14, y + s.ry * 1.1); ctx.lineTo(x + s.rx * 0.14, y + s.ry * 1.1); ctx.lineTo(x, y + s.ry * 0.92); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.ellipse(x - s.rx * 0.38, y - s.ry * 0.42, s.rx * 0.16, s.ry * 0.26, -0.5, 0, 7); ctx.fill();
+  if (b.gold) {
+    const tw = 0.5 + 0.5 * Math.sin(G.t * 6);
+    ctx.strokeStyle = `rgba(255,250,200,${0.4 + 0.5 * tw})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, s.rx * 1.15, s.ry * 1.08, 0, 0, 7); ctx.stroke();
+    ctx.fillStyle = "#7a4a00"; ctx.font = `800 ${Math.round(s.rx * 0.6)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("+1", x, y + s.ry * 0.1);
+  }
+}
+function drawDart(x, y, s, ang) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
+  ctx.fillStyle = "#9aa0a8"; ctx.fillRect(-2, -18, 4, 14);               // metal tip
+  ctx.fillStyle = "#2a2a30"; rr(-3.5, -6, 7, 18, 2); ctx.fill();          // barrel
+  ctx.fillStyle = "#e8304a"; ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(-9, 24); ctx.lineTo(0, 20); ctx.lineTo(9, 24); ctx.closePath(); ctx.fill(); // flights
+  ctx.restore();
+}
+function drawMarkers() {
+  if (!["aim", "height", "flying", "result"].includes(G.state)) return;
+  const x = G.state === "aim" ? aimNow() : G.aimX;
+  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.85)" : "rgba(122,255,138,.95)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.moveTo(x, L.by); ctx.lineTo(x, L.by + L.bh); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = G.state === "aim" ? "#fff" : "#7aff8a";
+  ctx.beginPath(); ctx.moveTo(x, L.by + L.bh + 4); ctx.lineTo(x - 10, L.by + L.bh + 20); ctx.lineTo(x + 10, L.by + L.bh + 20); ctx.fill();
+  if (G.state !== "aim") {
+    const y = G.state === "height" ? yFromH(hNow()) : G.aimY;
+    ctx.strokeStyle = G.state === "height" ? "rgba(255,255,255,.85)" : "rgba(122,255,138,.95)"; ctx.setLineDash([6, 6]);
+    ctx.beginPath(); ctx.moveTo(L.bx, y); ctx.lineTo(L.bx + L.bw, y); ctx.stroke(); ctx.setLineDash([]);
+    const mx = L.bx + L.bw + 4; ctx.fillStyle = G.state === "height" ? "#fff" : "#7aff8a";
+    ctx.beginPath(); ctx.moveTo(mx, y); ctx.lineTo(mx + 14, y - 9); ctx.lineTo(mx + 14, y + 9); ctx.fill();
+    if (G.state === "height") { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke(); }
+  }
+}
+function drawFlying() {
+  const d = G.dart; if (!d || G.state !== "flying") return;
+  const t = d.t, x = d.sx + (d.tx - d.sx) * t, y = d.sy + (d.ty - d.sy) * t - Math.sin(Math.PI * t) * L.bh * 0.12;
+  drawDart(x, y, 2.4 - 1.6 * t, Math.atan2(d.ty - d.sy, d.tx - d.sx) + Math.PI / 2);
+}
+function drawHUD() {
+  const y = L.safeT + 30; ctx.fillStyle = "rgba(20,4,10,.8)"; ctx.fillRect(0, 0, W, L.hudH - 6);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("ROUND", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  ctx.fillText("Darts left: " + G.darts + "   Popped: " + G.popped + "/" + goalFor(G.round) + "   Tries: " + G.lives, W / 2, y + 18);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  const label = G.state === "aim" ? "TAP to lock where across" : G.state === "height" ? "TAP to lock how high" : "";
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+  ctx.fillText(label, W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0;
+}
+function drawFx() {
+  for (const p of G.bits) { ctx.globalAlpha = 1 - p.t / p.life; ctx.fillStyle = p.color; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); ctx.restore(); }
+  ctx.globalAlpha = 1; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = 1 - p.t * p.t; ctx.font = "800 20px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    const px = clamp(p.x, 80, W - 80); ctx.strokeText(p.text, px, p.y - p.t * 40); ctx.fillStyle = p.color; ctx.fillText(p.text, px, p.y - p.t * 40); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = L.by + L.bh * 0.42, bw = Math.min(W - 32, 380);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.88)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 16px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawScene();
+  for (const b of G.balloons) if (b.up) drawBalloon(b);
+  for (const s of G.stuck) drawDart(s.x, s.y + 8, 0.8, 0);
+  drawMarkers(); drawFlying(); drawFx(); drawHUD(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
+addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { tap(); e.preventDefault(); } if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Pop the gold balloon to win +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
