@@ -116,7 +116,7 @@ const sfx = {
 const G = { state: "title", round: 1, score: 0, lives: LIVES, rings: RINGS, ringers: 0, best: +store.get("rt-best") || 0,
   stateT: 0, t: 0, aimPhase: 0, dPhase: 0, aimU: 0, dist: 0, toss: null, landed: [], loose: [], pops: [], bubble: null, diamond: null, banner: null, pausedFrom: null };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
-function say(t) { G.bubble = { text: t, t: 0, life: 2.4 }; }
+function say(t) { G.bubble = { text: t, t: 0, life: Math.max(4.5, 2 + t.length * 0.07) }; } // long enough to read
 function startRound() {
   G.rings = RINGS; G.ringers = 0; G.landed = []; G.loose = [];
   G.diamond = { r: 2 + Math.floor(Math.random() * (NROWS - 2)), i: Math.floor(Math.random() * NPEGS) };
