@@ -217,7 +217,7 @@ function newBall() {
 }
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 function newGame() { if (!Coins.spend(1)) { showCoins(true); const fl = document.getElementById("finalLine"); if (fl) fl.innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; } G.round = 1; G.score = 0; G.lives = LIVES; G.parts = []; G.pops = []; G.dunkT = 0; hideOverlays(); layout(); startRound(); }
-function say(text) { G.bubble = { text, t: 0, life: 2.2 }; }
+function say(text) { G.bubble = { text, t: 0, life: Math.max(4.5, 2 + text.length * 0.07) }; }
 
 // ---------- Layout ----------
 let W = 0, H = 0, DPR = 1;
