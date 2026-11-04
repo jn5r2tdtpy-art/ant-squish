@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Sonny’s Harley Derby</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  .btn { font: 700 17px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px;
+    padding: 14px 26px; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; min-width: 190px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .btn.ghost { background: rgba(255,244,220,.12); color: #fff4dc; box-shadow: inset 0 0 0 2px rgba(255,244,220,.35); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(20,4,10,.8);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); padding: calc(16px + var(--sat)) 16px calc(16px + var(--sab)); box-sizing: border-box; overflow-y: auto; }
+  .overlay.show { display: flex; }
+  .card { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto; }
+  h1, h2 { font-family: "Rye", Georgia, serif; font-weight: 400; margin: 0; color: #ffd75e; text-shadow: 0 3px 0 #a3122a, 0 6px 16px rgba(0,0,0,.6); }
+  h1 { font-size: clamp(34px, 10vw, 50px); line-height: 1.05; }
+  h2 { font-size: 34px; }
+  p { margin: 0; line-height: 1.45; color: #f6e6c8; font-size: 15px; }
+  .rules { background: rgba(255,244,220,.08); border-radius: 14px; padding: 12px 14px; text-align: left; }
+  .rules p + p { margin-top: 6px; }
+  .rules b { color: #ffd75e; }
+  .big { font: 800 44px/1 system-ui, sans-serif; color: #ffd75e; }
+  .muted { color: #cdb896; font-size: 14px; }
+  .face { width: 110px; filter: drop-shadow(0 6px 12px rgba(0,0,0,.5)); }
+  #pauseBtn { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 42px; height: 42px; border-radius: 50%;
+    border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 18px/42px system-ui, sans-serif; padding: 0; cursor: pointer; display: none; }
+  #pauseBtn.show { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="pauseBtn" aria-label="Pause">II</button>
+
+<div class="overlay show" id="titleScreen">
+  <div class="card">
+    <img class="face" src="img/sonny.webp" alt="Sonny">
+    <h1>Sonny’s<br>Harley Derby</h1>
+    <div class="rules">
+      <p>Sonny’s racing his Harley against 3 other riders. <b>Roll the ball into a hole</b> to move him ahead: the 🟡 front holes move him 1, the 🔴 middle holes 2 and the 🔵 back hole 3. Miss and he goes nowhere.</p>
+      <p><b>Tap once</b> to lock where across the ramp as the arrow slides side to side. <b>Tap again</b> to lock how hard you roll as the power meter beside the ramp slides up and down.</p>
+      <p>Beat the other riders to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
+      <p>Each race Sonny wins pays 🪙 +1.</p>
+    </div>
+    <button class="btn" id="playBtn">Start your engines!</button>
+    <p class="muted" id="bestLine"></p>
+    <p class="muted" id="coinLine"></p>
+    <button class="btn ghost" id="midwayBtn1">Back to the Midway</button>
+  </div>
+</div>
+<div class="overlay" id="pauseScreen"><div class="card"><h2>Paused</h2>
+  <button class="btn" id="resumeBtn">Resume</button><button class="btn ghost" id="restartBtn">Start over</button><button class="btn ghost" id="midwayBtn2">Back to the Midway</button></div></div>
+<div class="overlay" id="overScreen"><div class="card"><h2>Game Over</h2><div class="big" id="finalScore">0</div>
+  <p id="finalLine"></p><p class="muted" id="finalBest"></p>
+  <button class="btn" id="againBtn">Play again</button><button class="btn ghost" id="midwayBtn3">Back to the Midway</button></div></div>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const LIVES = 3, STEPS = 10;                                            // hole points Sonny needs to reach the flag
+const raceTime   = n => Math.max(20, 27 - 0.6 * (n - 1));                // seconds the riders take to finish
+const aimSpeed   = n => 1.5 + 0.06 * Math.min(n - 1, 20);               // side-to-side arrow
+const powerSpeed = n => 0.45 + 0.025 * Math.min(n - 1, 20);               // power meter (trips per second)
+const HOLES = [ // u: across (-1..1), v: up the ramp (0..1), value
+  { u: -0.6, v: 0.3, val: 1 }, { u: 0, v: 0.3, val: 1 }, { u: 0.6, v: 0.3, val: 1 },
+  { u: -0.32, v: 0.6, val: 2 }, { u: 0.32, v: 0.6, val: 2 },
+  { u: 0, v: 0.87, val: 3 },
+];
+const HOLE_COLOR = { 1: "#f2c419", 2: "#e0242e", 3: "#2f6ee0" };
+const RIVALS = [
+  { helmet: "#e0242e", jacket: "#2a2a30", tank: "#3a7af0" },
+  { helmet: "#f2c419", jacket: "#5a2a10", tank: "#2a8a3a" },
+  { helmet: "#ffffff", jacket: "#20304a", tank: "#8a4ad8" },
+];
+const LINES = {
+  three: ["Vroom! Eat my dust!", "That’s how a Harley does it!", "Born to ride, baby!", "Did you see that? Pure talent."],
+  miss: ["The bike stalled. Not me. The bike.", "I meant to do that.", "Just warming up the engine.", "Hey! Roll it in the hole!"],
+  passed: ["Hey! That guy cheated!", "I let him pass. To be nice.", "He’s drafting off me!"],
+  win: ["Never in doubt. I’m Sonny!", "Another trophy for the garage!", "Too easy. Next!"],
+  lose: ["My bike needs a tune-up, that’s all.", "Rigged! This race was rigged!", "I wasn’t even trying."],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const face = new Image(); face.src = "img/sonny.webp";
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.005, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.01, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+const sfx = {
+  lock() { tone(880, 0.06, "square", 0.06); },
+  roll() { noise(0.6, "lowpass", 400, 0.18); },
+  drop(v) { tone(300 + v * 120, 0.12, "triangle", 0.25, 0, 140); },
+  miss() { tone(200, 0.2, "sawtooth", 0.06, 0, 120); },
+  vroom(v) { // a little Harley rumble, longer for bigger holes
+    const a = audio(); if (!a) return; const t = a.currentTime, o = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+    o.type = "sawtooth"; o.frequency.setValueAtTime(45, t); o.frequency.exponentialRampToValueAtTime(70 + v * 25, t + 0.15 + v * 0.15); o.frequency.exponentialRampToValueAtTime(50, t + 0.3 + v * 0.25);
+    f.type = "lowpass"; f.frequency.value = 600; env(g, t, 0.02, 0.22, 0.35 + v * 0.25); o.connect(f).connect(g).connect(a.destination); o.start(t); o.stop(t + 0.7 + v * 0.3);
+  },
+  bell() { [0, 0.18, 0.36].forEach(d => { tone(1320, 0.3, "triangle", 0.12, d); tone(1980, 0.2, "sine", 0.05, d); }); },
+  win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.16, "square", 0.07, i * 0.1)); },
+  lose() { tone(392, 0.25, "square", 0.08); tone(330, 0.25, "square", 0.08, 0.25); tone(262, 0.5, "square", 0.08, 0.5); },
+};
+
+// ---------- State ----------
+const G = { state: "title", round: 1, score: 0, lives: LIVES, best: +store.get("hd-best") || 0, stateT: 0, t: 0,
+  aimPhase: 0, pPhase: 0, aimU: 0, power: 0, ball: null, steps: 0, shown: 0, riders: [], pops: [], banner: null, bubble: null, pausedFrom: null, place: 1, raceT: 0 };
+function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
+function say(t) { G.bubble = { text: t, t: 0, life: Math.max(2.5, 1.2 + t.length * 0.06) }; }
+function startRound() {
+  G.steps = 0; G.shown = 0; G.ball = null; G.raceT = 0;
+  G.riders = RIVALS.map(r => ({ ...r, p: 0, surge: 1, next: 0 }));
+  newRoll();
+  G.banner = { big: "Race " + G.round, small: "Roll the ball in the holes to beat the riders to the flag", note: G.round > 1 ? "The other riders are faster this time" : "" };
+  setState("intro");
+}
+function newRoll() { G.aimPhase = rand(0, 6.28); G.pPhase = rand(0, 1); G.ball = null; }
+function newGame() {
+  if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
+  G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; G.bubble = null; hideOverlays(); layout(); startRound();
+}
+const racing = () => ["aim", "power", "rolling", "result"].includes(G.state);
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  L.hudH = 60 + L.safeT; L.foot = (W > H ? 40 : 60) + L.safeB;
+  const top = L.hudH + 4, bottom = H - L.foot;
+  if (W > H) { // sideways: track on the left, ramp on the right
+    L.tx = 10; L.tw = W * 0.6 - 20; L.ty = top + 4; L.th = bottom - top - 8;
+    const rw = W - L.tw - 90; L.rx = L.tx + L.tw + 22; L.rw = Math.min(rw, (bottom - top) * 0.75); L.ry = top + 10; L.rh = bottom - top - 20;
+  } else {
+    const h = bottom - top; L.tx = 6; L.tw = W - 12; L.ty = top + 2; L.th = h * 0.46;
+    L.ry = L.ty + L.th + 12; L.rh = bottom - L.ry - 4; L.rw = Math.min(W - 90, L.rh * 0.95); L.rx = (W - 60 - L.rw) / 2 + 6;
+  }
+  L.lanes = 4; L.lh = L.th / (L.lanes + 0.6);
+  L.bikeW = Math.min(L.lh * 1.45, L.tw * 0.28);
+  L.startX = L.tx + 8; L.finishX = L.tx + L.tw - 14;
+  L.mx = L.rx + L.rw + 26;
+}
+// ramp: a trapezoid, wide at the bottom (near you), narrow at the back
+function rampPt(u, v) { const w = L.rw * (1 - 0.3 * v); return { x: L.rx + L.rw / 2 + u * w / 2 * 0.92, y: L.ry + L.rh - 18 - v * (L.rh - 34), s: 1 - 0.3 * v }; }
+const holeR = () => Math.min(L.rw * 0.085, L.rh * 0.07);
+const ballR = () => holeR() * 0.62;
+const laneY = i => L.ty + L.lh * (i + 1.45);            // ground line of lane i (0 = back)
+const riderX = p => L.startX + (L.finishX - L.bikeW - L.startX) * clamp(p, 0, 1);
+
+// ---------- Rolling ----------
+const aimNow = () => Math.sin(G.aimPhase);
+const pNow = () => { const p = G.pPhase % 2; return p < 1 ? p : 2 - p; };
+const vFromP = p => p * 1.1;                          // the very top of the meter hits the back wall
+function tap() {
+  audio();
+  if (G.state === "aim") { G.aimU = aimNow(); sfx.lock(); setState("power"); }
+  else if (G.state === "power") { G.power = pNow(); sfx.lock(); roll(); }
+}
+function roll() { G.ball = { u: G.aimU, v: -0.08, tv: Math.min(1, vFromP(G.power)), t: 0, hole: null, back: false }; sfx.roll(); setState("rolling"); }
+function holeAt(u, v) {
+  // the ball drops in when it stops close enough to a hole (a bit more forgiving up and down the ramp)
+  for (const h of HOLES) { const du = (u - h.u) / 0.17, dv = (v - h.v) / 0.085; if (du * du + dv * dv <= 1) return h; }
+  return null;
+}
+function settle() {
+  const b = G.ball, h = holeAt(b.u, b.tv);
+  if (h) {
+    b.hole = h; sfx.drop(h.val); sfx.vroom(h.val);
+    G.steps = Math.min(STEPS, G.steps + h.val); G.score += h.val * 10;
+    const q = rampPt(h.u, h.v); G.pops.push({ x: q.x, y: q.y - 20, text: "+" + h.val, color: HOLE_COLOR[h.val], t: 0 });
+    if (h.val === 3 && Math.random() < 0.6) say(pick(LINES.three));
+  } else {
+    b.back = true; sfx.miss();
+    const q = rampPt(b.u, b.tv); G.pops.push({ x: q.x, y: q.y - 18, text: "Missed!", color: "#fff", t: 0 });
+    if (Math.random() < 0.35) say(pick(LINES.miss));
+  }
+  setState("result");
+}
+function finishRace(won) {
+  if (won) {
+    const bonus = 100 * G.round; G.score += bonus; Coins.add(1); Coins.chime(); showCoins();
+    G.banner = { big: "Sonny wins!", small: "+" + bonus + " points · 🪙 +1", note: "Next race: faster riders", win: true };
+    say(pick(LINES.win)); sfx.bell(); setTimeout(() => sfx.win(), 500); setState("clear"); return;
+  }
+  G.lives--; say(pick(LINES.lose));
+  if (G.lives <= 0) { gameOver(); return; }
+  G.banner = { big: "Sonny lost!", small: (G.lives === 1 ? "1 try left" : G.lives + " tries left"), note: "Run that race again" };
+  setState("fail"); sfx.lose();
+}
+function gameOver() {
+  setState("over"); sfx.lose();
+  const nb = G.score > G.best; if (nb) { G.best = G.score; store.set("hd-best", String(G.best)); }
+  $("finalScore").textContent = G.score; $("finalLine").textContent = "Sonny made it to race " + G.round + ".";
+  $("finalBest").textContent = (nb ? "New best score!" : "Best: " + G.best) + " · 🪙 You have " + Coins.get() + " coins"; showCoins();
+  setTimeout(() => $("overScreen").classList.add("show"), 1200);
+}
+
+// ---------- Update ----------
+const ROLL = 0.75;
+function update(dt) {
+  G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
+  if (G.state === "intro" && G.stateT > 1.8) { setState("aim"); sfx.vroom(2); }
+  if (G.state === "aim") G.aimPhase += dt * aimSpeed(G.round);
+  if (G.state === "power") G.pPhase += dt * powerSpeed(G.round) * 2;
+  if (G.state === "rolling") { const b = G.ball; b.t += dt / ROLL; const e = 1 - Math.pow(1 - Math.min(1, b.t), 2); b.v = -0.08 + (b.tv + 0.08) * e; if (b.t >= 1) settle(); }
+  if (G.state === "result") { if (G.ball && G.ball.back) G.ball.v = Math.max(-0.1, G.ball.v - dt * 2.2); if (G.stateT > 0.35) newRollOrEnd(); }
+  if (racing()) {
+    G.raceT += dt;
+    const before = sonnyPlace();
+    const base = 1 / raceTime(G.round);
+    for (const r of G.riders) {
+      r.next -= dt; if (r.next <= 0) { r.surge = rand(0.55, 1.45); r.next = rand(0.5, 1.2); }
+      r.p += dt * base * r.surge;
+    }
+    if (sonnyPlace() > before && Math.random() < 0.5 && !G.bubble) say(pick(LINES.passed));
+    if (G.riders.some(r => r.p >= 1)) finishRace(false);
+  }
+  // Sonny glides forward to his new spot
+  G.shown += (G.steps - G.shown) * Math.min(1, dt * 4);
+  if (racing() && G.steps >= STEPS) finishRace(true);
+  if (G.state === "clear" && G.stateT > 3) { G.round++; startRound(); }
+  if (G.state === "fail" && G.stateT > 2.8) startRound();
+  for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1);
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
+}
+function newRollOrEnd() { if (G.steps < STEPS) { newRoll(); setState("aim"); } }
+function sonnyPlace() { const p = G.steps / STEPS; return 1 + G.riders.filter(r => r.p > p).length; }
+
+// ---------- Drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function wavePath(y, amp, phase) {
+  ctx.beginPath(); ctx.moveTo(L.tx, L.ty + L.th);
+  for (let x = 0; x <= L.tw; x += 6) ctx.lineTo(L.tx + x, y + Math.sin(x / L.tw * Math.PI * 7 + phase) * amp);
+  ctx.lineTo(L.tx + L.tw, L.ty + L.th); ctx.closePath();
+}
+const BANDS = ["#7fa86a", "#a8b86a", "#c4c47a", "#8fb070", "#b8b070"];
+function drawTrack() {
+  ctx.save(); rr(L.tx, L.ty, L.tw, L.th, 10); ctx.clip();
+  ctx.fillStyle = "#5a7f4a"; ctx.fillRect(L.tx, L.ty, L.tw, L.th);
+  // checkered finish strip
+  const fx = L.finishX - 4, sq = 8;
+  for (let y = L.ty, k = 0; y < L.ty + L.th; y += sq, k++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (k + j) % 2 ? "#111" : "#fff"; ctx.fillRect(fx + j * sq, y, sq, sq); }
+  for (let i = 0; i < L.lanes; i++) {
+    drawRider(i);
+    ctx.fillStyle = BANDS[i % BANDS.length]; wavePath(laneY(i) - L.lh * 0.08, L.lh * 0.07, i * 1.3); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = "#111"; ctx.fillRect(fx, laneY(i) - L.lh * 0.08, sq * 2, L.th);
+    for (let y = laneY(i) - L.lh * 0.08, k = 0; y < L.ty + L.th; y += sq, k++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (k + j) % 2 ? "#111" : "#fff"; ctx.fillRect(fx + j * sq, y, sq, sq); }
+  }
+  ctx.restore();
+  ctx.strokeStyle = "#f2c419"; ctx.lineWidth = 3; rr(L.tx, L.ty, L.tw, L.th, 10); ctx.stroke();
+}
+function drawRider(i) {
+  const sonny = i === L.lanes - 1, r = sonny ? null : G.riders[i];
+  const p = sonny ? G.shown / STEPS : (r ? r.p : 0);
+  const x = riderX(p), bob = racing() ? Math.sin(G.t * 18 + i) * 1.2 : 0, gy = laneY(i) + bob, w = L.bikeW, s = w / 100, wy = gy - 14 * s;
+  const jacket = sonny ? "#1a1a1c" : r.jacket;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // far leg, then the bike, then the rider on top
+  ctx.strokeStyle = "#22304a"; ctx.lineWidth = 7 * s;
+  ctx.beginPath(); ctx.moveTo(x + 38 * s, wy - 24 * s); ctx.lineTo(x + 56 * s, wy - 20 * s); ctx.lineTo(x + 62 * s, wy - 4 * s); ctx.stroke();
+  drawHarley(x, gy, w, sonny ? "#e8701c" : r.tank);
+  ctx.strokeStyle = "#2a3a5a"; ctx.lineWidth = 8 * s;
+  ctx.beginPath(); ctx.moveTo(x + 36 * s, wy - 26 * s); ctx.lineTo(x + 54 * s, wy - 22 * s); ctx.lineTo(x + 58 * s, wy - 4 * s); ctx.stroke();
+  ctx.fillStyle = "#111"; rr(x + 54 * s, wy - 6 * s, 10 * s, 5 * s, 2 * s); ctx.fill();               // boot
+  // torso (leather jacket) sitting tall like a cruiser
+  ctx.fillStyle = jacket; ctx.beginPath();
+  ctx.moveTo(x + 30 * s, wy - 24 * s); ctx.lineTo(x + 44 * s, wy - 24 * s); ctx.lineTo(x + 50 * s, wy - 52 * s); ctx.lineTo(x + 36 * s, wy - 56 * s); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = jacket; ctx.lineWidth = 6 * s;
+  ctx.beginPath(); ctx.moveTo(x + 44 * s, wy - 50 * s); ctx.lineTo(x + 58 * s, wy - 46 * s); ctx.lineTo(x + 66 * s, wy - 56 * s); ctx.stroke();  // arm up to the ape hangers
+  ctx.fillStyle = "#e8b090"; ctx.beginPath(); ctx.arc(x + 66 * s, wy - 57 * s, 3 * s, 0, 7); ctx.fill();
+  if (sonny) {
+    if (face.complete && face.naturalWidth) { const fh = w * 0.72, fw = fh * face.naturalWidth / face.naturalHeight; ctx.drawImage(face, x + 43 * s - fw / 2, wy - 52 * s - fh * 0.92, fw, fh); }
+  } else {
+    const hx = x + 43 * s, hy = wy - 64 * s, hr = 10 * s;
+    ctx.fillStyle = r.helmet; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.fill();
+    ctx.fillStyle = "#222"; rr(hx + hr * 0.05, hy - hr * 0.25, hr * 0.95, hr * 0.5, 2); ctx.fill();
+  }
+}
+function wheel(x, y, r) {
+  ctx.fillStyle = "#121212"; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();               // fat tire
+  ctx.fillStyle = "#d8dce2"; ctx.beginPath(); ctx.arc(x, y, r * 0.58, 0, 7); ctx.fill();
+  ctx.fillStyle = "#3a3c40"; ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#d8dce2"; ctx.lineWidth = Math.max(1, r * 0.06); const a0 = racing() ? G.t * 9 : 0;
+  for (let k = 0; k < 8; k++) { const a = a0 + k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5); ctx.stroke(); }
+  ctx.fillStyle = "#f2f2f4"; ctx.beginPath(); ctx.arc(x, y, r * 0.16, 0, 7); ctx.fill();
+}
+function drawHarley(x, gy, w, paint) {
+  const s = w / 100, wr = 14 * s, wy = gy - wr, bx = x + 14 * s, fx = x + 88 * s;
+  const chrome = "#dfe3e8";
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // twin chrome pipes out the back
+  ctx.strokeStyle = chrome; ctx.lineWidth = 3.5 * s;
+  ctx.beginPath(); ctx.moveTo(x + 50 * s, wy - 6 * s); ctx.lineTo(x + 30 * s, wy + 3 * s); ctx.lineTo(x - 4 * s, wy + 1 * s); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 54 * s, wy - 12 * s); ctx.lineTo(x + 32 * s, wy - 4 * s); ctx.lineTo(x - 2 * s, wy - 6 * s); ctx.stroke();
+  wheel(bx, wy, wr); wheel(fx, wy, wr);
+  // raked chrome fork out to the front wheel
+  ctx.strokeStyle = chrome; ctx.lineWidth = 3 * s;
+  ctx.beginPath(); ctx.moveTo(fx, wy); ctx.lineTo(x + 72 * s, wy - 38 * s); ctx.stroke();
+  // low black frame
+  ctx.strokeStyle = "#1a1a1c"; ctx.lineWidth = 3.5 * s;
+  ctx.beginPath(); ctx.moveTo(bx, wy); ctx.lineTo(x + 34 * s, wy - 20 * s); ctx.lineTo(x + 72 * s, wy - 36 * s); ctx.moveTo(bx, wy); ctx.lineTo(x + 56 * s, wy - 2 * s); ctx.lineTo(x + 72 * s, wy - 36 * s); ctx.stroke();
+  // V-twin engine
+  ctx.fillStyle = "#9aa0a8"; rr(x + 44 * s, wy - 10 * s, 20 * s, 10 * s, 3 * s); ctx.fill();
+  ctx.fillStyle = chrome;
+  ctx.save(); ctx.translate(x + 50 * s, wy - 10 * s); ctx.rotate(-0.35); rr(-4 * s, -14 * s, 8 * s, 14 * s, 2 * s); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(x + 60 * s, wy - 10 * s); ctx.rotate(0.35); rr(-4 * s, -14 * s, 8 * s, 14 * s, 2 * s); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = "#7a8088"; ctx.lineWidth = 0.8 * s;
+  for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(x + 44 * s, wy - (12 + k * 3) * s); ctx.lineTo(x + 66 * s, wy - (12 + k * 3) * s); ctx.stroke(); }
+  // teardrop tank with a stripe
+  ctx.fillStyle = paint; ctx.beginPath(); ctx.moveTo(x + 46 * s, wy - 26 * s);
+  ctx.quadraticCurveTo(x + 50 * s, wy - 36 * s, x + 64 * s, wy - 34 * s); ctx.quadraticCurveTo(x + 74 * s, wy - 32 * s, x + 70 * s, wy - 26 * s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.beginPath(); ctx.ellipse(x + 58 * s, wy - 32 * s, 7 * s, 1.6 * s, -0.1, 0, 7); ctx.fill();
+  ctx.fillStyle = "#111"; ctx.fillRect(x + 52 * s, wy - 29 * s, 14 * s, 2 * s);
+  // long low seat and back fender
+  ctx.fillStyle = "#24160e"; ctx.beginPath(); ctx.moveTo(x + 22 * s, wy - 24 * s); ctx.quadraticCurveTo(x + 34 * s, wy - 20 * s, x + 46 * s, wy - 26 * s); ctx.lineTo(x + 44 * s, wy - 22 * s); ctx.quadraticCurveTo(x + 30 * s, wy - 16 * s, x + 22 * s, wy - 20 * s); ctx.fill();
+  ctx.strokeStyle = paint; ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.arc(bx, wy, wr + 3 * s, Math.PI * 1.02, Math.PI * 1.72); ctx.stroke();
+  ctx.beginPath(); ctx.arc(fx, wy, wr + 3 * s, Math.PI * 1.25, Math.PI * 1.75); ctx.stroke();
+  // tall ape-hanger bars and a big round headlight
+  ctx.strokeStyle = chrome; ctx.lineWidth = 2.5 * s;
+  ctx.beginPath(); ctx.moveTo(x + 72 * s, wy - 38 * s); ctx.lineTo(x + 70 * s, wy - 56 * s); ctx.lineTo(x + 64 * s, wy - 58 * s); ctx.stroke();
+  ctx.fillStyle = chrome; ctx.beginPath(); ctx.arc(x + 78 * s, wy - 34 * s, 5.5 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = "#fff6c0"; ctx.beginPath(); ctx.arc(x + 79.5 * s, wy - 34 * s, 3.8 * s, 0, 7); ctx.fill();
+}
+function drawRamp() {
+  const a = rampPt(-1.09, -0.06), b = rampPt(1.09, -0.06), c = rampPt(1.09, 1.03), d = rampPt(-1.09, 1.03);
+  ctx.fillStyle = "#5a2a10"; ctx.beginPath(); ctx.moveTo(a.x - 8, a.y + 12); ctx.lineTo(b.x + 8, b.y + 12); ctx.lineTo(c.x + 8, c.y - 8); ctx.lineTo(d.x - 8, d.y - 8); ctx.closePath(); ctx.fill();
+  const g = ctx.createLinearGradient(0, a.y, 0, d.y); g.addColorStop(0, "#f2a030"); g.addColorStop(1, "#e07a1c");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.18)"; ctx.lineWidth = 1;
+  for (let k = 1; k < 6; k++) { const p = rampPt(-1.09, k / 6), q = rampPt(1.09, k / 6); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+  const r = holeR();
+  for (const h of HOLES) {
+    const q = rampPt(h.u, h.v), hr = r * q.s;
+    ctx.fillStyle = HOLE_COLOR[h.val]; ctx.beginPath(); ctx.ellipse(q.x, q.y, hr * 1.35, hr * 1.35 / 1.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#1a0a04"; ctx.beginPath(); ctx.ellipse(q.x, q.y, hr, hr / 1.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = HOLE_COLOR[h.val]; ctx.font = `900 ${Math.round(hr * 0.75)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(h.val), q.x, q.y + 1);
+  }
+}
+function drawBall() {
+  const b = G.ball; if (!b || !["rolling", "result"].includes(G.state)) return;
+  let v = b.v, sc = 1;
+  if (b.hole) { const q = rampPt(b.hole.u, b.hole.v); sc = Math.max(0, 1 - G.stateT * 4); if (sc <= 0) return; v = b.hole.v; b.u += (b.hole.u - b.u) * 0.4; }
+  const p = rampPt(b.u, v), r = ballR() * p.s * sc;
+  const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.4, r * 0.1, p.x, p.y, r); g.addColorStop(0, "#fff"); g.addColorStop(1, "#b8bcc4");
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y + r * 0.6, r, r * 0.4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+}
+function drawMarkers() {
+  if (!["aim", "power", "rolling", "result"].includes(G.state)) return;
+  const u = G.state === "aim" ? aimNow() : G.aimU, p0 = rampPt(u, -0.06);
+  ctx.fillStyle = G.state === "aim" ? "#ffffff" : "#7aff8a"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(p0.x, p0.y + 14); ctx.lineTo(p0.x - 11, p0.y + 30); ctx.lineTo(p0.x + 11, p0.y + 30); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.7)" : "rgba(122,255,138,.85)"; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
+  const p1 = rampPt(u, 1.03); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]);
+  if (G.state !== "aim") {
+    const x = L.mx, y0 = rampPt(0, 0).y, y1 = rampPt(0, 1.1 / 1.1 * 1.0).y - (rampPt(0, 0).y - rampPt(0, 1).y) * 0.1;
+    ctx.fillStyle = "rgba(20,4,10,.55)"; rr(x - 9, y1 - 6, 18, y0 - y1 + 12, 9); ctx.fill();
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, "#3a7af0"); g.addColorStop(0.5, "#f2c419"); g.addColorStop(1, "#e0242e");
+    ctx.fillStyle = g; rr(x - 5, y1, 10, y0 - y1, 5); ctx.fill();
+    // a tick for each row of holes
+    for (const v of [0.3, 0.6, 0.87]) { const y = y0 + (y1 - y0) * (v / 1.1); ctx.fillStyle = "#fff"; ctx.fillRect(x - 8, y - 1, 16, 2); }
+    const pv = G.state === "power" ? pNow() : G.power, hy = y0 + (y1 - y0) * pv;
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 10, hy); ctx.lineTo(x - 24, hy - 9); ctx.lineTo(x - 24, hy + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+function drawHUD() {
+  const y = L.safeT + 30; ctx.fillStyle = "rgba(20,4,10,.85)"; ctx.fillRect(0, 0, W, L.hudH - 4);
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#cdb896"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText("RACE", 62, y - 9);
+  ctx.fillStyle = "#fff4dc"; ctx.font = "800 20px system-ui, sans-serif"; ctx.fillText(String(G.round), 62, y + 10);
+  ctx.textAlign = "center"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 28px system-ui, sans-serif"; ctx.fillText(String(G.score), W / 2, y - 2);
+  ctx.font = "700 12px system-ui, sans-serif"; ctx.fillStyle = "#cdb896";
+  const pl = ["1st", "2nd", "3rd", "4th"][sonnyPlace() - 1];
+  ctx.fillText("Sonny is " + pl + "   Tries: " + G.lives, W / 2, y + 18);
+  ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
+  const label = G.state === "aim" ? "TAP to lock where across" : G.state === "power" ? "TAP to lock how hard you roll" : "";
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
+  ctx.fillText(label, W > H ? L.rx + L.rw / 2 : W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0;
+}
+function drawBubble() {
+  const b = G.bubble; if (!b) return;
+  const x0 = riderX(G.shown / STEPS) + L.bikeW * 0.58, y0 = laneY(L.lanes - 1) - L.bikeW * 1.15;
+  ctx.font = "700 14px system-ui, sans-serif"; const tw = Math.min(ctx.measureText(b.text).width, L.tw - 40);
+  const bw = tw + 22, bh = 30, bx = clamp(x0 - bw / 2, L.tx + 4, L.tx + L.tw - bw - 4), by = Math.max(L.ty + 4, y0 - bh);
+  ctx.globalAlpha = clamp((b.life - b.t) / 0.3, 0, 1);
+  ctx.fillStyle = "#fff"; rr(bx, by, bw, bh, 12); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(clamp(x0 - 6, bx + 10, bx + bw - 20), by + bh - 1); ctx.lineTo(clamp(x0 + 6, bx + 22, bx + bw - 8), by + bh - 1); ctx.lineTo(clamp(x0, bx + 14, bx + bw - 12), by + bh + 9); ctx.fill();
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.text, bx + bw / 2, by + bh / 2, tw);
+  ctx.globalAlpha = 1;
+}
+function drawFx() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of G.pops) { ctx.globalAlpha = 1 - p.t * p.t; ctx.font = "800 22px system-ui, sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,.6)";
+    const px = clamp(p.x, 60, W - 60); ctx.strokeText(p.text, px, p.y - p.t * 40); ctx.fillStyle = p.color; ctx.fillText(p.text, px, p.y - p.t * 40); }
+  ctx.globalAlpha = 1;
+}
+function drawBanner() {
+  if (!G.banner || !["intro", "clear", "fail"].includes(G.state)) return;
+  const k = clamp(G.stateT / 0.25, 0, 1), y = W > H ? H / 2 : L.ry + L.rh * 0.4, bw = Math.min(W - 32, 400);
+  ctx.globalAlpha = k; ctx.fillStyle = "rgba(20,4,10,.9)"; rr(W / 2 - bw / 2, y - 56, bw, G.banner.note ? 132 : 108, 18); ctx.fill();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "32px Rye, Georgia, serif"; ctx.fillStyle = G.state === "fail" ? "#ff8a8a" : "#ffd75e"; ctx.fillText(G.banner.big, W / 2, y - 14);
+  ctx.font = "700 15px system-ui, sans-serif"; ctx.fillStyle = "#fff4dc"; ctx.fillText(G.banner.small, W / 2, y + 26, bw - 20);
+  if (G.banner.note) { ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#cdb896"; ctx.fillText(G.banner.note, W / 2, y + 52, bw - 20); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#2a0812"; ctx.fillRect(0, 0, W, H);
+  if (G.state === "title") return;
+  drawTrack(); drawRamp(); drawBall(); drawMarkers(); drawFx(); drawHUD(); drawBubble(); drawBanner();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input & screens ----------
+cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
+addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { tap(); e.preventDefault(); } if (e.key === "Escape" || e.key === "p") togglePause(); });
+function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
+function togglePause() {
+  if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
+  if (!["title", "over"].includes(G.state)) { G.pausedFrom = { state: G.state, t: G.stateT }; setState("paused"); $("pauseScreen").classList.add("show"); }
+}
+function showCoins(broke) {
+  const n = Coins.get();
+  $("coinLine").innerHTML = broke || n < 1 ? "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>" : "🪙 A game costs 1 coin. You have " + n + ". Each race Sonny wins pays +1.";
+}
+$("playBtn").onclick = () => { audio(); newGame(); };
+$("againBtn").onclick = () => { audio(); newGame(); };
+$("restartBtn").onclick = () => newGame();
+$("resumeBtn").onclick = togglePause; $("pauseBtn").onclick = togglePause;
+["midwayBtn1", "midwayBtn2", "midwayBtn3"].forEach(id => $(id).onclick = () => { location.href = "../"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && G.state !== "paused") togglePause(); });
+$("bestLine").textContent = G.best ? "Best score: " + G.best : ""; showCoins();
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) document.fonts.load("20px Rye").catch(() => {});
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
