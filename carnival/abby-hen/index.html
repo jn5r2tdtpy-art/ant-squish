@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Cluckin’ Abby</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Bangers&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a0812; color: #fff4dc;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #cv { position: fixed; inset: 0; display: block; touch-action: none; }
+  #probe { position: fixed; top: var(--sat); bottom: var(--sab); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); pointer-events: none; }
+  #back { position: fixed; top: calc(8px + var(--sat)); left: calc(10px + env(safe-area-inset-left, 0px)); height: 40px; padding: 0 14px; border-radius: 20px;
+    border: 0; background: rgba(0,0,0,.45); color: #fff4dc; font: 700 15px/40px system-ui, sans-serif; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="probe"></div>
+<button id="back">‹ Midway</button>
+
+<script src="../coins.js"></script>
+<script>
+"use strict";
+// ---------- Settings ----------
+const GOLD_CHANCE = 1 / 12;                                              // how often Abby lays the gold egg (2 gifts: a junk prize AND a coin back)
+// What can be inside an egg: [emoji, prize, joke]. Copy a line to add more.
+const PRIZES = [
+  ["🪶", "One of Abby’s Feathers", "She’s molting again. She says it’s fine. It’s not fine, it’s everywhere."],
+  ["💬", "Abby’s Unwanted Opinion", "You didn’t ask for it. You’re getting it anyway. There are three more in the box."],
+  ["🌬️", "A Jar of Abby’s Hot Air", "Straight from the beak. Sealed fresh. Open with caution, it’s still talking."],
+  ["📼", "Abby’s Story From Lunch", "Part 1 of 9. She’ll cluck you the rest in person."],
+  ["🪙", "Abby’s Lucky Penny", "A penny Abby found on the floor. She says it’s lucky. It’s a little sticky."],
+  ["👓", "Abby’s Spare Glasses", "She’s been looking for these all day. They were on her head."],
+  ["✂️", "Abby’s Hair Clippings", "From her haircut. Again. She was in the chair before the last one grew out."],
+  ["📱", "Abby’s Voice Memo", "Forty-five minutes long. It starts with “real quick.”"],
+  ["🗞️", "Abby’s Gossip Column", "Everything she heard at the party. Some of it even happened."],
+  ["🌽", "Abby’s Corn Snack", "She was saving it. She’ll want it back. She’ll tell you why. At length."],
+  ["🧾", "Eddie’s Debt", "Abby found it under the hen house. An IOU for $4,000. Congratulations, it’s yours now!"],
+  ["🔑", "Sonny’s Spare Harley Key", "One of Sonny’s 900 billion spare Harley keys. The Harley is not included."],
+  ["🥸", "Sonny’s Mustache Clippings", "Fresh from the bathroom sink. He saves them. Don’t ask why."],
+  ["🎟️", "Eddie’s Lucky Scratch-Off", "Already scratched. It lost. Like the last 300."],
+  ["💵", "Eddie’s IOU for $20", "You win the twenty bucks Eddie owes you! Good luck collecting."],
+  ["🏆", "Sonny’s Participation Trophy", "He made it himself. It says “World’s Greatest Sonny.”"],
+  ["🥚", "A Regular Egg", "Just an egg. Abby says she worked very hard on it. She’ll tell you all about it."],
+];
+const CLUCKS = ["Bawk! So anyway, where was I?", "Buk-buk-BAWK! Did I ever tell you about my cousin?", "Bawk bawk! Hold on, I’m not done talking!",
+  "Cluck cluck! Oh, this one’s a good one!", "BAWK! Okay okay okay, real quick…", "Buk-buk… I forgot what I was saying. Bawk!",
+  "Cluck! You’re gonna love this. Or not. Bawk!", "Bawk! Don’t tell Sonny, but this one’s for you!"];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const hen = new Image(); hen.src = "img/hen.webp";
+
+// ---------- Sound ----------
+let ac = null, noiseBuf = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume(); return ac;
+}
+function env(g, t, a, p, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q; env(g, t, 0.005, p, d); s.connect(fl).connect(g).connect(a.destination); s.start(t); s.stop(t + d + 0.05); }
+function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.01, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
+function cluck(dl, f0 = 600, len = 0.09) { // one hen cluck: a quick nasal chirp
+  const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(), bp = a.createBiquadFilter();
+  o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 1.6, t + len * 0.3); o.frequency.exponentialRampToValueAtTime(f0 * 0.7, t + len);
+  bp.type = "bandpass"; bp.frequency.value = 1400; bp.Q.value = 2; env(g, t, 0.005, 0.22, len); o.connect(bp).connect(g).connect(a.destination); o.start(t); o.stop(t + len + 0.05);
+}
+const sfx = {
+  coin() { tone(1900, 0.06, "square", 0.05); tone(2500, 0.1, "square", 0.04, 0.07); noise(0.25, "bandpass", 3000, 0.08, 3, 0.15); },
+  cackle() { // buk-buk-buk-BAWK!
+    let t = 0; for (let i = 0; i < 4; i++) { cluck(t, 560 + Math.random() * 60, 0.08); t += 0.14; }
+    cluck(t + 0.05, 520, 0.45); t += 0.7; for (let i = 0; i < 3; i++) { cluck(t, 600, 0.07); t += 0.13; } cluck(t + 0.05, 560, 0.4);
+  },
+  plop() { tone(220, 0.12, "sine", 0.3, 0, 90); },
+  roll() { noise(0.6, "lowpass", 500, 0.15); tone(180, 0.15, "triangle", 0.15, 0.55, 120); },
+  pop() { noise(0.1, "highpass", 1200, 0.5); tone(700, 0.15, "sine", 0.2, 0, 1400); },
+  trombone() { [392, 370, 349, 294].forEach((f, i) => tone(f, i === 3 ? 0.7 : 0.28, "sawtooth", 0.06, i * 0.3, i === 3 ? 270 : 0)); },
+  gold() { [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.4, "triangle", 0.1, i * 0.08)); },
+  buzz() { tone(150, 0.3, "square", 0.08); },
+};
+
+// ---------- State ----------
+// idle -> cackle (hen shakes, talks) -> lay (egg drops) -> roll (egg rolls to the door) -> ready (tap the egg) -> open (prize card) -> idle
+const G = { state: "idle", stateT: 0, t: 0, egg: null, prize: null, bubble: null, laid: +store.get("ah-laid") || 0, haul: [], msg: null, pressed: 0 };
+function setState(s) { G.state = s; G.stateT = 0; }
+const EGG_COLORS = ["#e8304a", "#3a7af0", "#3ad07a", "#f08a2c", "#c040ff", "#f07ab0", "#2fb0a8", "#f2d23c"];
+// the bed of eggs under the hen (fixed, made once)
+const bed = []; for (let i = 0; i < 70; i++) bed.push({ u: Math.random(), v: Math.random(), c: EGG_COLORS[i % EGG_COLORS.length], a: rand(-0.6, 0.6), s: rand(0.85, 1.1) });
+bed.sort((a, b) => a.v - b.v);
+
+function insertCoin() {
+  if (G.state !== "idle") return;
+  audio();
+  if (!Coins.spend(1)) { sfx.buzz(); G.msg = { text: "Out of coins! Win more on the Midway.", t: 0 }; return; }
+  G.pressed = 1; sfx.coin();
+  const gold = Math.random() < GOLD_CHANCE;
+  G.egg = { gold, c: gold ? "#f2c419" : pick(EGG_COLORS), x: 0, y: 0, rot: 0, k: 0 };
+  setTimeout(() => sfx.cackle(), 350);
+  G.bubble = { text: pick(CLUCKS), t: 0 };
+  setState("cackle");
+}
+function openEgg() {
+  const e = G.egg, gifts = [pick(PRIZES)];
+  if (e.gold) { gifts.push(["🪙", "A Real Midway Coin!", "Your coin back, plus this junk. 2 gifts in the gold egg! 🪙 +1"]); Coins.add(1); Coins.chime(); }
+  G.prize = { gifts, gold: e.gold, sounded: false };
+  G.haul.push(...gifts.map(g => g[0])); G.laid++; store.set("ah-laid", String(G.laid));
+  setTimeout(() => sfx.pop(), 300);
+  setState("open");
+}
+
+// ---------- Layout ----------
+let W = 0, H = 0, DPR = 1; const L = {};
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const pr = $("probe").getBoundingClientRect(); L.safeT = pr.top; L.safeB = H - pr.bottom;
+  const top = 56 + L.safeT, bottom = H - 12 - L.safeB, h = bottom - top;
+  L.cw = Math.min(W - 24, h * 0.62, 460); L.ch = Math.min(h, L.cw / 0.62); L.cx = W / 2 - L.cw / 2; L.cy = top + (h - L.ch) / 2;
+  const c = L;
+  c.roofH = c.ch * 0.15;                                                  // orange roof with the sign
+  c.bx = c.cx; c.by = c.cy + c.roofH; c.bw = c.cw; c.bh = c.ch - c.roofH;  // the white box
+  c.wx = c.bx + c.bw * 0.08; c.wy = c.by + c.bh * 0.05; c.ww = c.bw * 0.84; c.wh = c.bh * 0.56;  // big window
+  c.floor = c.wy + c.wh * 0.84;                                           // where the egg bed sits
+  c.doorX = c.bx + c.bw * 0.52; c.doorY = c.by + c.bh * 0.78; c.doorW = c.bw * 0.36; c.doorH = c.bh * 0.16;  // egg door at the bottom
+  c.btnX = c.bx + c.bw * 0.24; c.btnY = c.doorY + c.doorH * 0.5; c.btnR = Math.min(c.bw * 0.11, 44);         // coin button
+}
+
+// ---------- Update ----------
+function update(dt) {
+  G.t += dt; G.stateT += dt;
+  if (G.pressed > 0) G.pressed = Math.max(0, G.pressed - dt * 3);
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > 3.6) G.bubble = null; }
+  if (G.msg) { G.msg.t += dt; if (G.msg.t > 2.5) G.msg = null; }
+  if (G.state === "cackle" && G.stateT > 2.2) { sfx.plop(); setState("lay"); }
+  if (G.state === "lay") { G.egg.k = Math.min(1, G.stateT / 0.55); if (G.stateT > 0.75) { sfx.roll(); setState("roll"); } }
+  if (G.state === "roll") { G.egg.k = Math.min(1, G.stateT / 0.8); if (G.stateT > 0.85) setState("ready"); }
+  if (G.state === "open" && G.prize && !G.prize.sounded && G.stateT > 0.6) { G.prize.sounded = true; G.prize.gold ? sfx.gold() : sfx.trombone(); }
+}
+
+// ---------- Drawing (realistic, not cartoony) ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function shade(hex, amt) { const n = parseInt(hex.slice(1), 16); const f = v => clamp(v + amt, 0, 255); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
+function drawRoom() {
+  // arcade wall and floor
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#d8d6cf"); g.addColorStop(0.72, "#c8c5bc"); g.addColorStop(0.72, "#b8b2a4"); g.addColorStop(1, "#9a9384"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(0,0,0,.08)"; ctx.fillRect(0, H * 0.72 - 6, W, 6);
+  // soft shadow under the machine
+  const sg = ctx.createRadialGradient(W / 2, L.cy + L.ch, 10, W / 2, L.cy + L.ch, L.cw * 0.8); sg.addColorStop(0, "rgba(0,0,0,.35)"); sg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(W / 2, L.cy + L.ch, L.cw * 0.75, 30, 0, 0, 7); ctx.fill();
+}
+function egg(x, y, r, color, rot = 0, opt = {}) { // a glossy plastic two-tone egg
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  const g = ctx.createRadialGradient(-r * 0.35, -r * 0.45, r * 0.08, 0, 0, r * 1.15);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(0.18, shade(color, 40)); g.addColorStop(0.7, color); g.addColorStop(1, shade(color, -70));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.8, r, 0, 0, 7); ctx.fill();
+  if (!opt.solid) { const g2 = ctx.createRadialGradient(-r * 0.3, r * 0.2, r * 0.05, 0, r * 0.3, r);
+    g2.addColorStop(0, "#ffffff"); g2.addColorStop(0.6, "#e8e8ee"); g2.addColorStop(1, "#9a9aa8");
+    ctx.fillStyle = g2; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.8, r, 0, 0, Math.PI); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.25)"; ctx.lineWidth = Math.max(1, r * 0.05); ctx.beginPath(); ctx.moveTo(-r * 0.8, 0); ctx.lineTo(r * 0.8, 0); ctx.stroke(); }
+  ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.55, r * 0.14, r * 0.24, -0.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function rivet(x, y) { const g = ctx.createRadialGradient(x - 1, y - 1, 0.5, x, y, 3.5); g.addColorStop(0, "#fff"); g.addColorStop(1, "#7a7a80"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill(); }
+function drawCabinet() {
+  const c = L;
+  // white enamel box with a little side depth
+  ctx.fillStyle = "#c8c8c4"; rr(c.bx + c.bw - 4, c.by + 6, 14, c.bh - 6, 4); ctx.fill();
+  const g = ctx.createLinearGradient(c.bx, 0, c.bx + c.bw, 0); g.addColorStop(0, "#f2f2ee"); g.addColorStop(0.5, "#fbfbf8"); g.addColorStop(1, "#e2e2dc");
+  ctx.fillStyle = g; rr(c.bx, c.by, c.bw, c.bh, 6); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.12)"; ctx.lineWidth = 1.5; ctx.stroke();
+  for (let i = 0; i <= 8; i++) { rivet(c.bx + 10, c.by + 14 + i * (c.bh - 28) / 8); rivet(c.bx + c.bw - 10, c.by + 14 + i * (c.bh - 28) / 8); }
+  // orange fiberglass roof
+  const rx0 = c.cx - c.cw * 0.04, rx1 = c.cx + c.cw * 1.04, ry = c.cy, rh = c.roofH;
+  const rg = ctx.createLinearGradient(0, ry, 0, ry + rh); rg.addColorStop(0, "#f88a2c"); rg.addColorStop(1, "#d8601a");
+  ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(c.cx + c.cw * 0.16, ry); ctx.lineTo(c.cx + c.cw * 0.84, ry); ctx.lineTo(rx1, ry + rh); ctx.lineTo(rx0, ry + rh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.beginPath(); ctx.moveTo(c.cx + c.cw * 0.18, ry + 3); ctx.lineTo(c.cx + c.cw * 0.5, ry + 3); ctx.lineTo(c.cx + c.cw * 0.3, ry + rh - 3); ctx.lineTo(rx0 + 10, ry + rh - 3); ctx.fill();
+  ctx.fillStyle = "#c8501a"; ctx.fillRect(rx0, ry + rh - 5, rx1 - rx0, 7);
+  // lit sign
+  const sw = c.cw * 0.56, sh = rh * 0.6, sx = W / 2 - sw / 2, sy = ry + rh * 0.18;
+  const lit = ctx.createRadialGradient(W / 2, sy + sh / 2, 4, W / 2, sy + sh / 2, sw * 0.6); lit.addColorStop(0, "#fff8f0"); lit.addColorStop(1, "#f6d8c8");
+  ctx.fillStyle = lit; rr(sx, sy, sw, sh, 10); ctx.fill(); ctx.strokeStyle = "#a8400a"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = "#4a2008"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let fs = Math.round(sh * 0.62); ctx.font = `${fs}px Bangers, Impact, sans-serif`;
+  while (ctx.measureText("CLUCKIN’ ABBY!").width > sw - 16 && fs > 10) { fs--; ctx.font = `${fs}px Bangers, Impact, sans-serif`; }
+  ctx.fillText("CLUCKIN’ ABBY!", W / 2, sy + sh / 2 + 1);
+}
+function drawWindow() {
+  const c = L, shake = G.state === "cackle" ? Math.sin(G.t * 38) * 3 * Math.min(1, G.stateT * 3) : 0, bob = G.state === "cackle" ? Math.abs(Math.sin(G.t * 9)) * -6 : 0;
+  ctx.save(); rr(c.wx, c.wy, c.ww, c.wh, 18); ctx.clip();
+  // warm lit interior
+  const g = ctx.createLinearGradient(0, c.wy, 0, c.wy + c.wh); g.addColorStop(0, "#fde8d8"); g.addColorStop(1, "#f2c0a0"); ctx.fillStyle = g; ctx.fillRect(c.wx, c.wy, c.ww, c.wh);
+  ctx.fillStyle = "#e8782a"; ctx.fillRect(c.wx, c.floor, c.ww, c.wy + c.wh - c.floor);
+  // the hen with Abby's face, sitting on the egg bed
+  if (hen.complete && hen.naturalWidth) {
+    const hw = Math.min(c.ww * 0.7, (c.floor - c.wy - c.wh * 0.2) / 0.99 * hen.naturalWidth / hen.naturalHeight), hh = hw * hen.naturalHeight / hen.naturalWidth, hx = c.wx + c.ww * 0.5 - hw / 2 + shake, hy = c.floor - hh * 0.9 + bob;
+    ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(c.wx + c.ww / 2, c.floor + 4, hw * 0.42, 12, 0, 0, 7); ctx.fill();
+    ctx.drawImage(hen, hx, hy, hw, hh);
+  }
+  // the bed of eggs in front of her
+  const er = c.ww * 0.05;
+  for (const b of bed) egg(c.wx + b.u * c.ww, c.floor + b.v * (c.wy + c.wh - c.floor) * 0.9, er * b.s, b.c, b.a);
+  // the egg she's laying drops down behind the bed
+  if (G.state === "lay" && G.egg) { const k = G.egg.k; egg(c.wx + c.ww * 0.42, c.floor - c.wh * 0.08 + k * c.wh * 0.2, er * 1.2, G.egg.c, 0, {}); }
+  ctx.restore();
+  // glass: reflection, frame
+  ctx.save(); rr(c.wx, c.wy, c.ww, c.wh, 18); ctx.clip();
+  ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.beginPath(); ctx.moveTo(c.wx + c.ww * 0.62, c.wy); ctx.lineTo(c.wx + c.ww * 0.82, c.wy); ctx.lineTo(c.wx + c.ww * 0.5, c.wy + c.wh); ctx.lineTo(c.wx + c.ww * 0.3, c.wy + c.wh); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = "#b8b8b4"; ctx.lineWidth = 4; rr(c.wx, c.wy, c.ww, c.wh, 18); ctx.stroke();
+  // directions decal on the glass
+  const dx = c.wx + c.ww * 0.03, dy = c.wy + c.wh * 0.04, fs = Math.round(clamp(c.ww * 0.036, 9, 15));
+  ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.font = `${fs}px Bangers, Impact, sans-serif`;
+  const lines = ["INSERT COIN–HEAR ABBY CACKLE!", "WATCH ABBY LAY GIFT EGG!", "JUNK IN EVERY EGG!", "2 GIFTS IN GOLD EGG!!!"];
+  lines.forEach((l, i) => { ctx.fillStyle = i === 3 ? "#b8860c" : "#2a1a10"; ctx.fillText(l, dx, dy + i * fs * 1.15); });
+}
+function drawFront() {
+  const c = L;
+  // the egg door with a little glass window
+  ctx.fillStyle = "#d8d8d2"; rr(c.doorX, c.doorY, c.doorW, c.doorH, 10); ctx.fill();
+  ctx.fillStyle = "#3a2a22"; rr(c.doorX + 6, c.doorY + 6, c.doorW - 12, c.doorH - 12, 8); ctx.fill();
+  const er = c.doorH * 0.32;
+  if (["roll", "ready"].includes(G.state) && G.egg) {
+    const k = G.state === "roll" ? G.egg.k : 1, ex = c.doorX + 14 + er + (c.doorW - 28 - 2 * er) * k, ey = c.doorY + c.doorH - 8 - er * 0.85;
+    G.egg.x = ex; G.egg.y = ey; egg(ex, ey, er, G.egg.c, k * Math.PI * 2.2);
+    if (G.egg.gold) { ctx.strokeStyle = `rgba(255,240,150,${0.5 + 0.5 * Math.sin(G.t * 6)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(ex, ey, er * 0.95, er * 1.15, 0, 0, 7); ctx.stroke(); }
+  }
+  ctx.fillStyle = "rgba(255,255,255,.15)"; ctx.fillRect(c.doorX + 8, c.doorY + 8, c.doorW * 0.3, 4);
+  ctx.fillStyle = "#6a6a70"; ctx.font = `800 ${Math.round(clamp(c.doorH * 0.16, 9, 13))}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillText("PUSH FOR EGG", c.doorX + c.doorW / 2, c.doorY + c.doorH + 4);
+  // coin slot plate and the big button
+  ctx.fillStyle = "#b8b8bc"; rr(c.btnX - c.btnR * 0.9, c.btnY - c.btnR * 2.1, c.btnR * 1.8, c.btnR * 0.9, 6); ctx.fill();
+  ctx.fillStyle = "#222"; rr(c.btnX - 4, c.btnY - c.btnR * 2.0, 8, c.btnR * 0.7, 3); ctx.fill();
+  const idle = G.state === "idle", p = G.pressed * 4;
+  ctx.fillStyle = "#7a5a08"; ctx.beginPath(); ctx.arc(c.btnX, c.btnY + 5, c.btnR, 0, 7); ctx.fill();
+  const bg = ctx.createRadialGradient(c.btnX - c.btnR * 0.35, c.btnY - c.btnR * 0.4 + p, 2, c.btnX, c.btnY + p, c.btnR);
+  bg.addColorStop(0, "#fff2b0"); bg.addColorStop(0.5, idle ? "#f2c419" : "#b8a060"); bg.addColorStop(1, idle ? "#b8860c" : "#7a6a40");
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(c.btnX, c.btnY + p, c.btnR, 0, 7); ctx.fill();
+  ctx.fillStyle = "#3a2008"; ctx.font = `900 ${Math.round(c.btnR * 0.34)}px system-ui, sans-serif`; ctx.textBaseline = "middle";
+  ctx.fillText("INSERT", c.btnX, c.btnY + p - c.btnR * 0.18); ctx.fillText("🪙 COIN", c.btnX, c.btnY + p + c.btnR * 0.22);
+  if (idle) { const k = 0.5 + 0.5 * Math.sin(G.t * 4); ctx.strokeStyle = `rgba(255,220,80,${0.3 + 0.5 * k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(c.btnX, c.btnY, c.btnR + 6 + k * 3, 0, 7); ctx.stroke(); }
+}
+function wrap(text, maxW) { const words = text.split(" "), lines = [""]; for (const w of words) { const t = (lines[lines.length - 1] + " " + w).trim(); if (ctx.measureText(t).width > maxW && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; } return lines; }
+function drawBubble() {
+  const b = G.bubble; if (!b) return; const c = L;
+  ctx.font = "700 15px system-ui, sans-serif"; const side = W - (c.cx + c.cw) > 230, maxW = side ? Math.min(W - (c.cx + c.cw) - 40, 300) : Math.min(c.ww * 0.6, 260), lines = wrap(b.text, maxW - 24);
+  const bw = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)) + 24), bh = 14 + lines.length * 20;
+  // beside the machine when there's room (sideways phone), otherwise low on the left over the tail, so her face always shows
+  const bx = side ? c.cx + c.cw + 26 : c.wx + c.ww * 0.03, by = side ? c.wy + c.wh * 0.15 : c.floor - bh - c.wh * 0.06;
+  ctx.globalAlpha = clamp(Math.min(b.t / 0.15, (3.6 - b.t) / 0.3), 0, 1);
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,.3)"; ctx.lineWidth = 1.5; rr(bx, by, bw, bh, 14); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); if (side) { ctx.moveTo(bx + 1, by + 12); ctx.lineTo(bx - 18, by + 4); ctx.lineTo(bx + 1, by + 28); } else { ctx.moveTo(bx + bw * 0.7, by + 1); ctx.lineTo(bx + bw * 0.92, by - 16); ctx.lineTo(bx + bw * 0.86, by + 1); } ctx.fill();
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; lines.forEach((l, i) => ctx.fillText(l, bx + bw / 2, by + 17 + i * 20));
+  ctx.globalAlpha = 1;
+}
+function drawHUD() {
+  const y = L.safeT + 28;
+  ctx.textBaseline = "middle"; ctx.textAlign = "right"; ctx.fillStyle = "rgba(0,0,0,.45)"; rr(W - 92, y - 18, 80, 36, 18); ctx.fill();
+  ctx.fillStyle = "#ffd75e"; ctx.font = "800 15px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 24, y);
+  ctx.textAlign = "center"; ctx.fillStyle = "#4a3a2a"; ctx.font = "700 13px system-ui, sans-serif";
+  const hint = G.state === "idle" ? "Tap INSERT COIN · 1 coin per egg" : G.state === "ready" ? "Tap the egg to open it!" : "";
+  ctx.fillText(hint, W / 2, y + 2, W - 220);
+  if (G.msg) { ctx.globalAlpha = clamp(2.5 - G.msg.t, 0, 1); ctx.fillStyle = "#a3122a"; ctx.font = "800 16px system-ui, sans-serif"; ctx.fillText(G.msg.text, W / 2, L.wy + L.wh * 0.5, W - 30); ctx.globalAlpha = 1; }
+}
+function drawOpen() {
+  if (G.state !== "open" || !G.prize) return;
+  const p = G.prize, k = clamp(G.stateT / 0.3, 0, 1);
+  ctx.fillStyle = `rgba(10,2,8,${0.78 * k})`; ctx.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.3, er = Math.min(W, H) * 0.12, openK = clamp((G.stateT - 0.3) / 0.35, 0, 1);
+  // bottom half stays, top half flips off
+  const ey = cy + er * 0.4;
+  ctx.save(); ctx.beginPath(); ctx.rect(cx - er * 1.2, ey, er * 2.4, er * 1.3); if (openK <= 0) ctx.rect(cx - er * 1.2, ey - er * 1.3, er * 2.4, er * 1.3); ctx.clip(); egg(cx, ey, er, G.egg.c, 0); ctx.restore();
+  if (openK > 0) { ctx.save(); ctx.translate(cx + openK * er * 1.3, ey - openK * er * 1.4); ctx.rotate(openK * 0.9);
+    ctx.beginPath(); ctx.rect(-er * 1.2, -er * 1.3, er * 2.4, er * 1.3); ctx.clip(); egg(0, 0, er, G.egg.c, 0, { solid: true }); ctx.restore(); }
+  if (openK <= 0) return;
+  const s = clamp((G.stateT - 0.45) / 0.4, 0, 1);
+  ctx.globalAlpha = s; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${Math.round(er * 1.05)}px system-ui, sans-serif`; ctx.fillText(p.gifts.map(g => g[0]).join(" "), cx, cy - er * 0.7 * s);
+  const cw = Math.min(W - 32, 400), gh = 92, ch = 30 + p.gifts.length * gh, x0 = cx - cw / 2, y0 = cy + er * 1.6;
+  ctx.fillStyle = p.gold ? "#fff4c0" : "#fff4dc"; rr(x0, y0, cw, ch, 16); ctx.fill(); ctx.strokeStyle = p.gold ? "#f2b02c" : "#e8782a"; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = "#a3122a"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText(p.gold ? "GOLD EGG! 2 GIFTS!" : "ABBY LAID YOU…", cx, y0 + 18);
+  p.gifts.forEach((g, i) => {
+    const y = y0 + 30 + i * gh;
+    ctx.fillStyle = "#2a0812"; ctx.font = "22px Rye, Georgia, serif"; ctx.fillText(g[1], cx, y + 18, cw - 20);
+    ctx.font = "600 14px system-ui, sans-serif"; ctx.fillStyle = "#4a2a1a"; wrap(g[2], cw - 30).slice(0, 3).forEach((l, j) => ctx.fillText(l, cx, y + 44 + j * 18));
+  });
+  if (G.stateT > 0.9) { ctx.fillStyle = "#fff4dc"; ctx.font = "800 15px system-ui, sans-serif"; ctx.fillText("Tap to keep going · Eggs laid: " + G.laid, cx, y0 + ch + 24); }
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawRoom(); drawCabinet(); drawWindow(); drawFront(); drawBubble(); drawHUD(); drawOpen();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
+
+// ---------- Input ----------
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); audio(); const x = e.clientX, y = e.clientY;
+  if (G.state === "open") { if (G.stateT > 0.9) { G.prize = null; G.egg = null; setState("idle"); } return; }
+  if (G.state === "ready") { const eg = G.egg; if (Math.hypot(x - eg.x, y - eg.y) < L.doorH || (x > L.doorX && x < L.doorX + L.doorW && y > L.doorY && y < L.doorY + L.doorH)) openEgg(); return; }
+  if (G.state === "idle" && Math.hypot(x - L.btnX, y - L.btnY) < L.btnR * 1.4) insertCoin();
+});
+addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (G.state === "idle") insertCoin(); else if (G.state === "ready") openEgg(); else if (G.state === "open" && G.stateT > 0.9) { G.prize = null; G.egg = null; setState("idle"); } } });
+$("back").onclick = () => { location.href = "../"; };
+addEventListener("resize", layout); layout();
+if (document.fonts && document.fonts.load) { document.fonts.load("20px Rye").catch(() => {}); document.fonts.load("20px Bangers").catch(() => {}); }
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
