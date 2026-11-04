@@ -224,7 +224,7 @@ function drawWindow() {
     const hw = Math.min(c.ww * 0.7, (c.floor - c.wy - c.wh * 0.2) / 0.99 * hen.naturalWidth / hen.naturalHeight), hh = hw * hen.naturalHeight / hen.naturalWidth, hx = c.wx + c.ww * 0.5 - hw / 2 + shake, hy = c.floor - hh * 0.9 + bob;
     ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(c.wx + c.ww / 2, c.floor + 4, hw * 0.42, 12, 0, 0, 7); ctx.fill();
     ctx.drawImage(hen, hx, hy, hw, hh);
-    const fh = hh * 0.32; drawHead(hx + hw * 0.847, hy + hh * 0.155 - fh * 0.575 + bob * 0.5, fh);   // Abby's turning head
+    const fh = hh * 0.34; drawHead(hx + hw * 0.83, hy + hh * 0.249 - fh * 0.8, fh);   // Abby's turning head sits right on the hen's neck (the chicken's own head was erased)
   }
   // the bed of eggs in front of her
   const er = c.ww * 0.05;
