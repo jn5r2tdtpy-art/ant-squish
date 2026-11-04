@@ -75,11 +75,11 @@
 "use strict";
 // ---------- Settings ----------
 const LIVES = 3, TIME = 30, BONUS_TIME = 10, RELOAD = 0.35, FLY = 0.6;
-const goalFor  = n => Math.min(32, 14 + 2 * (n - 1));                   // points to score in 30 seconds
+const goalFor  = n => Math.min(46, 18 + 3 * (n - 1));                   // points to score in 30 seconds
 const slideFor = n => n < 3 ? 0 : Math.min(2.2, 0.6 + 0.14 * (n - 3));  // how fast the hoop slides (from round 3)
-const SWIPE_FULL = 3.2;                                                 // swipe speed (lane lengths per second) that reaches the hoop
+const SWIPE_FULL = 3.0;                                                 // swipe speed (lane lengths per second) that reaches the hoop
 const STEER = 0.5;
-const TOL_D = 0.09, TOL_U = 0.2, BANK = 0.3;                            // how close a shot must be; how much too long can still bank in
+const TOL_D = 0.12, BANK = 0.32;                            // how close a shot must be; how much too long can still bank in
 
 const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
@@ -132,17 +132,18 @@ function layout() {
   L.hudH = 58 + L.safeT; L.foot = (W > H ? 34 : 54) + L.safeB;
   const top = L.hudH + 4, bottom = H - L.foot, h = bottom - top;
   L.cx = W / 2;
-  L.boardTop = top + 6; L.boardH = h * 0.27;                              // backboard with the clock and score
-  L.rimY = L.boardTop + L.boardH * 0.92;                                  // the rim, at the bottom of the backboard
-  L.laneTop = L.rimY + h * 0.1; L.laneBot = bottom - 6; L.laneLen = L.laneBot - L.laneTop;
-  L.lw = Math.min(W / 2 - 16, h * 0.4);                                   // lane half-width at the bottom
-  L.bw = Math.min(L.lw * 1.15, W / 2 - 20);                               // backboard half-width
-  L.rimW = L.lw * 0.62 * 0.36;                                            // rim half-width in pixels
+  L.sbTop = top + 4; L.sbH = Math.min(54, h * 0.085);                     // lit scoreboard with the clock and score
+  L.boardTop = L.sbTop + L.sbH + 10; L.boardH = h * 0.2;                  // glass backboard
+  L.bw = Math.min(W / 2 - 26, h * 0.27);                                  // backboard half-width
+  L.rimY = L.boardTop + L.boardH * 0.84;                                  // the rim, near the bottom of the backboard
+  L.rimW = L.bw * 0.36;                                                    // rim half-width in pixels
+  L.laneTop = L.rimY + h * 0.09; L.laneBot = bottom - 6; L.laneLen = L.laneBot - L.laneTop;
+  L.lw = Math.min(W / 2 - 12, h * 0.42);                                  // lane half-width at the bottom
 }
 const laneHW = d => L.lw * (1 - 0.38 * clamp(d, 0, 1.4));
 const laneY = d => L.laneBot - d * L.laneLen;                             // floor of the lane at depth d (1 = under the hoop)
 const hoopX = () => L.cx + G.hoopU * laneHW(1);
-const ballR = d => L.lw * 0.13 * (1 - 0.4 * clamp(d, 0, 1.3));
+const ballR = d => { const k = clamp(d, 0, 1.3); return L.lw * 0.21 + (L.rimW * 0.74 - L.lw * 0.21) * k; };   // big in your hand, nearly fills the rim at the hoop
 
 // ---------- Shooting ----------
 const uAt = x => clamp((x - L.cx) / (laneHW(0) * 0.85), -1, 1);
@@ -155,7 +156,7 @@ function swipeEnd(e) {
   const first = sw.pts[0], last = sw.pts[sw.pts.length - 1], up = first.y - last.y; if (up < 25) return;
   const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
   for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[i].y - rec[j].y) / dt * 1000); break; } }
-  const d = speed / (L.laneLen * SWIPE_FULL), u0 = uAt(first.x), u1 = clamp(u0 + STEER * (last.x - first.x) / up * L.laneLen / laneHW(0.5), -1.2, 1.2);
+  const d = Math.sqrt(speed / (L.laneLen * SWIPE_FULL)), u0 = uAt(first.x), u1 = clamp(u0 + STEER * (last.x - first.x) / up * L.laneLen / laneHW(0.5), -1.2, 1.2);
   shoot(u0, u1, d);
 }
 function shoot(u0, u1, d) {
@@ -164,19 +165,18 @@ function shoot(u0, u1, d) {
   G.reload = RELOAD; G.holdU = 0; sfx.shoot();
 }
 function judge(b) {
-  // where the hoop is when the ball gets there
-  const du = Math.abs(b.u1 - G.hoopU) * laneHW(1) / L.rimW * 0.36;     // across error in rim units
-  const inX = Math.abs(b.u1 - G.hoopU) < TOL_U, nearX = Math.abs(b.u1 - G.hoopU) < TOL_U * 1.6;
-  void du;
-  if (inX && Math.abs(b.d - 1) < TOL_D) return "swish";
-  if (nearX && b.d > 1 + TOL_D && b.d < 1 + BANK) return Math.random() < 0.45 ? "bank" : "board";
-  if (nearX && b.d >= 1 - TOL_D * 2.2 && b.d <= 1 + TOL_D) return "rim";
-  if (b.d >= 1 + BANK) return "board";
+  // how far off the middle of the rim the ball arrives (pixels), where the hoop is when it gets there
+  const off = Math.abs(b.u1 - G.hoopU) * laneHW(1), r = L.rimW, dd = b.d - 1;
+  if (off < r * 0.6 && Math.abs(dd) < TOL_D) return "swish";
+  if (off < r * 1.0 && Math.abs(dd) < TOL_D * 1.6) return Math.random() < 0.5 ? "rattle" : "rim";
+  if (off < r * 1.25 && dd > TOL_D && dd < BANK) return Math.random() < 0.5 ? "bank" : "board";
+  if (off < r * 1.3 && Math.abs(dd) < TOL_D * 2.2) return "rim";
+  if (dd >= BANK || dd > 0) return "board";
   return "short";
 }
 function score(b, kind) {
   const p = G.timeLeft <= BONUS_TIME ? 3 : 2; G.pts += p; G.score += p * 10;
-  G.pops.push({ x: hoopX(), y: L.rimY - 30, text: (kind === "bank" ? "Bank! +" : "+") + p, color: b.gold ? "#ffd75e" : "#fff", t: 0 });
+  G.pops.push({ x: hoopX(), y: L.rimY - 30, text: (kind === "bank" ? "Bank! +" : kind === "rattle" ? "Rattled in! +" : "Swish! +") + p, color: b.gold ? "#ffd75e" : "#fff", t: 0 });
   G.net = 1;
   if (b.gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ x: hoopX(), y: L.rimY + 4, text: "🪙 +1", color: "#ffd75e", t: 0 }); }
 }
@@ -199,12 +199,12 @@ function update(dt) {
       b.x = sx; b.y = base - arc; b.r = ballR(dd);
       if (k >= 1) {
         const kind = judge(b); b.result = kind; b.t = 0;
-        if (kind === "swish" || kind === "bank") { b.phase = "in"; b.x = hoopX(); b.y = L.rimY; kind === "bank" ? sfx.board() : 0; sfx.swish(); score(b, kind); }
+        if (kind === "swish" || kind === "bank" || kind === "rattle") { b.phase = "in"; b.x = hoopX(); b.y = L.rimY - b.r * 0.3; if (kind === "bank") sfx.board(); if (kind === "rattle") sfx.rim(); sfx.swish(); score(b, kind); }
         else { b.phase = "bounce"; b.vx = (kind === "rim" ? rand(-1, 1) * 180 : rand(-60, 60)); b.vy = kind === "short" ? 40 : -rand(60, 160); kind === "rim" ? sfx.rim() : kind === "board" ? sfx.board() : sfx.bounce();
           G.pops.push({ x: b.x, y: b.y - 24, text: kind === "short" ? "Too short!" : kind === "board" ? "Too long!" : "Rim!", color: "#fff", t: 0 }); }
       }
     } else if (b.phase === "in") {
-      b.y += dt * 260; if (b.t > 0.3) { b.phase = "back"; b.t = 0; b.bx = b.x; b.by = b.y; }
+      b.x = hoopX(); b.y += dt * 300; if (b.t > 0.35) { b.phase = "back"; b.t = 0; b.bx = b.x; b.by = b.y; }
     } else if (b.phase === "bounce") {
       b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
       if (b.y > laneY(0.85)) { b.phase = "back"; b.t = 0; b.bx = b.x; b.by = b.y; sfx.bounce(); }
@@ -266,33 +266,53 @@ function drawBooth() {
   ctx.fillStyle = "#d8702a"; rr(a.x - 14, a.y, b.x - a.x + 28, 10, 5); ctx.fill();
 }
 function drawBackboard() {
-  const x = L.cx - L.bw, y = L.boardTop, w = L.bw * 2, h = L.boardH;
-  ctx.fillStyle = "#d8702a"; rr(x - 6, y - 6, w + 12, h + 12, 12); ctx.fill();
-  ctx.fillStyle = "#fff4e0"; rr(x, y, w, h, 8); ctx.fill();
-  // target square over the rim (moves with the hoop)
-  const hx = hoopX(), sq = L.rimW * 1.5;
-  ctx.strokeStyle = "#e05a2a"; ctx.lineWidth = 4; ctx.strokeRect(hx - sq * 0.7, L.rimY - sq * 1.1, sq * 1.4, sq * 1.0);
-  // clock and score
-  const dy = y + h * 0.12, dh = Math.min(34, h * 0.26), dw = w * 0.3;
-  ctx.fillStyle = "#16163a"; rr(x + w * 0.06, dy, dw, dh, 5); ctx.fill(); rr(x + w * 0.64, dy, dw, dh, 5); ctx.fill();
-  ctx.font = `800 ${Math.round(dh * 0.72)}px ui-monospace, Menlo, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillStyle = G.timeLeft <= BONUS_TIME && G.state === "play" ? "#ff7a5a" : "#7aff8a"; const s = Math.ceil(G.timeLeft);
-  ctx.fillText("0:" + String(s).padStart(2, "0"), x + w * 0.06 + dw / 2, dy + dh / 2 + 1);
-  ctx.fillStyle = "#7aff8a"; ctx.fillText(String(G.pts).padStart(3, "0"), x + w * 0.64 + dw / 2, dy + dh / 2 + 1);
-  ctx.font = "700 11px system-ui, sans-serif"; ctx.fillStyle = "#8a5a3a"; ctx.fillText("TIME", x + w * 0.06 + dw / 2, dy + dh + 9); ctx.fillText("SCORE", x + w * 0.64 + dw / 2, dy + dh + 9);
-  if (G.timeLeft <= BONUS_TIME && G.state === "play" && Math.floor(G.t * 3) % 2) { ctx.fillStyle = "#e05a2a"; ctx.font = "800 13px system-ui, sans-serif"; ctx.fillText("🔥 BONUS TIME 3 PTS", L.cx, dy + dh / 2); }
+  // lit scoreboard
+  const sw = Math.min(W - 24, L.bw * 2 + 40), sx = L.cx - sw / 2, sy = L.sbTop, sh = L.sbH;
+  ctx.fillStyle = "#c8501a"; rr(sx - 4, sy - 4, sw + 8, sh + 8, 12); ctx.fill();
+  ctx.fillStyle = "#2a1a3a"; rr(sx, sy, sw, sh, 9); ctx.fill();
+  const n = Math.floor(sw / 22); for (let i = 0; i < n; i++) { const on = (Math.floor(G.t * 6) + i) % 3 === 0; ctx.fillStyle = on ? "#fff3a0" : "#f2b02c";
+    ctx.beginPath(); ctx.arc(sx + 12 + i * (sw - 24) / (n - 1), sy - 1, on ? 3.6 : 2.8, 0, 7); ctx.fill(); }
+  const dh = sh * 0.62, dw = sw * 0.32, dy = sy + (sh - dh) / 2;
+  ctx.fillStyle = "#0c0c1e"; rr(sx + 10, dy, dw, dh, 5); ctx.fill(); rr(sx + sw - 10 - dw, dy, dw, dh, 5); ctx.fill();
+  ctx.font = `800 ${Math.round(dh * 0.78)}px ui-monospace, Menlo, monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const bonus = G.timeLeft <= BONUS_TIME && G.state === "play";
+  ctx.fillStyle = bonus ? "#ff7a5a" : "#ff4a3a"; ctx.fillText("0:" + String(Math.ceil(G.timeLeft)).padStart(2, "0"), sx + 10 + dw / 2, dy + dh / 2 + 1);
+  ctx.fillStyle = "#ff4a3a"; ctx.fillText(String(G.pts).padStart(3, "0"), sx + sw - 10 - dw / 2, dy + dh / 2 + 1);
+  ctx.font = `${Math.round(sh * 0.34)}px Rye, Georgia, serif`; ctx.fillStyle = bonus && Math.floor(G.t * 3) % 2 ? "#ff7a5a" : "#ffd75e";
+  ctx.fillText(bonus ? "BONUS 3 PTS" : "HOOP SHOT", L.cx, sy + sh / 2 + 1, sw - dw * 2 - 30);
+  // glass backboard with the orange square (it slides with the hoop)
+  const off = G.hoopU * laneHW(1), bx = L.cx + off - L.bw, by = L.boardTop, bw2 = L.bw * 2, bh = L.boardH;
+  ctx.fillStyle = "rgba(0,0,0,.25)"; rr(bx + 6, by + 8, bw2, bh, 8); ctx.fill();
+  ctx.fillStyle = "#d8702a"; rr(bx - 5, by - 5, bw2 + 10, bh + 10, 10); ctx.fill();
+  const g = ctx.createLinearGradient(bx, by, bx + bw2, by + bh); g.addColorStop(0, "#f4fbff"); g.addColorStop(0.5, "#dff0fa"); g.addColorStop(1, "#f8fcff");
+  ctx.fillStyle = g; rr(bx, by, bw2, bh, 6); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.moveTo(bx + bw2 * 0.12, by); ctx.lineTo(bx + bw2 * 0.3, by); ctx.lineTo(bx + bw2 * 0.12, by + bh); ctx.lineTo(bx, by + bh); ctx.lineTo(bx, by + bh * 0.6); ctx.closePath(); ctx.fill();
+  const hx = hoopX(), sqW = L.rimW * 1.25, sqH = L.boardH * 0.42;
+  ctx.strokeStyle = "#e8501a"; ctx.lineWidth = 5; ctx.strokeRect(hx - sqW, L.rimY - sqH, sqW * 2, sqH * 0.98);
 }
 function drawRim(front) {
-  const hx = hoopX(), rw = L.rimW, rh = rw * 0.32;
-  ctx.strokeStyle = "#e8501a"; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.ellipse(hx, L.rimY, rw, rh, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); ctx.stroke();
-  if (front) { // net
-    const sway = Math.sin(G.t * 20) * G.net * 4, nh = rw * 1.1;
-    ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 1.4;
-    for (let k = 0; k <= 8; k++) { const f = k / 8, x0 = hx - rw + 2 * rw * f, x1 = hx - rw * 0.55 + 1.1 * rw * f + sway;
-      ctx.beginPath(); ctx.moveTo(x0, L.rimY + Math.sin(Math.PI * f) * rh); ctx.lineTo(x1, L.rimY + nh + G.net * 6); ctx.stroke(); }
-    for (let j = 1; j <= 3; j++) { const f = j / 4, w = rw * (1 - 0.45 * f), yy = L.rimY + nh * f + G.net * 6 * f; ctx.beginPath(); ctx.ellipse(hx + sway * f, yy, w, rh * (1 - 0.4 * f), 0, 0, Math.PI); ctx.stroke(); }
+  const hx = hoopX(), rw = L.rimW, rh = rw * 0.3, y = L.rimY + 4;
+  if (!front) {
+    // bracket to the backboard and the back of the rim
+    ctx.fillStyle = "#b8bcc4"; ctx.fillRect(hx - rw * 0.25, L.rimY - 6, rw * 0.5, 10);
+    ctx.strokeStyle = "#c8401a"; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(hx, y, rw, rh, 0, Math.PI, Math.PI * 2); ctx.stroke();
+    return;
   }
+  // diamond-pattern net that swings when you score
+  const sway = Math.sin(G.t * 22) * G.net * 5, nh = rw * 1.15, stretch = G.net * 8, bot = 0.55;
+  ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.lineWidth = 1.6;
+  const N = 10;
+  for (let k = 0; k <= N; k++) {
+    const f = k / N, ang = Math.PI * f, x0 = hx + Math.cos(ang) * rw, y0 = y + Math.sin(ang) * rh;
+    const g1 = (k + 1) / N, x1 = hx + Math.cos(Math.PI * g1) * rw * bot + sway, g0 = (k - 1) / N, x2 = hx + Math.cos(Math.PI * g0) * rw * bot + sway;
+    const yb = y + nh + stretch;
+    if (k < N) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, yb); ctx.stroke(); }
+    if (k > 0) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x2, yb); ctx.stroke(); }
+  }
+  ctx.beginPath(); ctx.ellipse(hx + sway, y + nh + stretch, rw * bot, rh * bot, 0, 0, Math.PI); ctx.stroke();
+  // front of the rim, thick and orange
+  ctx.strokeStyle = "#e8501a"; ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(hx, y, rw, rh, 0, 0, Math.PI); ctx.stroke();
+  ctx.strokeStyle = "rgba(255,200,150,.6)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(hx, y - 2, rw, rh, 0, 0.2, Math.PI - 0.2); ctx.stroke();
 }
 function ballAt(x, y, r, gold) {
   ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x + 3, y + r * 0.9, r * 0.9, r * 0.3, 0, 0, 7); ctx.fill();
