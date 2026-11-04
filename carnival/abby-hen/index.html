@@ -63,7 +63,22 @@ const $ = id => document.getElementById(id);
 const cv = $("cv"), ctx = cv.getContext("2d");
 const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-const hen = new Image(); hen.src = "img/hen.webp";
+const hen = new Image(); hen.src = "img/hen-body.webp";
+const head = new Image(); head.src = "img/head.webp";                  // 8 photos of Abby's head, every 45° around, side by side
+const HEAD_FW = 192, HEAD_FH = 200;
+// how her head is turned (degrees, 0 = facing you, 90 = her right profile, 180 = back of her head)
+function headAngle() {
+  if (G.state === "cackle") { const k = clamp(G.stateT / 1.9, 0, 1); return (k < 1 ? 360 * (1 - Math.cos(k * Math.PI)) / 2 : 0) + Math.sin(G.t * 9) * 8; }   // one full spin while she cackles
+  if (G.state === "open") return 0;
+  return Math.sin(G.t * 0.6) * 55 + Math.sin(G.t * 1.7) * 10;              // idly looks around
+}
+function drawHead(cx, top, fh) {
+  if (!head.complete || !head.naturalWidth) return;
+  const fw = fh * HEAD_FW / HEAD_FH, a = ((headAngle() % 360) + 360) % 360, i = Math.floor(a / 45) % 8, f = (a - i * 45) / 45, j = (i + 1) % 8;
+  ctx.drawImage(head, i * HEAD_FW, 0, HEAD_FW, HEAD_FH, cx - fw / 2, top, fw, fh);
+  const g = clamp((f - 0.3) / 0.4, 0, 1);                                 // quick blend in the middle, so it looks like one solid head
+  ctx.globalAlpha = 1 - g * 0; if (g > 0.02) { ctx.globalAlpha = g; ctx.drawImage(head, j * HEAD_FW, 0, HEAD_FW, HEAD_FH, cx - fw / 2, top, fw, fh); ctx.globalAlpha = 1; }
+}
 
 // ---------- Sound ----------
 let ac = null, noiseBuf = null;
@@ -209,6 +224,7 @@ function drawWindow() {
     const hw = Math.min(c.ww * 0.7, (c.floor - c.wy - c.wh * 0.2) / 0.99 * hen.naturalWidth / hen.naturalHeight), hh = hw * hen.naturalHeight / hen.naturalWidth, hx = c.wx + c.ww * 0.5 - hw / 2 + shake, hy = c.floor - hh * 0.9 + bob;
     ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(c.wx + c.ww / 2, c.floor + 4, hw * 0.42, 12, 0, 0, 7); ctx.fill();
     ctx.drawImage(hen, hx, hy, hw, hh);
+    const fh = hh * 0.32; drawHead(hx + hw * 0.847, hy + hh * 0.155 - fh * 0.575 + bob * 0.5, fh);   // Abby's turning head
   }
   // the bed of eggs in front of her
   const er = c.ww * 0.05;
