@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Bust Sonny’s Balloon</title>
+<title>Pop Sonny’s Ego</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -51,7 +51,7 @@
 <div class="overlay show" id="titleScreen">
   <div class="card">
     <div class="balloons">🎈<img src="img/sonny.webp" alt="Sonny" style="height:64px;vertical-align:middle">🎈</div>
-    <h1>Bust Sonny’s Balloon</h1>
+    <h1>Pop Sonny’s Ego</h1>
     <p><i>“Sorry, Sonny. Didn’t mean to bust your balloon!”</i></p>
     <div class="rules">
       <p>Every balloon on the board has Sonny’s face on it, and he is very proud of them. Throw darts and <b>bust Sonny’s balloons</b>. You get <b>5 darts</b> a round. Pop enough to beat the round.</p>
@@ -254,7 +254,7 @@ function drawScene() {
   ctx.fillStyle = "#3a1408"; rr(sx + sw * 0.06, sy + sh * 0.14, sw * 0.88, sh * 0.72, 10); ctx.fill();
   ctx.fillStyle = "#fff4dc"; rr(sx + sw * 0.075, sy + sh * 0.18, sw * 0.85, sh * 0.64, 8); ctx.fill();
   ctx.fillStyle = "#f2b81c"; ctx.strokeStyle = "#5a2a08"; ctx.lineWidth = Math.max(2, sh * 0.03); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const t1 = "BUST SONNY’S BALLOON", t2 = "Sorry, Sonny! Didn’t mean to bust your balloon!";
+  const t1 = "POP SONNY’S EGO", t2 = "Sorry, Sonny! Didn’t mean to bust your balloon!";
   let fs = Math.round(sh * 0.36); ctx.font = `${fs}px Rye, Georgia, serif`;
   while (ctx.measureText(t1).width > sw * 0.78 && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
   ctx.strokeText(t1, W / 2, sy + sh * 0.42); ctx.fillText(t1, W / 2, sy + sh * 0.42);
