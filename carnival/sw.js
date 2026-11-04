@@ -1,5 +1,5 @@
 // Carnival Midway offline cache. Bump VERSION when you change any file.
-const VERSION = "midway-v88";
+const VERSION = "midway-v89";
 const CORE = [
   "./", "index.html", "coins.js", "mikey/poster.webp", "mikey/lines.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png",
   "down-the-clown/", "down-the-clown/index.html",
@@ -19,7 +19,7 @@ const CORE = [
   "bottle-stand/", "bottle-stand/index.html",
   "hoop-shot/", "hoop-shot/index.html",
   "junk-crane/", "junk-crane/index.html",
-  "abby-hen/", "abby-hen/index.html", "abby-hen/img/hen.webp",
+  "abby-hen/", "abby-hen/index.html", "abby-hen/img/hen.webp", "abby-hen/img/hen-body.webp", "abby-hen/img/head.webp",
   "ventriloquist/", "ventriloquist/index.html", "ventriloquist/bits.js", "ventriloquist/questions.js", "ventriloquist/img/photo.webp", "ventriloquist/img/card.webp",
   "fortune-sonny/", "fortune-sonny/index.html", "fortune-sonny/fortunes.js", "fortune-sonny/img/sonny.webp", "fortune-sonny/img/machine.webp", "fortune-sonny/img/card.webp",
 ];
