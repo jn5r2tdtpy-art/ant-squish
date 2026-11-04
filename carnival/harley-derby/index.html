@@ -60,7 +60,7 @@
     <h1>Sonny’s<br>Harley Derby</h1>
     <div class="rules">
       <p>Race your Harley against <b>3 Sonnys</b>! <b>Roll the ball into a hole</b> to move your bike ahead: roll it up the lane to the triangle of holes at the end. The 🟡 front holes move you 1, the 🔴 middle row 2 and the 🔵 back row 3. Miss and you go nowhere.</p>
-      <p><b>Tap once</b> to lock where across the ramp as the arrow slides side to side. <b>Tap again</b> to lock how hard you roll as the power meter beside the ramp slides up and down.</p>
+      <p><b>Slide your finger up the lane</b> to roll the ball. Start your swipe where you want the ball across the lane, angle it to steer, and swipe <b>faster to roll it farther</b>.</p>
       <p>Beat all the Sonnys to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
       <p>Each race you win pays 🪙 +1.</p>
     </div>
@@ -91,8 +91,8 @@
 // ---------- Settings ----------
 const LIVES = 3, STEPS = 10;                                            // hole points Sonny needs to reach the flag
 const raceTime   = n => Math.max(21, 30 - 0.6 * (n - 1));                // seconds the riders take to finish
-const aimSpeed   = n => 1.5 + 0.06 * Math.min(n - 1, 20);               // side-to-side arrow
-const powerSpeed = n => 0.45 + 0.025 * Math.min(n - 1, 20);               // power meter (trips per second)
+const SWIPE_FULL = 5.5;
+const STEER = 0.5;                                                       // how much the angle of your swipe bends the roll                                                   // swipe speed (lane heights per second) that rolls the ball to the very end
 const HOLES = [ // a triangle of holes at the far end of the lane, like the real derby roll. u: across (-1..1), v: up the lane (0..1)
   ...[-0.6, -0.2, 0.2, 0.6].map(u => ({ u, v: 0.92, val: 3 })),
   ...[-0.4, 0, 0.4].map(u => ({ u, v: 0.82, val: 2 })),
@@ -162,12 +162,12 @@ function startRound() {
   G.banner = { big: "Race " + G.round, small: "Roll the ball in the holes to beat the Sonnys to the flag", note: G.round > 1 ? "The Sonnys are faster this time" : "" };
   setState("intro");
 }
-function newRoll() { G.aimPhase = rand(0, 6.28); G.pPhase = rand(0, 1); G.ball = null; }
+function newRoll() { G.ball = null; G.holdU = 0; G.swipe = null; }
 function newGame() {
   if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
   G.round = 1; G.score = 0; G.lives = LIVES; G.pops = []; G.bubble = null; hideOverlays(); layout(); startRound();
 }
-const racing = () => ["aim", "power", "rolling", "result"].includes(G.state);
+const racing = () => ["aim", "rolling", "result"].includes(G.state);
 
 // ---------- Layout ----------
 let W = 0, H = 0, DPR = 1; const L = {};
@@ -179,15 +179,14 @@ function layout() {
   const top = L.hudH + 4, bottom = H - L.foot;
   if (W > H) { // sideways: track on the left, ramp on the right
     L.tx = 10; L.tw = W * 0.6 - 20; L.ty = top + 4; L.th = bottom - top - 8;
-    const rw = W - L.tw - 90; L.rx = L.tx + L.tw + 22; L.rw = Math.min(rw, (bottom - top) * 0.75); L.ry = top + 10; L.rh = bottom - top - 20;
+    const rw = W - L.tw - 44; L.rx = L.tx + L.tw + 22; L.rw = Math.min(rw, (bottom - top) * 0.75); L.ry = top + 10; L.rh = bottom - top - 20;
   } else {
     const h = bottom - top; L.tx = 6; L.tw = W - 12; L.ty = top + 2; L.th = h * 0.46;
-    L.ry = L.ty + L.th + 12; L.rh = bottom - L.ry - 4; L.rw = Math.min(W - 90, L.rh * 0.95); L.rx = (W - 60 - L.rw) / 2 + 6;
+    L.ry = L.ty + L.th + 12; L.rh = bottom - L.ry - 4; L.rw = Math.min(W - 40, L.rh * 0.95); L.rx = (W - L.rw) / 2;
   }
   L.lanes = 4; L.lh = L.th / (L.lanes + 0.9);
   L.bikeW = Math.min(L.lh * 1.45, L.tw * 0.28);
   L.startX = L.tx + 8; L.finishX = L.tx + L.tw - 14;
-  L.mx = L.rx + L.rw + 26;
 }
 // ramp: a trapezoid, wide at the bottom (near you), narrow at the back
 function rampPt(u, v) { const w = L.rw * (1 - 0.4 * v); return { x: L.rx + L.rw / 2 + u * w / 2 * 0.9, y: L.ry + L.rh - 30 - v * (L.rh - 66), s: 1 - 0.4 * v }; }
@@ -197,22 +196,41 @@ const laneY = i => L.ty + L.lh * (i + 1.75);            // ground line of lane i
 const riderX = p => L.startX + (L.finishX - L.bikeW - L.startX) * clamp(p, 0, 1);
 
 // ---------- Rolling ----------
-const aimNow = () => Math.sin(G.aimPhase);
-const pNow = () => { const p = G.pPhase % 2; return p < 1 ? p : 2 - p; };
-const vFromP = p => p * 1.1;                          // the very top of the meter hits the back wall
-function tap() {
-  audio();
-  if (G.state === "aim") { G.aimU = aimNow(); sfx.lock(); setState("power"); }
-  else if (G.state === "power") { G.power = pNow(); sfx.lock(); roll(); }
+// slide your finger up the lane: where you start = across, the angle steers, the speed = how far
+const halfW = v => L.rw * (1 - 0.4 * v) / 2 * 0.9;
+const uAt = x => clamp((x - (L.rx + L.rw / 2)) / halfW(0), -1, 1);
+function swipeStart(e) {
+  if (G.state !== "aim") return;
+  audio(); G.swipe = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }; G.holdU = uAt(e.clientX);
 }
-function roll() { G.ball = { u: G.aimU, v: -0.08, tv: Math.min(1, vFromP(G.power)), t: 0, hole: null, back: false }; sfx.roll(); setState("rolling"); }
+function swipeMove(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId || G.state !== "aim") return;
+  sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (sw.pts.length > 40) sw.pts.shift();
+  if (sw.pts[0].y - e.clientY < 12) G.holdU = uAt(e.clientX);            // still lining up the ball
+}
+function swipeEnd(e) {
+  const sw = G.swipe; if (!sw || sw.id !== e.pointerId) return; G.swipe = null;
+  if (G.state !== "aim") return;
+  const now = performance.now(); sw.pts.push({ x: e.clientX, y: e.clientY, t: now });
+  const first = sw.pts[0], last = sw.pts[sw.pts.length - 1];
+  const up = first.y - last.y; if (up < 25) return;                       // just a tap, not a roll
+  // fastest part of the end of the swipe (over at least 30 ms, so one jumpy touch point can't fake it)
+  const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
+  for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) {
+    const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[i].y - rec[j].y) / dt * 1000); break; }
+  }
+  const v = Math.min(1.1, speed / (L.rh * SWIPE_FULL)), lane = L.rh - 66;
+  const u0 = uAt(first.x), u1 = clamp(u0 + STEER * (last.x - first.x) / up * (v * lane) / halfW(Math.min(1, v) / 2), -1.05, 1.05);
+  roll(u0, u1, v);
+}
+function roll(u0, u1, v) { G.ball = { u0, u1, u: u0, v: -0.08, tv: Math.min(1, v), want: v, t: 0, hole: null, back: false }; sfx.roll(); setState("rolling"); }
 function holeAt(u, v) {
   // the ball drops in when it stops close enough to a hole (a bit more forgiving up and down the ramp)
   for (const h of HOLES) { const du = (u - h.u) / TOL_U, dv = (v - h.v) / TOL_V; if (du * du + dv * dv <= 1) return h; }
   return null;
 }
 function settle() {
-  const b = G.ball, h = holeAt(b.u, b.tv);
+  const b = G.ball, h = holeAt(b.u1, b.tv); b.u = b.u1;
   if (h) {
     b.hole = h; sfx.drop(h.val); sfx.vroom(h.val);
     G.steps = Math.min(STEPS, G.steps + h.val); G.score += h.val * 10;
@@ -220,7 +238,7 @@ function settle() {
     if (h.val === 3 && Math.random() < 0.6) say(pick(LINES.three));
   } else {
     b.back = true; sfx.miss();
-    const q = rampPt(b.u, b.tv); G.pops.push({ x: q.x, y: q.y - 18, text: "Missed!", color: "#fff", t: 0 });
+    const q = rampPt(b.u, b.tv); G.pops.push({ x: q.x, y: q.y - 18, text: b.want < ROW_V[0] - TOL_V ? "Too soft!" : b.want > 1 ? "Too hard!" : "Missed!", color: "#fff", t: 0 });
     if (Math.random() < 0.35) say(pick(LINES.miss));
   }
   setState("result");
@@ -249,9 +267,7 @@ const ROLL = 0.75;
 function update(dt) {
   G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
   if (G.state === "intro" && G.stateT > 1.8) { setState("aim"); sfx.vroom(2); }
-  if (G.state === "aim") G.aimPhase += dt * aimSpeed(G.round);
-  if (G.state === "power") G.pPhase += dt * powerSpeed(G.round) * 2;
-  if (G.state === "rolling") { const b = G.ball; b.t += dt / ROLL; const e = 1 - Math.pow(1 - Math.min(1, b.t), 2); b.v = -0.08 + (b.tv + 0.08) * e; if (b.t >= 1) settle(); }
+  if (G.state === "rolling") { const b = G.ball; b.t += dt / ROLL; const e = 1 - Math.pow(1 - Math.min(1, b.t), 2); b.v = -0.08 + (b.tv + 0.08) * e; b.u = b.u0 + (b.u1 - b.u0) * e; if (b.t >= 1) settle(); }
   if (G.state === "result") { if (G.ball && G.ball.back) G.ball.v = Math.max(-0.1, G.ball.v - dt * 2.2); if (G.stateT > 0.35) newRollOrEnd(); }
   if (racing()) {
     G.raceT += dt;
@@ -411,22 +427,19 @@ function drawBall() {
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
 }
 function drawMarkers() {
-  if (!["aim", "power", "rolling", "result"].includes(G.state)) return;
-  const u = G.state === "aim" ? aimNow() : G.aimU, p0 = rampPt(u, -0.06);
-  ctx.fillStyle = G.state === "aim" ? "#ffffff" : "#7aff8a"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(p0.x, p0.y + 14); ctx.lineTo(p0.x - 11, p0.y + 30); ctx.lineTo(p0.x + 11, p0.y + 30); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = G.state === "aim" ? "rgba(255,255,255,.7)" : "rgba(122,255,138,.85)"; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
-  const p1 = rampPt(u, 1.03); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]);
-  if (G.state !== "aim") {
-    const x = L.mx, y0 = rampPt(0, 0).y, y1 = rampPt(0, 1.1 / 1.1 * 1.0).y - (rampPt(0, 0).y - rampPt(0, 1).y) * 0.1;
-    ctx.fillStyle = "rgba(20,4,10,.55)"; rr(x - 9, y1 - 6, 18, y0 - y1 + 12, 9); ctx.fill();
-    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, "#3a7af0"); g.addColorStop(0.5, "#f2c419"); g.addColorStop(1, "#e0242e");
-    ctx.fillStyle = g; rr(x - 5, y1, 10, y0 - y1, 5); ctx.fill();
-    // a tick for each row of holes
-    for (const v of ROW_V) { const y = y0 + (y1 - y0) * (v / 1.1); ctx.fillStyle = "#fff"; ctx.fillRect(x - 8, y - 1, 16, 2); }
-    const pv = G.state === "power" ? pNow() : G.power, hy = y0 + (y1 - y0) * pv;
-    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x - 10, hy); ctx.lineTo(x - 24, hy - 9); ctx.lineTo(x - 24, hy + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (G.state !== "aim") return;
+  // the ball waits at the bottom of the lane, under your finger
+  const p = rampPt(G.holdU || 0, -0.02), r = ballR();
+  const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.4, r * 0.1, p.x, p.y, r); g.addColorStop(0, "#fff"); g.addColorStop(1, "#b8bcc4");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+  if (!G.swipe) { // bouncing "swipe up" arrows
+    const k = (G.t * 1.6) % 1;
+    for (let j = 0; j < 3; j++) {
+      const y = p.y - r - 14 - j * 16 - k * 16; ctx.globalAlpha = 0.85 - j * 0.25;
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(p.x - 12, y + 8); ctx.lineTo(p.x, y - 4); ctx.lineTo(p.x + 12, y + 8); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 }
 function drawHUD() {
@@ -439,7 +452,7 @@ function drawHUD() {
   const pl = ["1st", "2nd", "3rd", "4th"][playerPlace() - 1];
   ctx.fillText("You are " + pl + "   Tries: " + G.lives, W / 2, y + 18);
   ctx.textAlign = "right"; ctx.fillStyle = "#ffd75e"; ctx.font = "800 14px system-ui, sans-serif"; ctx.fillText("🪙 " + Coins.get(), W - 14, y);
-  const label = G.state === "aim" ? "TAP to lock where across" : G.state === "power" ? "TAP to lock how hard you roll" : "";
+  const label = G.state === "aim" ? "SWIPE UP the lane to roll the ball" : "";
   ctx.textAlign = "center"; ctx.fillStyle = "#fff4dc"; ctx.font = "800 16px system-ui, sans-serif"; ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = 4;
   ctx.fillText(label, W > H ? L.rx + L.rw / 2 : W / 2, H - L.foot / 2 - L.safeB / 2); ctx.shadowBlur = 0;
 }
@@ -478,8 +491,11 @@ let last = performance.now();
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
 
 // ---------- Input & screens ----------
-cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
-addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { tap(); e.preventDefault(); } if (e.key === "Escape" || e.key === "p") togglePause(); });
+cv.addEventListener("pointerdown", e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} swipeStart(e); });
+cv.addEventListener("pointermove", e => { e.preventDefault(); swipeMove(e); });
+cv.addEventListener("pointerup", e => swipeEnd(e));
+cv.addEventListener("pointercancel", () => { G.swipe = null; });
+addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") togglePause(); });
 function hideOverlays() { document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show")); }
 function togglePause() {
   if (G.state === "paused") { hideOverlays(); setState(G.pausedFrom.state); G.stateT = G.pausedFrom.t; return; }
