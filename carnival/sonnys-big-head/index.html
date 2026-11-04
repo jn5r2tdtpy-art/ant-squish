@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Blow Up Sonny’s Big Ego Head</title>
+<title>Blow Up Sonny’s Big Head</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -56,7 +56,7 @@
 <div class="overlay show" id="titleScreen">
   <div class="card">
     <img class="hero" src="img/sonny.webp" alt="Sonny">
-    <h1>Blow Up Sonny’s<br>Big Ego Head</h1>
+    <h1>Blow Up Sonny’s<br>Big Head</h1>
     <div class="rules">
       <p>Squirt your water gun into the <b>target</b> to blow up Sonny’s head. The first head to <b>POP</b> wins the race!</p>
       <p>You’re racing <b>Lefty Lou</b> on the left and <b>Rapid Rita</b> on the right. They get better every race.</p>
@@ -416,7 +416,7 @@ function drawBooth() {
   ctx.fillStyle = sg; rr(bx, sy, bw, sh, 6); ctx.fill();
   ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   let fs = Math.round(sh * 0.56); ctx.font = `${fs}px Rye, Georgia, serif`;
-  const label = "BLOW UP SONNY’S BIG EGO HEAD";
+  const label = "BLOW UP SONNY’S BIG HEAD";
   while (ctx.measureText(label).width > bw - 16 && fs > 9) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
   ctx.fillText(label, W / 2, sy + sh / 2 + 1);
   // red counter with stars
