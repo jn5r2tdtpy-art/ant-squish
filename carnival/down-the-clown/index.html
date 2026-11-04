@@ -239,7 +239,7 @@ function startRound() {
   }));
   const good = cells.length - s.red;
   const full = (6 + good * 2.5) * (s.over ? Math.max(0.55, 1 - 0.06 * s.over) : 1);
-  G.timeMax = full - timeCut(G.round) + (G.round >= 40 ? 5 : 0); // 5 extra seconds from round 40
+  G.timeMax = full - timeCut(G.round) + (G.round >= 40 ? 5 : 0) - (G.round >= 40 && G.round <= 49 ? 15 : 0); // 5 extra seconds from round 40; rounds 40-49 lose 15
   G.timeLeft = G.timeMax;
   G.balls = []; G.bonusT = 4;
   placeClowns();
