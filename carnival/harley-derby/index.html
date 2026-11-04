@@ -53,7 +53,7 @@
     <img class="face" src="img/sonny.webp" alt="Sonny">
     <h1>Sonny’s<br>Harley Derby</h1>
     <div class="rules">
-      <p>Sonny’s racing his Harley against 3 other riders. <b>Roll the ball into a hole</b> to move him ahead: the 🟡 front holes move him 1, the 🔴 middle holes 2 and the 🔵 back hole 3. Miss and he goes nowhere.</p>
+      <p>Sonny’s racing his Harley against 3 other riders. <b>Roll the ball into a hole</b> to move him ahead: roll it up the lane to the triangle of holes at the end. The 🟡 front holes move him 1, the 🔴 middle row 2 and the 🔵 back row 3. Miss and he goes nowhere.</p>
       <p><b>Tap once</b> to lock where across the ramp as the arrow slides side to side. <b>Tap again</b> to lock how hard you roll as the power meter beside the ramp slides up and down.</p>
       <p>Beat the other riders to the checkered flag to win the race. Each race they ride faster. Lose a race and you lose one of 3 tries.</p>
       <p>Each race Sonny wins pays 🪙 +1.</p>
@@ -75,14 +75,17 @@
 "use strict";
 // ---------- Settings ----------
 const LIVES = 3, STEPS = 10;                                            // hole points Sonny needs to reach the flag
-const raceTime   = n => Math.max(20, 27 - 0.6 * (n - 1));                // seconds the riders take to finish
+const raceTime   = n => Math.max(21, 30 - 0.6 * (n - 1));                // seconds the riders take to finish
 const aimSpeed   = n => 1.5 + 0.06 * Math.min(n - 1, 20);               // side-to-side arrow
 const powerSpeed = n => 0.45 + 0.025 * Math.min(n - 1, 20);               // power meter (trips per second)
-const HOLES = [ // u: across (-1..1), v: up the ramp (0..1), value
-  { u: -0.6, v: 0.3, val: 1 }, { u: 0, v: 0.3, val: 1 }, { u: 0.6, v: 0.3, val: 1 },
-  { u: -0.32, v: 0.6, val: 2 }, { u: 0.32, v: 0.6, val: 2 },
-  { u: 0, v: 0.87, val: 3 },
+const HOLES = [ // a triangle of holes at the far end of the lane, like the real derby roll. u: across (-1..1), v: up the lane (0..1)
+  ...[-0.6, -0.2, 0.2, 0.6].map(u => ({ u, v: 0.92, val: 3 })),
+  ...[-0.4, 0, 0.4].map(u => ({ u, v: 0.82, val: 2 })),
+  ...[-0.2, 0.2].map(u => ({ u, v: 0.72, val: 1 })),
+  { u: 0, v: 0.62, val: 1 },
 ];
+const ROW_V = [0.62, 0.72, 0.82, 0.92];
+const TOL_U = 0.16, TOL_V = 0.05;                                      // how close the ball must stop to drop in
 const HOLE_COLOR = { 1: "#f2c419", 2: "#e0242e", 3: "#2f6ee0" };
 const RIVALS = [
   { helmet: "#e0242e", jacket: "#2a2a30", tank: "#3a7af0" },
@@ -168,9 +171,9 @@ function layout() {
   L.mx = L.rx + L.rw + 26;
 }
 // ramp: a trapezoid, wide at the bottom (near you), narrow at the back
-function rampPt(u, v) { const w = L.rw * (1 - 0.3 * v); return { x: L.rx + L.rw / 2 + u * w / 2 * 0.92, y: L.ry + L.rh - 18 - v * (L.rh - 34), s: 1 - 0.3 * v }; }
-const holeR = () => Math.min(L.rw * 0.085, L.rh * 0.07);
-const ballR = () => holeR() * 0.62;
+function rampPt(u, v) { const w = L.rw * (1 - 0.4 * v); return { x: L.rx + L.rw / 2 + u * w / 2 * 0.9, y: L.ry + L.rh - 30 - v * (L.rh - 66), s: 1 - 0.4 * v }; }
+const holeR = () => TOL_U * 0.82 * L.rw / 2 * 0.9;
+const ballR = () => holeR() * 0.7;
 const laneY = i => L.ty + L.lh * (i + 1.45);            // ground line of lane i (0 = back)
 const riderX = p => L.startX + (L.finishX - L.bikeW - L.startX) * clamp(p, 0, 1);
 
@@ -186,7 +189,7 @@ function tap() {
 function roll() { G.ball = { u: G.aimU, v: -0.08, tv: Math.min(1, vFromP(G.power)), t: 0, hole: null, back: false }; sfx.roll(); setState("rolling"); }
 function holeAt(u, v) {
   // the ball drops in when it stops close enough to a hole (a bit more forgiving up and down the ramp)
-  for (const h of HOLES) { const du = (u - h.u) / 0.17, dv = (v - h.v) / 0.085; if (du * du + dv * dv <= 1) return h; }
+  for (const h of HOLES) { const du = (u - h.u) / TOL_U, dv = (v - h.v) / TOL_V; if (du * du + dv * dv <= 1) return h; }
   return null;
 }
 function settle() {
@@ -350,20 +353,32 @@ function drawHarley(x, gy, w, paint) {
   ctx.fillStyle = "#fff6c0"; ctx.beginPath(); ctx.arc(x + 79.5 * s, wy - 34 * s, 3.8 * s, 0, 7); ctx.fill();
 }
 function drawRamp() {
-  const a = rampPt(-1.09, -0.06), b = rampPt(1.09, -0.06), c = rampPt(1.09, 1.03), d = rampPt(-1.09, 1.03);
-  ctx.fillStyle = "#5a2a10"; ctx.beginPath(); ctx.moveTo(a.x - 8, a.y + 12); ctx.lineTo(b.x + 8, b.y + 12); ctx.lineTo(c.x + 8, c.y - 8); ctx.lineTo(d.x - 8, d.y - 8); ctx.closePath(); ctx.fill();
-  const g = ctx.createLinearGradient(0, a.y, 0, d.y); g.addColorStop(0, "#f2a030"); g.addColorStop(1, "#e07a1c");
+  const glow = "#c040ff", a = rampPt(-1.08, -0.04), b = rampPt(1.08, -0.04), c = rampPt(1.08, 1.03), d = rampPt(-1.08, 1.03);
+  // black cabinet with the ball-return gutter at your end
+  ctx.fillStyle = "#121216"; ctx.beginPath(); ctx.moveTo(a.x - 12, a.y + 26); ctx.lineTo(b.x + 12, b.y + 26); ctx.lineTo(c.x + 10, c.y - 6); ctx.lineTo(d.x - 10, d.y - 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#050507"; ctx.beginPath(); ctx.ellipse((a.x + b.x) / 2 + L.rw * 0.3, a.y + 14, 9, 7, 0, 0, 7); ctx.fill();
+  // the glowing lane
+  const g = ctx.createLinearGradient(0, a.y, 0, d.y); g.addColorStop(0, "#f2a8f8"); g.addColorStop(0.55, "#e27cf2"); g.addColorStop(1, "#f8e4fc");
   ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,.18)"; ctx.lineWidth = 1;
-  for (let k = 1; k < 6; k++) { const p = rampPt(-1.09, k / 6), q = rampPt(1.09, k / 6); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+  // lit side rails
+  ctx.save(); ctx.shadowColor = glow; ctx.shadowBlur = 14; ctx.strokeStyle = "#e6a0ff"; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(a.x - 4, a.y + 2); ctx.lineTo(d.x - 4, d.y); ctx.moveTo(b.x + 4, b.y + 2); ctx.lineTo(c.x + 4, c.y); ctx.stroke(); ctx.restore();
+  // white triangle plate with the holes
+  const t1 = rampPt(-0.82, 0.985), t2 = rampPt(0.82, 0.985), t3 = rampPt(0, 0.54);
+  ctx.fillStyle = "rgba(255,255,255,.88)"; ctx.beginPath(); ctx.moveTo(t1.x, t1.y); ctx.lineTo(t2.x, t2.y); ctx.lineTo(t3.x, t3.y); ctx.closePath(); ctx.fill();
   const r = holeR();
   for (const h of HOLES) {
-    const q = rampPt(h.u, h.v), hr = r * q.s;
-    ctx.fillStyle = HOLE_COLOR[h.val]; ctx.beginPath(); ctx.ellipse(q.x, q.y, hr * 1.35, hr * 1.35 / 1.6, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = "#1a0a04"; ctx.beginPath(); ctx.ellipse(q.x, q.y, hr, hr / 1.6, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = HOLE_COLOR[h.val]; ctx.font = `900 ${Math.round(hr * 0.75)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const q = rampPt(h.u, h.v), hr = r * q.s, vr = hr * 0.62;
+    ctx.fillStyle = HOLE_COLOR[h.val]; ctx.beginPath(); ctx.ellipse(q.x, q.y, hr * 1.18, vr * 1.18, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#3a0a48"; ctx.beginPath(); ctx.ellipse(q.x, q.y, hr, vr, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(Math.max(9, vr * 1.2))}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(String(h.val), q.x, q.y + 1);
   }
+  // "Sonny" sign at the far end, like Player 1
+  const sw = Math.abs(c.x - d.x) + 16, sx = d.x - 8, sy = d.y - 30;
+  ctx.fillStyle = "#fbf6ff"; rr(sx, sy, sw, 26, 4); ctx.fill();
+  ctx.save(); ctx.shadowColor = glow; ctx.shadowBlur = 10; ctx.strokeStyle = glow; ctx.lineWidth = 2; rr(sx, sy, sw, 26, 4); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = "#4a1a7a"; ctx.font = "20px Rye, Georgia, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Sonny", sx + sw / 2, sy + 14, sw - 10);
 }
 function drawBall() {
   const b = G.ball; if (!b || !["rolling", "result"].includes(G.state)) return;
@@ -387,7 +402,7 @@ function drawMarkers() {
     const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, "#3a7af0"); g.addColorStop(0.5, "#f2c419"); g.addColorStop(1, "#e0242e");
     ctx.fillStyle = g; rr(x - 5, y1, 10, y0 - y1, 5); ctx.fill();
     // a tick for each row of holes
-    for (const v of [0.3, 0.6, 0.87]) { const y = y0 + (y1 - y0) * (v / 1.1); ctx.fillStyle = "#fff"; ctx.fillRect(x - 8, y - 1, 16, 2); }
+    for (const v of ROW_V) { const y = y0 + (y1 - y0) * (v / 1.1); ctx.fillStyle = "#fff"; ctx.fillRect(x - 8, y - 1, 16, 2); }
     const pv = G.state === "power" ? pNow() : G.power, hy = y0 + (y1 - y0) * pv;
     ctx.fillStyle = "#fff"; ctx.strokeStyle = "#13246a"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x - 10, hy); ctx.lineTo(x - 24, hy - 9); ctx.lineTo(x - 24, hy + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
