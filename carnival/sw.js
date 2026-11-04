@@ -1,5 +1,5 @@
 // Carnival Midway offline cache. Bump VERSION when you change any file.
-const VERSION = "midway-v76";
+const VERSION = "midway-v77";
 const CORE = [
   "./", "index.html", "coins.js", "mikey/poster.webp", "mikey/lines.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png",
   "down-the-clown/", "down-the-clown/index.html",
@@ -9,7 +9,7 @@ const CORE = [
   "gabby-abby/img/tooth3.webp", "gabby-abby/img/tooth4.webp", "gabby-abby/img/tooth5.webp",
   "sonnys-big-head/", "sonnys-big-head/index.html", "sonnys-big-head/img/sonny.webp",
   "duck-duck-splash/", "duck-duck-splash/index.html", "duck-duck-splash/img/glasses.webp", "duck-duck-splash/img/tophat.webp", "duck-duck-splash/img/bald.webp",
-  "dunk-tank/", "dunk-tank/index.html", "dunk-tank/img/bald.webp", "dunk-tank/img/glasses.webp", "dunk-tank/img/bandana.webp", "dunk-tank/img/tophat.webp",
+  "dunk-tank/", "dunk-tank/index.html", "dunk-tank/img/bald.webp", "dunk-tank/img/glasses.webp", "dunk-tank/img/bandana.webp", "dunk-tank/img/tophat.webp", "dunk-tank/img/emblem.webp",
   "knock-cans/", "knock-cans/index.html", "knock-cans/img/abby.webp", "knock-cans/img/eddie.webp", "knock-cans/img/sonny.webp",
   "ring-toss/", "ring-toss/index.html", "ring-toss/eddie.webp",
   "balloon-pop/", "balloon-pop/index.html", "balloon-pop/img/sonny.webp",
