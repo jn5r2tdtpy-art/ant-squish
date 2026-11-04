@@ -56,7 +56,7 @@
     <p><i>Win an egg. Open it. Regret it.</i></p>
     <div class="rules">
       <p><b>Drag your finger along the slider</b> to move the claw over an egg, then tap the big red <b>DROP</b> button. The claw drops, grabs and carries the egg to the prize chute.</p>
-      <p>Line the claw up right over the middle of an egg: the closer you are, the better it holds. Sometimes it slips anyway. It’s a claw machine.</p>
+      <p>Line the claw up right over the middle of an egg: the closer you are, the better it holds. Watch out, the claw <b>swings a little on its cable</b> when you drop it, more if it’s still moving, so let it stop first. Sometimes it slips anyway. It’s a claw machine.</p>
       <p>You get <b>5 tries</b>. Every egg you win, you open, and every prize inside is junk: Eddie’s debt, Sonny’s spare Harley keys, the penny Abby found on the floor…</p>
       <p>The shiny 🟡 <b>gold egg</b> has a real coin inside: 🪙 +1.</p>
     </div>
@@ -77,7 +77,8 @@
 "use strict";
 // ---------- Settings ----------
 const TRIES = 5, AIM_TIME = 15, EGGS = 11;
-const GRIP = 0.92;                                                       // best hold chance with the claw dead center on an egg
+const GRIP = 0.92;
+const SWING = 0.45;                                                      // how far the claw swings when you drop it (egg sizes)                                                       // best hold chance with the claw dead center on an egg
 // The junk inside the eggs. Copy a line to add more: [emoji, prize, joke].
 const PRIZES = [
   ["🧾", "Eddie’s Debt", "An IOU for $4,000. Congratulations, it’s yours now!"],
@@ -114,7 +115,7 @@ function noise(d, type, f, p, q = 1, dl = 0) { const a = audio(); if (!a) return
 function tone(f, d, type = "sine", p = 0.2, dl = 0, to = 0) { const a = audio(); if (!a) return; const t = a.currentTime + dl, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d); env(g, t, 0.01, p, d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d + 0.05); }
 let motor = null;
 function motorOn(on) { const a = audio(); if (!a) return;
-  if (on && !motor) { const o = a.createOscillator(), g = a.createGain(); o.type = "sawtooth"; o.frequency.value = 70; g.gain.value = 0.025; o.connect(g).connect(a.destination); o.start(); motor = { o, g }; }
+  if (on && !motor) { const o = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter(); o.type = "triangle"; o.frequency.value = 110; f.type = "lowpass"; f.frequency.value = 300; g.gain.value = 0.012; o.connect(f).connect(g).connect(a.destination); o.start(); motor = { o, g }; }
   if (!on && motor) { motor.g.gain.setTargetAtTime(0.0001, a.currentTime, 0.03); const m = motor; setTimeout(() => { try { m.o.stop(); } catch (e) {} }, 150); motor = null; } }
 const sfx = {
   coin() { tone(1200, 0.08, "square", 0.06); tone(1600, 0.12, "square", 0.06, 0.08); },
@@ -151,7 +152,7 @@ function fillEggs() {
     }
   }
 }
-function newTry() { const c = G.claw; c.x = c.tx = L.gx + L.gw * 0.62; c.drop = 0; c.open = 1; c.egg = null; c.plan = null; G.aimT = AIM_TIME; G.msg = null; setState("aim"); }
+function newTry() { const c = G.claw; c.swAmp = 0; c.swT = 0; c.lastSpeed = 0; c.x = c.tx = L.gx + L.gw * 0.62; c.drop = 0; c.open = 1; c.egg = null; c.plan = null; G.aimT = AIM_TIME; G.msg = null; setState("aim"); }
 
 // ---------- Layout ----------
 let W = 0, H = 0, DPR = 1; const L = {};
@@ -175,7 +176,8 @@ function layout() {
   if (G.claw) { G.claw.x = clamp(G.claw.x, clawMin(), clawMax()); G.claw.tx = clamp(G.claw.tx, clawMin(), clawMax()); }
 }
 const clawMin = () => L.gx + L.clawW * 0.6, clawMax = () => L.gx + L.gw - L.clawW * 0.6;
-const clawTipY = () => L.rail + 22 + G.claw.drop;                       // where the claw's fingers are
+const clawTipY = () => L.rail + 22 + G.claw.drop;
+const clawTipX = () => { const c = G.claw; return c.x + (c.swAmp || 0) * Math.sin((c.swPh || 0) + (c.swT || 0) * 4.2) * Math.exp(-(c.swT || 0) * 0.55); };                       // where the claw's fingers are
 
 // ---------- Controls ----------
 function inBtn(x, y) { return Math.hypot(x - L.btnX, y - L.btnY) < L.btnR * 1.25; }
@@ -193,7 +195,9 @@ function steer(x) { // the slider maps across the whole machine; dragging inside
   const f = inSlider ? (x - L.sx0) / (L.sx1 - L.sx0) : (x - L.gx) / L.gw;
   G.claw.tx = clamp(clawMin() + clamp(f, 0, 1) * (clawMax() - clawMin()), clawMin(), clawMax());
 }
-function drop() { if (G.state !== "aim") return; G.touch = null; G.claw.tx = G.claw.x; sfx.clack(); motorOn(true); setState("down"); }
+function drop() { if (G.state !== "aim") return; G.touch = null; G.claw.tx = G.claw.x; sfx.clack(); motorOn(false);
+  // the claw swings a little on its cable when you drop, more if it was still moving
+  const c = G.claw; c.swAmp = L.er * (SWING + Math.min(0.5, c.lastSpeed / (L.gw * 0.55) * 0.5)); c.swPh = rand(0, 6.28); c.swT = 0; setState("down"); }
 
 // ---------- The claw ----------
 function eggUnder(x) { // the highest egg whose top the claw would hit
@@ -202,9 +206,10 @@ function eggUnder(x) { // the highest egg whose top the claw would hit
   return best;
 }
 function grab() {
-  const c = G.claw, e = eggUnder(c.x);
+  const c = G.claw, tx = clawTipX(), e = eggUnder(tx);
+  c.swAmp = 0;                                                          // the claw steadies once it grabs
   if (!e) { c.plan = "miss"; return; }
-  const a = Math.abs(e.x - c.x) / e.r, p = clamp(1 - a * 1.25, 0, 1) * GRIP * (e.gold ? 0.7 : 1), roll = Math.random();
+  const a = Math.abs(e.x - tx) / e.r, p = clamp(1 - a * 1.25, 0, 1) * GRIP * (e.gold ? 0.7 : 1), roll = Math.random();
   if (roll < p) c.plan = "hold";
   else if (roll < p + 0.35 && a < 0.8) { c.plan = "slip"; c.slipAt = rand(0.15, 0.85); }
   else { c.plan = "miss"; e.wobble = 1; }
@@ -215,15 +220,15 @@ function update(dt) {
   G.t += dt; if (G.state === "paused" || G.state === "title") return; G.stateT += dt;
   const c = G.claw, sp = L.gw * 0.55;                                    // crane speed, px/s
   if (G.state === "aim") {
-    const d = c.tx - c.x; if (Math.abs(d) > 1) { c.x += Math.sign(d) * Math.min(Math.abs(d), sp * dt); motorOn(true); } else motorOn(false);
+    const d = c.tx - c.x, mv = Math.abs(d) > 1 ? Math.sign(d) * Math.min(Math.abs(d), sp * dt) : 0; c.x += mv; c.lastSpeed = Math.abs(mv) / Math.max(dt, 1e-3); motorOn(mv !== 0);
     G.aimT -= dt; if (G.aimT <= 0) { G.aimT = 0; drop(); }
   }
   if (G.state === "down") {
-    c.drop += dt * L.gh * 0.55;
-    const e = eggUnder(c.x), stopAt = e ? e.y - e.r * 0.55 : L.floor - 6;
+    c.drop += dt * L.gh * 0.55; c.swT = (c.swT || 0) + dt;
+    const e = eggUnder(clawTipX()), stopAt = e ? e.y - e.r * 0.55 : L.floor - 6;
     if (clawTipY() >= stopAt) { motorOn(false); setState("close"); sfx.clack(); }
   }
-  if (G.state === "close") { c.open = Math.max(0, 1 - G.stateT / 0.45); if (G.stateT > 0.5) { grab(); motorOn(true); setState("up"); } }
+  if (G.state === "close") { c.swT = (c.swT || 0) + dt; c.open = Math.max(0, 1 - G.stateT / 0.45); if (G.stateT > 0.5) { grab(); setState("up"); } }
   if (G.state === "up") {
     c.drop = Math.max(0, c.drop - dt * L.gh * 0.45);
     if (c.plan === "miss" && G.stateT < 0.3) c.open = Math.min(0.5, G.stateT * 2);
@@ -240,7 +245,7 @@ function update(dt) {
   if (G.state === "return") { c.open = 1; const home = L.gx + L.gw * 0.62; c.x = Math.min(home, c.x + sp * dt); if (c.x >= home - 0.5) next(); }
   if (G.state === "reveal") { if (G.prize && !G.prize.sounded && G.stateT > 0.6) { G.prize.sounded = true; G.prize.gold ? sfx.gold() : sfx.trombone(); } }
   // the held egg rides the claw; loose eggs fall and settle
-  if (c.egg) { c.egg.x = c.x; c.egg.y = clawTipY() - 4; }
+  if (c.egg) { c.egg.x = clawTipX(); c.egg.y = clawTipY() - 4; }
   settle(dt);
   for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.2);
   if (G.msg) { G.msg.t += dt; if (G.msg.t > 1.6) G.msg = null; }
@@ -334,10 +339,10 @@ function drawEgg(e, scale = 1, openK = 0) {
 }
 function shade(hex) { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, v - 60); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
 function drawClaw() {
-  const c = G.claw, x = c.x, tip = clawTipY(), w = L.clawW, o = c.open;
+  const c = G.claw, cx = c.x, x = clawTipX(), tip = clawTipY(), w = L.clawW, o = c.open;
   // carriage on the rail and the cable
-  ctx.fillStyle = "#6a6e78"; rr(x - w * 0.5, L.rail - 10, w, 16, 4); ctx.fill();
-  ctx.strokeStyle = "#c8ccd4"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, L.rail + 4); ctx.lineTo(x, tip - w * 0.55); ctx.stroke();
+  ctx.fillStyle = "#6a6e78"; rr(cx - w * 0.5, L.rail - 10, w, 16, 4); ctx.fill();
+  ctx.strokeStyle = "#c8ccd4"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, L.rail + 4); ctx.lineTo(x, tip - w * 0.55); ctx.stroke();
   // claw head and three prongs
   ctx.fillStyle = "#d8dce2"; rr(x - w * 0.28, tip - w * 0.62, w * 0.56, w * 0.24, 5); ctx.fill();
   ctx.strokeStyle = "#e8ecf2"; ctx.lineWidth = Math.max(3, w * 0.09); ctx.lineCap = "round";
