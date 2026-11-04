@@ -9,5 +9,6 @@ window.MIKEY = [
   "Watch out for Eddie. He's sneaky, and he does not tell the truth.",
   "Catch the Sonny and Eddie Show. Two brothers, one hat, zero manners.",
   "Have fun, play fair, and if you lose, blame Sonny. Everybody else does.",
+  "And whatever you do, don't make a bet with Eddie. He'll say double or nothing, and it's always nothing.",
   "Mom, Aunt Julie, Aunt Shannon, the ringmaster has spoken! Now go enjoy the games!",
 ];

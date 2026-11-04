@@ -41,4 +41,12 @@ window.BITS = [
   [["S", "Eddie, did you finally fix your truck?"], ["E", "Yep. Then you borrowed it. So, no."]],
   [["S", "Eddie, stop interrupting me."], ["E", "I'm not interrupting. I'm improving."]],
   [["S", "Eddie, I'm going to put you back in the suitcase."], ["E", "Promise? It's quieter in there."]],
+  [["S", "Eddie, where's the money I gave you for groceries?"], ["E", "It's at the casino. Making more money."], ["S", "Is it making more money?"], ["E", "It's making new friends."]],
+  [["S", "Eddie, how was the horse race?"], ["E", "My horse came in seventh."], ["S", "How many horses were in the race?"], ["E", "Six. He stopped to talk to some fans."]],
+  [["S", "Eddie, I heard you won big at the casino!"], ["E", "I did! I won fifty dollars!"], ["S", "That's great!"], ["E", "It cost me four hundred."]],
+  [["S", "Eddie, do you have a gambling problem?"], ["E", "No, I have a losing problem. The gambling's going great."]],
+  [["S", "Eddie, let's make a bet. I bet you can't stop gambling for a week."], ["E", "You're on! Twenty bucks!"], ["S", "You just lost."]],
+  [["S", "Eddie, why do you keep buying scratch-offs?"], ["E", "Because one of these days I'm going to scratch one and it's going to scratch back with money."]],
+  [["S", "Eddie, what's your lucky number?"], ["E", "Whatever number I didn't bet on."]],
+  [["S", "Eddie, you owe me money."], ["E", "Double or nothing?"], ["S", "No."], ["E", "Then nothing it is. Thanks, brother."]],
 ];
