@@ -88,16 +88,18 @@ window.FIB = [[["E", "Nice try! We know when you were born. We were there."]], [
 window.CLOSE = [["E", "Ding ding ding! Within two years!"]];
 // the kissing booth part (there is no kissing)
 window.KISS = [
-  [["E", "One kiss, one dollar."], ["S", "Eddie, it's a no-kissing kissing booth."], ["E", "Still a dollar."]],
-  [["S", "Kiss? Sorry. I'm saving my lips for my Harley."]],
-  [["E", "Pucker up!"], ["S", "Eddie, no."], ["E", "Fine. Air kiss. That's two dollars."]],
-  [["S", "This is a kissing booth with no kissing. It's the family's favorite booth."], ["E", "It's the only one we're allowed to run."]],
-  [["E", "You want a kiss from me? Nobody's wanted a kiss from me since wife number four."]],
-  [["S", "No kissing! Read the sign!"], ["E", "We'd never get invited back if we kissed somebody."]],
-  [["E", "I'll blow you a kiss."], ["S", "Don't. You'll charge her for the wind."]],
-  [["S", "No kisses. But I'll give you an autographed picture of me."], ["E", "That's worse. Take the kiss. Wait, there's no kiss."]],
-  [["E", "Kisses are sold out."], ["S", "We never had any."], ["E", "That's why they're sold out."]],
-  [["S", "Here's your kiss."], ["E", "Sonny!"], ["S", "On the hand. Your own hand. Kiss it yourself."]],
+  [["E", "You want a kiss? Kiss my ass. That's a dollar."], ["S", "Eddie, you can't charge for that."], ["E", "Watch me."]],
+  [["S", "A kiss? Sure. Kiss my ass."], ["E", "Sonny! That's the sisters' line."], ["S", "They've been saying it to us for years. I'm borrowing it."]],
+  [["E", "This is a kiss my ass booth."], ["S", "The family set it up for us."], ["E", "They said it was the only booth we deserved."]],
+  [["S", "No kissing at this booth. Kiss my ass is free, though."], ["E", "Nothing's free, Sonny. Two dollars."]],
+  [["E", "My sisters told me to kiss their ass."], ["S", "What did you do?"], ["E", "Opened a booth."]],
+  [["S", "Pucker up!"], ["E", "For who?"], ["S", "My Harley. She's the only one who'll still kiss me."]],
+  [["E", "Kiss my ass, kiss my ass, get your kiss my ass right here!"], ["S", "Eddie, nobody's buying."], ["E", "Then kiss my ass for free. Family discount."]],
+  [["S", "Kiss my ass? I'd say it, but my daughters already said it first."], ["E", "And my son was too nice to say it at all."]],
+  [["E", "I'd kiss my sisters' ass to get back in the family."], ["S", "Eddie!"], ["E", "What? I already tried apologizing. Didn't work."]],
+  [["S", "Here's the deal. No kissing. But if you lose, you have to kiss Eddie's ass."], ["E", "And that's a five-dollar fee."]],
+  [["E", "We'd kiss up to the sisters, but they told us exactly what to kiss."], ["S", "And it wasn't up."]],
+  [["S", "One kiss my ass, coming right up."], ["E", "You can't get it to go, Sonny."], ["S", "Then it's dine-in. No tip."]],
 ];
-window.KISS_WIN = [[["E", "And as a prize, you win a kiss from Sonny!"], ["S", "No you don't. No kissing."]], [["S", "And a kiss from Eddie!"], ["E", "Just kidding. No kissing. It's in the contract."]]];
-window.KISS_LOSE = [[["S", "Booth wins! You get a consolation kiss."], ["E", "No you don't. That's a no-kissing kiss."]], [["E", "Better luck next time. Here's a kiss!"], ["S", "Eddie. Sign. No kissing."]]];
+window.KISS_WIN = [[["E", "You stumped us! Now we have to kiss your ass."], ["S", "Like always. The sisters always win."]], [["S", "You win! Go ahead, tell us to kiss your ass."], ["E", "We're used to it. It's a family tradition."]]];
+window.KISS_LOSE = [[["S", "Booth wins! Kiss my ass!"], ["E", "Sonny, we're trying to get back in the family. Say it nicer."], ["S", "Kiss my ass, please."]], [["E", "We got you! Now kiss my ass."], ["S", "That'll be a dollar. Eddie charges for everything."]]];
