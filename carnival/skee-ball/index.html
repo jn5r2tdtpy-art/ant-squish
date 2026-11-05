@@ -77,7 +77,7 @@
 const LIVES = 3, BALLS = 9;
 const goalFor  = n => Math.min(300, 150 + 15 * (n - 1));                // points needed with 9 balls
 const slideFor = n => n < 4 ? 0 : Math.min(1.6, 0.5 + 0.12 * (n - 4));  // how fast the board slides (from round 4)
-const SWIPE_FULL = 4;                                                    // swipe speed (lane lengths per second) that reaches the top of the board
+const SOFT = 250, SWIPE_K = 1450;                                        // swipes slower than SOFT px/s roll back; SWIPE_K sets how hard a flick it takes to go higher
 const STEER = 0.5;                                                       // how much the angle of your swipe bends the roll
 const HUMP = 0.35;                                                       // slower than this and the ball rolls back
 // target board, in board units: x across -1..1, y up the board 0..1.4
@@ -173,7 +173,10 @@ function swipeEnd(e) {
   const first = sw.pts[0], last = sw.pts[sw.pts.length - 1], up = first.y - last.y; if (up < 25) return;
   const rec = sw.pts.filter(q => now - q.t <= 260); let speed = 0;
   for (let i = 0; i < rec.length; i++) for (let j = i + 1; j < rec.length; j++) { const dt = rec[j].t - rec[i].t; if (dt >= 30) { speed = Math.max(speed, (rec[i].y - rec[j].y) / dt * 1000); break; } }
-  const v = Math.sqrt(speed / (L.laneLen * SWIPE_FULL));                // square root: a wide range of swipe speeds lands in the middle of the board
+  // finger speed (px/s) -> how far up the board: a gentle push reaches the 20s, a normal flick the 30s and 40, a hard flick the 50s and 100s.
+  // It levels off, so even a very hard flick only just reaches the very top instead of flying off the back.
+  const by = speed < SOFT ? -1 : Math.min(1.32, BOARD_H * 1.06 * (1 - Math.exp(-(speed - SOFT) / SWIPE_K)));
+  const v = by < 0 ? HUMP * speed / SOFT * 0.9 : HUMP + by / BOARD_H * (1 - HUMP);
   const u0 = uAt(first.x), drift = STEER * (last.x - first.x) / up * L.laneLen / laneHW(0.5);
   roll(u0, clamp(u0 + drift, -1, 1), v);
 }
