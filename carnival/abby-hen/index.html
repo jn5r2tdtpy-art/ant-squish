@@ -36,7 +36,7 @@
 const GOLD_CHANCE = 1 / 12;                                              // how often Abby lays the gold egg (2 gifts: a junk prize AND a coin back)
 // What can be inside an egg: [emoji, prize, joke]. Copy a line to add more.
 const SHIRT = ["👕", "Eddie’s “Awesome Like My Daughter” Shirt", "Eddie bought it himself. Abby says he finally got something right. And it’s the nicest thing he owns.", "img/shirt.webp"];
-const SHIRT_CHANCE = 0.2;                                                // about 1 egg in 5 has the shirt
+const DECK_KEY = "ah-deck";
 const shirtImg = new Image(); shirtImg.src = SHIRT[3];
 const PRIZES = [
   ["🪶", "One of Abby’s Feathers", "She’s molting again. She says it’s fine. It’s not fine, it’s everywhere."],
@@ -139,8 +139,16 @@ function insertCoin() {
   G.bubble = { text: pick(CLUCKS), t: 0 }; G.bubble2 = true;
   setState("cackle");
 }
+// Prizes come from a shuffled deck saved on the phone: no prize repeats until you've won every one (the shirt is just one card in it).
+function nextPrize() {
+  const all = PRIZES.concat([SHIRT]); let left = [];
+  try { left = JSON.parse(store.get(DECK_KEY) || "[]").filter(n => all.some(p => p[1] === n)); } catch (e) { left = []; }
+  if (!left.length) { left = all.map(p => p[1]); for (let i = left.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [left[i], left[j]] = [left[j], left[i]]; } }
+  const name = left.pop(); store.set(DECK_KEY, JSON.stringify(left));
+  return all.find(p => p[1] === name);
+}
 function openEgg() {
-  const e = G.egg, gifts = [Math.random() < SHIRT_CHANCE ? SHIRT : pick(PRIZES)];
+  const e = G.egg, gifts = [nextPrize()];
   if (e.gold) { gifts.push(["🪙", "A Real Midway Coin!", "Your coin back, plus this junk. 2 gifts in the gold egg! 🪙 +1"]); Coins.add(1); Coins.chime(); }
   G.prize = { gifts, gold: e.gold, sounded: false };
   G.haul.push(...gifts.map(g => g[0])); G.laid++; store.set("ah-laid", String(G.laid));
