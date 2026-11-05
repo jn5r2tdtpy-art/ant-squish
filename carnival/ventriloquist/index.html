@@ -54,6 +54,7 @@
 <canvas id="cv"></canvas>
 <button id="backBtn">‹ Midway</button>
 <div id="panel">
+  <button class="btn alt" id="replayBtn" hidden>🔁 Replay that one (free)</button>
   <div id="pick" class="mode">
     <div class="askHead" id="fee"></div>
     <div class="picks">
@@ -70,7 +71,7 @@
     <button class="qbtn" id="q0"></button>
     <button class="qbtn" id="q1"></button>
   </div>
-  <div id="row"><button class="link" id="replayBtn" hidden>🔁 Replay that one (free)</button><span id="count"></span><button class="link" id="switchBtn" hidden></button><button class="link" id="voiceBtn"></button></div>
+  <div id="row"><span id="count"></span><button class="link" id="switchBtn" hidden></button><button class="link" id="voiceBtn"></button></div>
 </div>
 <script src="../coins.js"></script>
 <script src="bits.js"></script>
@@ -163,7 +164,7 @@ function nextBit() {
 // run a list of [who, line] and call done at the end
 // the last skit or answer in each show, so it can be replayed for free
 const lastBit = {};
-function showReplay() { const r = lastBit[S.mode]; $("replayBtn").hidden = !r || S.busy; }
+function showReplay() { const r = lastBit[S.mode], h = !r || S.busy || S.mode === "pick"; if ($("replayBtn").hidden !== h) { $("replayBtn").hidden = h; layout(); } }
 function replay() {
   const r = lastBit[S.mode]; if (!r || S.busy) return;
   if (r.q) S.question = r.q;
