@@ -40,6 +40,7 @@
   .picks { display: flex; gap: 10px; justify-content: center; width: 100%; max-width: 480px; }
   .pickCard { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 10px; border: 3px solid #ffd75e; border-radius: 16px;
     background: #2a0812; color: #ffd75e; font: 800 14px/1.15 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); }
+  .pickCard small { font: 600 12px system-ui, sans-serif; color: #cdb896; }
   .pickCard img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: top; border-radius: 10px; }
   .pickCard:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
   .pickCard:disabled { opacity: .5; }
@@ -166,16 +167,20 @@ function perform(lines, done) {
   const step = () => { if (i >= lines.length) { S.busy = false; S.laugh = 1; laugh(); done(); return; } const [who, line] = lines[i++]; say(who, line, step); };
   step();
 }
-// 1 coin buys 5 turns; a turn is one skit or one question, shared between both shows
+// 1 coin buys 5 turns of ONE show: the turns you buy in a show can only be used in that show
 const TURNS_PER_COIN = 5;
-let turns = 0;
-function turnsLine() { return "🎟️ " + (turns === 1 ? "1 turn" : turns + " turns") + " left" + (turns ? "" : " · next turn costs 🪙 1 coin for " + TURNS_PER_COIN); }
+const T = { show: 0, ask: 0, side: 0 };                                   // turns left in each show (saved on the phone)
+try { Object.assign(T, JSON.parse(store.get("ve-turns") || "{}")); } catch (e) {}
+const saveTurns = () => store.set("ve-turns", JSON.stringify(T));
+const tk = () => (S.mode in T ? S.mode : "show");
+function turnsLine() { const turns = T[tk()]; return "🎟️ " + (turns === 1 ? "1 turn" : turns + " turns") + " left in this show" + (turns ? "" : " · next turn costs 🪙 1 coin for " + TURNS_PER_COIN); }
 function useTurn() {
-  if (turns <= 0) {
+  const k = tk();
+  if (T[k] <= 0) {
     if (!Coins.spend(1)) { $("count").innerHTML = "Out of turns and coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return false; }
-    turns = TURNS_PER_COIN; Coins.chime();
+    T[k] = TURNS_PER_COIN; Coins.chime();
   }
-  turns--; return true;
+  T[k]--; saveTurns(); return true;
 }
 let sideOrder = [];
 function nextSide() { const SB = window.SIDE; if (!sideOrder.length) sideOrder = SB.map((_, i) => i).sort(() => Math.random() - 0.5); return SB[sideOrder.pop()]; }
@@ -184,7 +189,7 @@ function play() {
   if (!useTurn()) return;
   $("goBtn").disabled = true; $("goBtn").textContent = "…";
   $("count").textContent = turnsLine();
-  perform(S.mode === "side" ? nextSide() : nextBit(), () => { seen++; $("count").textContent = turnsLine(); $("goBtn").disabled = false; $("goBtn").textContent = turns ? "Another one!" : "Another one! (🪙 1 coin for 5 more)"; });
+  perform(S.mode === "side" ? nextSide() : nextBit(), () => { seen++; $("count").textContent = turnsLine(); $("goBtn").disabled = false; $("goBtn").textContent = T[tk()] ? "Another one!" : "Another one! (🪙 1 coin for 5 more)"; });
 }
 $("goBtn").onclick = play;
 
@@ -211,15 +216,18 @@ function setMode(m) {
   $("pick").hidden = m !== "pick"; $("showCtl").hidden = m !== "show" && m !== "side"; $("askCtl").hidden = m !== "ask";
   $("switchBtn").hidden = m === "pick";
   $("switchBtn").textContent = m === "side" ? "‹ Back to the main show" : m === "show" ? "🎤 Ask Sonny & Eddie instead" : "🎭 Watch the Show instead";
-  if (m === "show" || m === "side") { $("count").textContent = turnsLine(); $("goBtn").textContent = turns ? "Start the show!" : "Start the show! (🪙 1 coin for 5)"; }
+  if (m === "show" || m === "side") { $("count").textContent = turnsLine(); $("goBtn").textContent = T[tk()] ? "Start the show!" : "Start the show! (🪙 1 coin for 5)"; }
   if (m === "ask") { $("count").textContent = turnsLine(); newPair(); }
   if (m === "pick") { $("count").textContent = ""; showFee(); }
   layout();
 }
 function showFee() {
   const n = Coins.get();
-  $("fee").innerHTML = n > 0 || turns > 0 ? "🎟️ 🪙 1 coin = 5 turns (questions or skits). You have " + n + " coins." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
-  $("pickShow").disabled = $("pickAsk").disabled = $("pickSide").disabled = n < 1 && turns < 1;
+  const any = T.show + T.ask + T.side;
+  $("fee").innerHTML = n > 0 || any > 0 ? "🎟️ 🪙 1 coin = 5 turns in the show you pick. You have " + n + " coins." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
+  $("pickShow").disabled = n < 1 && T.show < 1; $("pickAsk").disabled = n < 1 && T.ask < 1; $("pickSide").disabled = n < 1 && T.side < 1;
+  const tag = (id, k) => { const sp = $(id).querySelector("small") || $(id).appendChild(document.createElement("small")); sp.textContent = T[k] ? "🎟️ " + T[k] + " left" : "🪙 1 coin = 5"; };
+  tag("pickShow", "show"); tag("pickAsk", "ask"); tag("pickSide", "side");
 }
 function enter(m) { setMode(m); }
 $("pickShow").onclick = () => enter("show");
