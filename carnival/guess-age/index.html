@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Guess Your Age</title>
+<title>Guess Your Age & Kissing Booth</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -62,16 +62,17 @@
   .muted { color: #cdb896; font-size: 14px; text-align: center; }
   .rules { color: #f6e6c8; font-size: 14px; text-align: center; line-height: 1.4; max-width: 480px; }
   [hidden] { display: none !important; }
+  .btn.kiss { flex: none; width: min(100%, 320px); margin-top: 6px; background: linear-gradient(#ffb8c8, #f0608a); box-shadow: 0 4px 0 #a8264a, 0 6px 14px rgba(0,0,0,.4); }
   .link { background: none; border: 0; color: #cdb896; font: 600 14px system-ui, sans-serif; text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
 <button id="back">‹ Midway</button>
-<h1>Guess Your Age</h1>
-<div class="sub">Sonny &amp; Eddie’s booth. No scale, so just your age!</div>
+<h1>Guess Your Age<br><span style="font-size:.62em">&amp; Kissing Booth</span></h1>
+<div class="sub">Sonny &amp; Eddie’s booth. No scale, so just your age. And no kissing!</div>
 <div id="booth">
   <div class="awning"></div>
-  <div class="sign">SONNY &amp; EDDIE GUESS YOUR AGE<small>Within 2 years, or you win! · 🪙 1 coin a guess-off</small></div>
+  <div class="sign">GUESS YOUR AGE &amp; 💋 KISSING BOOTH<small style="color:#ffd75e;font-size:15px">✋ NO KISSING ✋</small><small>Within 2 years, or you win! · 🪙 1 coin a guess-off</small></div>
   <div id="stage">
     <div id="bubble"></div>
     <img class="host" id="hostS" src="img/sonny.webp" alt="Sonny">
@@ -84,10 +85,12 @@
   <p class="rules">Who’s stepping up? Pick yourself. Sonny and Eddie get 3 guesses. Tell them older or younger. If they get within 2 years, the booth wins. Stump them and you win 🪙 +2.</p>
   <div id="pick"></div>
   <p class="muted" id="coins"></p>
+  <button class="btn kiss" id="kissBtn">💋 Buy a Kiss</button>
 </div>
 <div id="ctl" hidden>
   <div class="row" id="answer" hidden><button class="btn alt" id="older">⬆ I’m older</button><button class="btn alt" id="younger">⬇ I’m younger</button></div>
   <button class="btn" id="again" hidden>Step right up again!</button>
+  <button class="btn kiss" id="kissBtn2" hidden>💋 Buy a Kiss</button>
   <div class="muted" id="status"></div>
   <button class="link" id="voiceBtn"></button>
 </div>
@@ -142,7 +145,7 @@ function start(p) {
   audio(); if (G.busy) return;
   if (!Coins.spend(1)) { buildPick(); return; }
   G.p = p; G.sc = pick(p.scripts); G.g = 0; G.busy = true;
-  $("pickWrap").hidden = true; $("ctl").hidden = false; $("again").hidden = true; $("answer").hidden = true;
+  $("pickWrap").hidden = true; $("ctl").hidden = false; $("again").hidden = true; $("kissBtn2").hidden = true; $("answer").hidden = true;
   $("num").textContent = "??"; $("tries").textContent = "GUESS 1 OF 3"; $("status").textContent = p.name + " steps up to the booth…";
   run(G.sc.intro, nextGuess);
 }
@@ -167,15 +170,21 @@ function answer(older) {
 function finish(stumped) {
   $("answer").hidden = true;
   const age = ageOf(G.p);
-  if (stumped) { sfx.win(); Coins.add(2); Coins.chime(); run(G.sc.lose, () => end("🎉 " + G.p.name + " stumped the booth! 🪙 +2. (About " + age + ".)")); }
-  else run([], () => end("The booth wins! " + G.p.name + " is about " + age + "."));
+  if (stumped) { sfx.win(); Coins.add(2); Coins.chime(); run(G.sc.lose.concat(pick(window.KISS_WIN)), () => end("🎉 " + G.p.name + " stumped the booth! 🪙 +2. (About " + age + ".)")); }
+  else run(pick(window.KISS_LOSE), () => end("The booth wins! " + G.p.name + " is about " + age + "."));
 }
 function end(msg) {
-  G.busy = false; $("num").textContent = ageOf(G.p); $("tries").textContent = "AGE"; $("status").textContent = msg; $("again").hidden = false;
+  G.busy = false; $("kissBtn2").hidden = false; $("num").textContent = ageOf(G.p); $("tries").textContent = "AGE"; $("status").textContent = msg; $("again").hidden = false;
   setTimeout(() => $("bubble").classList.remove("show"), 2500);
 }
 $("older").onclick = () => answer(true); $("younger").onclick = () => answer(false);
-$("again").onclick = () => { $("ctl").hidden = true; $("pickWrap").hidden = false; $("bubble").classList.remove("show"); $("num").textContent = "??"; $("tries").textContent = "GUESS"; buildPick(); };
+// the kissing booth: free, and there is never any kissing
+let kissOrder = [];
+function kiss() { if (G.busy) return; audio(); if (!kissOrder.length) kissOrder = window.KISS.map((_, i) => i).sort(() => Math.random() - 0.5);
+  G.busy = true; tone(880, 0.08, "sine", 0.1); tone(660, 0.12, "sine", 0.08, 0.08);
+  run(window.KISS[kissOrder.pop()], () => { G.busy = false; setTimeout(() => { if (!G.busy) $("bubble").classList.remove("show"); }, 2500); }); }
+$("kissBtn").onclick = kiss; $("kissBtn2").onclick = kiss;
+$("again").onclick = () => { $("ctl").hidden = true; $("kissBtn2").hidden = true; $("pickWrap").hidden = false; $("bubble").classList.remove("show"); $("num").textContent = "??"; $("tries").textContent = "GUESS"; buildPick(); };
 $("back").onclick = () => { player.pause(); location.href = "../"; };
 voiceLabel(); buildPick();
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});

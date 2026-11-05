@@ -86,3 +86,18 @@ window.PEOPLE = [
 // said when someone taps the wrong way (Older when they're younger, or the other way)
 window.FIB = [[["E", "Nice try! We know when you were born. We were there."]], [["S", "Lying about your age? Happens to the best of us. Try again."]], [["E", "We have the family Bible. Try again."]]];
 window.CLOSE = [["E", "Ding ding ding! Within two years!"]];
+// the kissing booth part (there is no kissing)
+window.KISS = [
+  [["E", "One kiss, one dollar."], ["S", "Eddie, it's a no-kissing kissing booth."], ["E", "Still a dollar."]],
+  [["S", "Kiss? Sorry. I'm saving my lips for my Harley."]],
+  [["E", "Pucker up!"], ["S", "Eddie, no."], ["E", "Fine. Air kiss. That's two dollars."]],
+  [["S", "This is a kissing booth with no kissing. It's the family's favorite booth."], ["E", "It's the only one we're allowed to run."]],
+  [["E", "You want a kiss from me? Nobody's wanted a kiss from me since wife number four."]],
+  [["S", "No kissing! Read the sign!"], ["E", "We'd never get invited back if we kissed somebody."]],
+  [["E", "I'll blow you a kiss."], ["S", "Don't. You'll charge her for the wind."]],
+  [["S", "No kisses. But I'll give you an autographed picture of me."], ["E", "That's worse. Take the kiss. Wait, there's no kiss."]],
+  [["E", "Kisses are sold out."], ["S", "We never had any."], ["E", "That's why they're sold out."]],
+  [["S", "Here's your kiss."], ["E", "Sonny!"], ["S", "On the hand. Your own hand. Kiss it yourself."]],
+];
+window.KISS_WIN = [[["E", "And as a prize, you win a kiss from Sonny!"], ["S", "No you don't. No kissing."]], [["S", "And a kiss from Eddie!"], ["E", "Just kidding. No kissing. It's in the contract."]]];
+window.KISS_LOSE = [[["S", "Booth wins! You get a consolation kiss."], ["E", "No you don't. That's a no-kissing kiss."]], [["E", "Better luck next time. Here's a kiss!"], ["S", "Eddie. Sign. No kissing."]]];
