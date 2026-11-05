@@ -2,7 +2,7 @@
 // A script: intro lines, then 3 guesses ([age, lines]) and what they say if the booth wins (got within 2 years) or loses (you stumped them).
 // The guesses follow the real age, so "Older"/"Younger" answers always match. "S" = Sonny, "E" = Eddie.
 window.PEOPLE = [
-  { id: "marnie", name: "Marni", year: 1958, hair: "#c8501a", note: "The oldest. The boss.", scripts: [
+  { id: "marnie", name: "Marni", year: 1958, img: "img/marni.webp", note: "The oldest. The boss.", scripts: [
     { intro: [["S", "Marni! The big sister. The boss of all of us."], ["E", "Be nice, Sonny. She's the one who decides if we get Thanksgiving."]],
       guesses: [[39, [["S", "I'd say… thirty-nine."]]], [45, [["E", "Thirty-nine? She's older than both of us, Sonny."], ["S", "Fine. Forty-five."]]], [52, [["E", "Fifty-two. And not a day over. Please let us back in for Thanksgiving."]]]],
       win: [["S", "Got her! Within two years!"]],
@@ -32,7 +32,7 @@ window.PEOPLE = [
       win: [["E", "You got me. I'm not paying. I'm cheap AND accurate."], ["S", "Mostly cheap."]],
       lose: [["E", "Ha! Wrong!"], ["S", "Somebody check his license. He probably charged the DMV."]] },
   ] },
-  { id: "shannon", name: "Shannon", year: 1967, hair: "#c8501a", note: "Aunt Shannon. Always right.", scripts: [
+  { id: "shannon", name: "Shannon", year: 1967, img: "img/shannon.webp", note: "Aunt Shannon. Always right.", scripts: [
     { intro: [["S", "Aunt Shannon! Wow. Look at that red hair."], ["E", "Careful, Sonny. Compliments only. We're trying to get back in."]],
       guesses: [[30, [["S", "You can't be a day over thirty."]]], [35, [["E", "Sonny, she's younger than us, but not THAT young."], ["S", "Fine. Thirty-five."]]], [42, [["E", "Forty-two. And you look amazing. Please forward that to the group chat."]]]],
       win: [["S", "Got it!"]],
@@ -42,7 +42,7 @@ window.PEOPLE = [
       win: [["E", "Got it!"]],
       lose: [["S", "You stumped us, Shannon."], ["E", "Tell the other sisters we were nice. They won't believe you."]] },
   ] },
-  { id: "julie", name: "Julie", year: 1969, hair: "#d8642a", note: "Aunt Julie. The baby sister.", scripts: [
+  { id: "julie", name: "Julie", year: 1969, img: "img/julie.webp", note: "Aunt Julie. The baby sister.", scripts: [
     { intro: [["S", "Julie! The baby sister!"], ["E", "She's not a baby, Sonny. She's the youngest. There's a difference."]],
       guesses: [[28, [["S", "Twenty-eight!"]]], [31, [["E", "Thirty-one."]]], [39, [["S", "Fine. Thirty-nine. Final answer. She'll always be the baby."]]]],
       win: [["S", "Got her!"]],
@@ -62,7 +62,7 @@ window.PEOPLE = [
       win: [["E", "Nailed it. The ringmaster owes us."], ["S", "He'll just make another game where he gets it back."]],
       lose: [["S", "Missed! He wins."], ["E", "Of course. He wrote the game."]] },
   ] },
-  { id: "scarlett", name: "Scarlett", year: 1983, hair: "#8a4a2a", note: "Mikey's little sister.", scripts: [
+  { id: "scarlett", name: "Scarlett", year: 1983, img: "img/scarlett.webp", note: "Mikey's little sister.", scripts: [
     { intro: [["S", "Scarlett! Mikey's little sister!"], ["E", "Same age as Abby, Sonny. Remember that."]],
       guesses: [[29, [["S", "Twenty-nine."]]], [35, [["E", "She's the same age as Abby, Sonny."], ["S", "Abby is made of wood. Wood doesn't count. Thirty-five."]]], [44, [["E", "Forty-four."]]]],
       win: [["S", "Got you! Same year as Abby. That's the cousin special."], ["E", "Tell your aunts we were polite."]],
