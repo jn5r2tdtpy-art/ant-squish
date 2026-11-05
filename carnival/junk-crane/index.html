@@ -81,7 +81,7 @@ const GRIP = 0.6;
 const SWING = 0.45;                                                      // how far the claw swings when you drop it (egg sizes)                                                       // best hold chance with the claw dead center on an egg
 // The junk inside the eggs. Copy a line to add more: [emoji, prize, joke].
 const SHIRT = ["👕", "Eddie’s “Awesome Like My Daughter” Shirt", "Eddie bought it himself. Abby says he finally got something right. And it’s the nicest thing he owns.", "img/shirt.webp"];                       // shows the photo instead of an emoji
-const SHIRT_CHANCE = 0.2;                                                // about 1 egg in 5 has the shirt
+const DECK_KEY = "jc-deck";
 const shirtImg = new Image(); shirtImg.src = SHIRT[3];
 const PRIZES = [
   ["🧾", "Eddie’s Debt", "An IOU for $4,000. Congratulations, it’s yours now!"],
@@ -161,12 +161,18 @@ const sfx = {
 const G = { state: "title", tries: TRIES, won: [], best: +store.get("jc-best") || 0, stateT: 0, t: 0, aimT: AIM_TIME,
   claw: { x: 0, tx: 0, drop: 0, open: 1, egg: null, plan: null, slipAt: 0 }, eggs: [], prize: null, pops: [], touch: null, pausedFrom: null, msg: null };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
-let deck = [];
-function nextPrize() { if (Math.random() < SHIRT_CHANCE) return SHIRT; if (!deck.length) deck = PRIZES.slice().sort(() => Math.random() - 0.5); return deck.pop(); }
+// Prizes come from a shuffled deck saved on the phone: no prize repeats until you've won every one (the shirt is just one card in it).
+function nextPrize() {
+  const all = PRIZES.concat([SHIRT]); let left = [];
+  try { left = JSON.parse(store.get(DECK_KEY) || "[]").filter(n => all.some(p => p[1] === n)); } catch (e) { left = []; }
+  if (!left.length) { left = all.map(p => p[1]); for (let i = left.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [left[i], left[j]] = [left[j], left[i]]; } }
+  const name = left.pop(); store.set(DECK_KEY, JSON.stringify(left));
+  return all.find(p => p[1] === name);
+}
 const EGG_COLORS = ["#e8304a", "#3a7af0", "#3ad07a", "#f08a2c", "#c040ff", "#f07ab0", "#2fb0a8"];
 function newGame() {
   if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
-  sfx.coin(); G.tries = TRIES; G.won = []; G.pops = []; deck = []; hideOverlays(); layout(); fillEggs(); newTry();
+  sfx.coin(); G.tries = TRIES; G.won = []; G.pops = []; hideOverlays(); layout(); fillEggs(); newTry();
 }
 function fillEggs() {
   G.eggs = [];
