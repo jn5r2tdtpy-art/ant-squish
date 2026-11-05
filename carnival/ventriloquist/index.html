@@ -70,7 +70,7 @@
     <button class="qbtn" id="q0"></button>
     <button class="qbtn" id="q1"></button>
   </div>
-  <div id="row"><span id="count"></span><button class="link" id="switchBtn" hidden></button><button class="link" id="voiceBtn"></button></div>
+  <div id="row"><button class="link" id="replayBtn" hidden>🔁 Replay that one (free)</button><span id="count"></span><button class="link" id="switchBtn" hidden></button><button class="link" id="voiceBtn"></button></div>
 </div>
 <script src="../coins.js"></script>
 <script src="bits.js"></script>
@@ -161,10 +161,22 @@ function nextBit() {
   return BITS[order.pop()];
 }
 // run a list of [who, line] and call done at the end
-function perform(lines, done) {
+// the last skit or answer in each show, so it can be replayed for free
+const lastBit = {};
+function showReplay() { const r = lastBit[S.mode]; $("replayBtn").hidden = !r || S.busy; }
+function replay() {
+  const r = lastBit[S.mode]; if (!r || S.busy) return;
+  if (r.q) S.question = r.q;
+  $("replayBtn").hidden = true; $("goBtn").disabled = true; $("q0").disabled = $("q1").disabled = true;
+  perform(r.lines, () => { S.question = null; $("goBtn").disabled = false; $("q0").disabled = $("q1").disabled = false; showReplay(); }, true);
+}
+$("replayBtn").onclick = replay;
+function perform(lines, done, isReplay) {
+  if (!isReplay) { lastBit[S.mode] = { lines, q: S.question || null }; }
+  $("replayBtn").hidden = true;
   hookAnalyser(); if (acx && acx.state === "suspended") acx.resume();
   S.busy = true; let i = 0;
-  const step = () => { if (i >= lines.length) { S.busy = false; S.laugh = 1; laugh(); done(); return; } const [who, line] = lines[i++]; say(who, line, step); };
+  const step = () => { if (i >= lines.length) { S.busy = false; S.laugh = 1; laugh(); done(); showReplay(); return; } const [who, line] = lines[i++]; say(who, line, step); };
   step();
 }
 // 1 coin buys 5 turns of ONE show: the turns you buy in a show can only be used in that show
@@ -219,6 +231,7 @@ function setMode(m) {
   if (m === "show" || m === "side") { $("count").textContent = turnsLine(); $("goBtn").textContent = T[tk()] ? "Start the show!" : "Start the show! (🪙 1 coin for 5)"; }
   if (m === "ask") { $("count").textContent = turnsLine(); newPair(); }
   if (m === "pick") { $("count").textContent = ""; showFee(); }
+  showReplay(); if (m === "pick") $("replayBtn").hidden = true;
   layout();
 }
 function showFee() {
