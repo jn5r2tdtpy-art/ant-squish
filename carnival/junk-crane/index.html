@@ -80,6 +80,9 @@ const TRIES = 5, AIM_TIME = 15, EGGS = 11;
 const GRIP = 0.6;
 const SWING = 0.45;                                                      // how far the claw swings when you drop it (egg sizes)                                                       // best hold chance with the claw dead center on an egg
 // The junk inside the eggs. Copy a line to add more: [emoji, prize, joke].
+const SHIRT = ["👕", "Eddie’s “Awesome Like My Daughter” Shirt", "Eddie bought it himself. Abby says he finally got something right. And it’s the nicest thing he owns.", "img/shirt.webp"];                       // shows the photo instead of an emoji
+const SHIRT_CHANCE = 0.2;                                                // about 1 egg in 5 has the shirt
+const shirtImg = new Image(); shirtImg.src = SHIRT[3];
 const PRIZES = [
   ["🧾", "Eddie’s Debt", "An IOU for $4,000. Congratulations, it’s yours now!"],
   ["🔑", "Sonny’s Spare Harley Key", "One of Sonny’s 900 billion spare Harley keys. The Harley is not included."],
@@ -159,7 +162,7 @@ const G = { state: "title", tries: TRIES, won: [], best: +store.get("jc-best") |
   claw: { x: 0, tx: 0, drop: 0, open: 1, egg: null, plan: null, slipAt: 0 }, eggs: [], prize: null, pops: [], touch: null, pausedFrom: null, msg: null };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 let deck = [];
-function nextPrize() { if (!deck.length) deck = PRIZES.slice().sort(() => Math.random() - 0.5); return deck.pop(); }
+function nextPrize() { if (Math.random() < SHIRT_CHANCE) return SHIRT; if (!deck.length) deck = PRIZES.slice().sort(() => Math.random() - 0.5); return deck.pop(); }
 const EGG_COLORS = ["#e8304a", "#3a7af0", "#3ad07a", "#f08a2c", "#c040ff", "#f07ab0", "#2fb0a8"];
 function newGame() {
   if (!Coins.spend(1)) { showCoins(true); $("finalLine").innerHTML = "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>"; return; }
@@ -299,7 +302,7 @@ function checkChute() {
 }
 function openEgg(e) {
   const pr = e.gold ? GOLD_PRIZE : nextPrize();
-  G.prize = { egg: e, emoji: pr[0], name: pr[1], joke: pr[2], gold: e.gold, sounded: false };
+  G.prize = { egg: e, emoji: pr[0], name: pr[1], joke: pr[2], img: pr[3] ? shirtImg : null, gold: e.gold, sounded: false };
   G.won.push(pr[0]);
   if (e.gold) { Coins.add(1); Coins.chime(); showCoins(); }
   setTimeout(() => sfx.pop(), 450);
@@ -424,7 +427,8 @@ function drawReveal() {
   if (openK > 0) {
     const s = clamp((G.stateT - 0.5) / 0.4, 0, 1), bounce = 1 + Math.sin(s * Math.PI) * 0.25;
     ctx.globalAlpha = s; ctx.font = `${Math.round(er * 1.1 * bounce)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(p.emoji, cx, cy + er * 0.2 - er * 1.1 * s);
+    if (p.img && p.img.complete && p.img.naturalWidth) { const ih = er * 2.6 * bounce, iw = ih * p.img.naturalWidth / p.img.naturalHeight; ctx.drawImage(p.img, cx - iw / 2, cy + er * 0.9 - er * 1.1 * s - ih, iw, ih); }
+    else ctx.fillText(p.emoji, cx, cy + er * 0.2 - er * 1.1 * s);
     // the prize card
     const cw = Math.min(W - 32, 380), ch = 150, cx0 = cx - cw / 2, cy0 = cy + er * 1.5;
     ctx.fillStyle = p.gold ? "#fff4c0" : "#fff4dc"; rr(cx0, cy0, cw, ch, 16); ctx.fill();
