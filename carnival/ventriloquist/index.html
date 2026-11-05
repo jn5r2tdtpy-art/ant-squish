@@ -37,6 +37,15 @@
   #row { display: flex; gap: 14px; align-items: center; justify-content: center; font-size: 13px; color: #cdb896; flex-wrap: wrap; }
   body.side #panel { left: auto; right: 0; top: 0; width: 34%; justify-content: center; }
   body.side .btn { min-width: 0; width: 100%; }
+  .picks { display: flex; gap: 10px; justify-content: center; width: 100%; max-width: 480px; }
+  .pickCard { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 10px; border: 3px solid #ffd75e; border-radius: 16px;
+    background: #2a0812; color: #ffd75e; font: 800 14px/1.15 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); }
+  .pickCard img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: top; border-radius: 10px; }
+  .pickCard:active { transform: translateY(3px); box-shadow: 0 1px 0 #a8661a; }
+  .pickCard:disabled { opacity: .5; }
+  body.side .picks { max-width: none; }
+  body.side #panel { top: calc(var(--sat) + 118px); justify-content: flex-start; }
+  body.side .pickCard img { aspect-ratio: 1 / 1; }
   .link { background: none; border: 0; color: #cdb896; font: 600 13px system-ui, sans-serif; text-decoration: underline; cursor: pointer; padding: 4px; }
 </style>
 </head>
@@ -46,9 +55,11 @@
 <div id="panel">
   <div id="pick" class="mode">
     <div class="askHead" id="fee"></div>
-    <button class="btn" id="pickShow">🎭 Watch the Show</button>
-    <button class="btn alt" id="pickAsk">🎤 Ask Sonny &amp; Eddie</button>
-    <button class="btn alt" id="pickSide">🎪 The Side Show: Eddie’s Dummy</button>
+    <div class="picks">
+      <button class="pickCard" id="pickShow"><img src="img/card.webp" alt=""><span>Watch the Show</span></button>
+      <button class="pickCard" id="pickAsk"><img src="img/card.webp" alt=""><span>Ask Sonny &amp; Eddie</span></button>
+      <button class="pickCard" id="pickSide"><img src="img/sidecard.webp" alt=""><span>Eddie’s Dummy</span></button>
+    </div>
   </div>
   <div id="showCtl" class="mode" hidden>
     <button class="btn" id="goBtn">Start the show!</button>
