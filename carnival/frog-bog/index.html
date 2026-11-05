@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Frog Bog</title>
+<title>Groggy Froggy Eddie</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -50,8 +50,9 @@
 
 <div class="overlay show" id="titleScreen">
   <div class="card">
-    <div class="icon">🐸</div>
-    <h1>Frog Bog</h1>
+    <div class="icon"><img src="img/eddie.webp" alt="Eddie" style="height:80px"> 🐸</div>
+    <h1>Groggy Froggy Eddie</h1>
+    <p><i>Eddie’s feeling groggy. Wake him up and make him jump!</i></p>
     <div class="rules">
       <p>The lily pads spin around the pond. <b>Drag your finger down</b> to pull the mallet back: the farther you pull, the farther the frog flies. Drag <b>left or right</b> to aim. A ring shows where it will land.</p>
       <p><b>Let go</b> to smack the lever and launch the frog. Time it so a lily pad spins under the ring when the frog lands. Miss and it’s a splash!</p>
@@ -108,7 +109,7 @@ const sfx = {
 
 // ---------- State ----------
 const G = { state: "title", round: 1, score: 0, lives: LIVES, frogs: FROGS, landed: 0, best: +store.get("fb-best") || 0,
-  stateT: 0, t: 0, ang: 0, spin: 1, flipT: 0, gold: 0, frog: null, riders: [], ripples: [], pops: [], swipe: null, pull: null, mallet: 0, banner: null, pausedFrom: null };
+  stateT: 0, t: 0, ang: 0, spin: 1, flipT: 0, gold: 0, frog: null, riders: [], ripples: [], pops: [], swipe: null, pull: null, bubble: null, mallet: 0, banner: null, pausedFrom: null };
 function setState(s) { G.state = s; G.stateT = 0; $("pauseBtn").classList.toggle("show", s !== "title" && s !== "over"); }
 function startRound() {
   G.frogs = FROGS; G.landed = 0; G.frog = null; G.riders = []; G.ripples = []; G.ang = rand(0, 6.28); G.spin = Math.random() < 0.5 ? 1 : -1; G.flipT = rand(3, 6);
@@ -161,9 +162,11 @@ function swipeEnd(e) {
   if (p.dy < 15) return;                                                 // just a tap
   launch(p.lx, p.d);
 }
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function say(t) { G.bubble = { text: t, t: 0, life: Math.max(3, 1.5 + t.length * 0.06) }; }
 function launch(lx, d) {
   // d: how far up the pond, 0 = the near edge, 2 = the far edge; lx: left/right
-  G.frog = { lx, d, ly: 1 - d, t: 0 }; G.frogs--; G.mallet = 1; sfx.smack(); sfx.boing(); setState("flying");
+  G.frog = { lx, d, ly: 1 - d, t: 0 }; say(pick(GROGGY.launch)); G.frogs--; G.mallet = 1; sfx.smack(); sfx.boing(); setState("flying");
 }
 function land() {
   const f = G.frog, ly = f.ly, lx = f.lx, size = padFor(G.round);
@@ -172,11 +175,11 @@ function land() {
   }
   let hit = -1;
   for (let i = 0; i < PADS; i++) { const p = padPos(i); if (Math.hypot(p.x - lx, p.y - ly) < size * 1.05) { hit = i; break; } }
-  if (hit < 0) { G.ripples.push({ x: lx, y: ly, t: 0 }); sfx.splash(); G.pops.push({ ...pondPt(lx, ly), text: "Splash!", color: "#cfeaff", t: 0 }); setState("result"); return; }
+  if (hit < 0) { G.ripples.push({ x: lx, y: ly, t: 0 }); sfx.splash(); say(pick(GROGGY.splash)); G.pops.push({ ...pondPt(lx, ly), text: "Splash!", color: "#cfeaff", t: 0 }); setState("result"); return; }
   // ride along on the pad
   const p = padPos(hit), a0 = G.ang + hit * Math.PI * 2 / PADS;
   G.riders.push({ pad: hit, dx: (lx - p.x), dy: (ly - p.y), a0 });
-  G.landed++; sfx.ribbit();
+  G.landed++; sfx.ribbit(); if (Math.random() < 0.6) say(pick(GROGGY.land));
   const gold = hit === G.gold, pts = gold ? 30 : 10; G.score += pts;
   G.pops.push({ ...pondPt(lx, ly), text: gold ? "+30 GOLD!" : "+10", color: gold ? "#ffd75e" : "#fff", t: 0 });
   if (gold) { Coins.add(1); Coins.chime(); sfx.gold(); showCoins(); G.pops.push({ ...pondPt(lx, ly + 0.25), text: "🪙 +1", color: "#ffd75e", t: 0 }); G.gold = -1; }
@@ -218,6 +221,7 @@ function update(dt) {
   if (G.mallet > 0) G.mallet = Math.max(0, G.mallet - dt * 3);
   for (const r of G.ripples) r.t += dt; G.ripples = G.ripples.filter(r => r.t < 1.2);
   for (const p of G.pops) p.t += dt; G.pops = G.pops.filter(p => p.t < 1.1);
+  if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > G.bubble.life) G.bubble = null; }
 }
 
 // ---------- Drawing ----------
@@ -270,20 +274,45 @@ function drawPad(i) {
     ctx.strokeStyle = `rgba(255,240,160,${tw})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(q.x, q.y, r * 1.18, r * 0.72, 0, 0, 7); ctx.stroke();
   }
 }
-function drawFrog(x, y, s, jump) {
+const eddieFace = new Image(); eddieFace.src = "img/eddie.webp";
+function drawFrog(x, y, s, jump, sleepy = false) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   ctx.fillStyle = "#2f9a3a";
-  // legs
-  ctx.beginPath(); ctx.ellipse(-12, 6 - jump * 4, 8, 4 + jump * 4, -0.5 - jump, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(12, 6 - jump * 4, 8, 4 + jump * 4, 0.5 + jump, 0, 7); ctx.fill();
-  // body
-  ctx.fillStyle = "#4ac84a"; ctx.beginPath(); ctx.ellipse(0, 0, 13, 10, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = "#c8f0a0"; ctx.beginPath(); ctx.ellipse(0, 3, 8, 5, 0, 0, 7); ctx.fill();
-  // eyes
-  for (const ex of [-6, 6]) { ctx.fillStyle = "#4ac84a"; ctx.beginPath(); ctx.arc(ex, -9, 5, 0, 7); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex, -9, 3.4, 0, 7); ctx.fill(); ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(ex, -9, 1.7, 0, 7); ctx.fill(); }
-  ctx.strokeStyle = "#1a5a22"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -2, 5, 0.3, Math.PI - 0.3); ctx.stroke();
+  // frog legs (they stretch out when he jumps)
+  ctx.beginPath(); ctx.ellipse(-12, 8 - jump * 4, 8, 4 + jump * 5, -0.5 - jump, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(12, 8 - jump * 4, 8, 4 + jump * 5, 0.5 + jump, 0, 7); ctx.fill();
+  // frog body
+  ctx.fillStyle = "#4ac84a"; ctx.beginPath(); ctx.ellipse(0, 4, 13, 9, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#c8f0a0"; ctx.beginPath(); ctx.ellipse(0, 7, 8, 4.5, 0, 0, 7); ctx.fill();
+  // Eddie's groggy face for a head (droops and wobbles while he waits)
+  if (eddieFace.complete && eddieFace.naturalWidth) {
+    const fh = 26, fw = fh * eddieFace.naturalWidth / eddieFace.naturalHeight, nod = sleepy ? Math.sin(G.t * 1.6) * 0.12 + 0.12 : -jump * 0.15;
+    ctx.save(); ctx.translate(0, -4); ctx.rotate(nod); ctx.drawImage(eddieFace, -fw / 2, -fh + 4, fw, fh);
+    if (sleepy) { // heavy eyelids
+      ctx.fillStyle = "rgba(232,176,140,.92)"; ctx.beginPath(); ctx.ellipse(-4.6, -fh * 0.53 + 4, 3.6, 2.2, 0, Math.PI, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(4.6, -fh * 0.53 + 4, 3.6, 2.2, 0, Math.PI, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  if (sleepy) { // Zzz
+    ctx.fillStyle = "#e8f4ff"; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 2; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (let k = 0; k < 3; k++) { const ph = (G.t * 0.6 + k / 3) % 1; ctx.globalAlpha = Math.sin(Math.PI * ph); ctx.font = `800 ${7 + ph * 6}px system-ui, sans-serif`;
+      ctx.strokeText("z", 12 + ph * 12, -24 - ph * 18); ctx.fillText("z", 12 + ph * 12, -24 - ph * 18); }
+    ctx.globalAlpha = 1;
+  }
   ctx.restore();
+}
+const GROGGY = { launch: ["Whoa! I'm up, I'm up!", "Five more minutes!", "Who turned on the lights?", "I'm not froggy, I'm groggy!", "Somebody get me a coffee!"],
+  land: ["Ribbit. Is it morning?", "Made it. Now I'm going back to sleep.", "Nice pad. Got a pillow?", "Ribbit… zzz…"],
+  splash: ["Blub! Okay, now I'm awake!", "Cold! COLD!", "I meant to take a bath."] };
+function drawBubble() {
+  const b = G.bubble; if (!b) return;
+  ctx.font = "700 15px system-ui, sans-serif"; const tw = Math.min(ctx.measureText(b.text).width, W - 60), bw = tw + 24, bh = 32;
+  const bx = clamp(L.cx - bw / 2 - 40, 10, W - bw - 10), by = L.baseY - Math.min(L.launchH, 150) - bh;
+  ctx.globalAlpha = clamp(Math.min(b.t / 0.12, (b.life - b.t) / 0.3), 0, 1);
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,.3)"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 14) : ctx.rect(bx, by, bw, bh); ctx.fill(); ctx.stroke();
+  const fx = frogStart().x; ctx.beginPath(); ctx.moveTo(clamp(fx - 8, bx + 10, bx + bw - 24), by + bh - 1); ctx.lineTo(clamp(fx, bx + 16, bx + bw - 16), by + bh + 12); ctx.lineTo(clamp(fx + 8, bx + 24, bx + bw - 10), by + bh - 1); ctx.fill();
+  ctx.fillStyle = "#2a0812"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.text, bx + bw / 2, by + bh / 2 + 1, tw);
+  ctx.globalAlpha = 1;
 }
 function drawLauncher() {
   const fs = frogStart(), y = L.baseY, s = Math.min(1.4, L.launchH / 120);
@@ -297,7 +326,7 @@ function drawLauncher() {
   ctx.fillStyle = "#e8302a"; ctx.beginPath(); ctx.arc(56 * s, -6 * s, 9 * s, Math.PI, 0); ctx.fill();          // the target the mallet hits
   ctx.restore();
   // the frog waiting on the lever
-  if (G.state === "aim" || G.state === "intro") drawFrog(fs.x, fs.y - 6 * s, 0.9 * s, 0);
+  if (G.state === "aim" || G.state === "intro") drawFrog(fs.x, fs.y - 6 * s, 1.15 * s, 0, true);
   // the mallet
   const up = G.swipe ? -0.6 + G.mallet * 0 : 0, swing = G.mallet > 0 ? 0.9 * G.mallet : (G.swipe ? -0.4 : -0.2);
   ctx.save(); ctx.translate(L.cx + 95 * s, y - 40 * s); ctx.rotate(-swing - up * 0);
@@ -353,9 +382,9 @@ function draw() {
   const order = [...Array(PADS).keys()].sort((a, b) => padPos(a).y - padPos(b).y);
   for (const i of order) {
     drawPad(i);
-    for (const r of G.riders) if (r.pad === i) { const p = padPos(i), d = G.ang + i * Math.PI * 2 / PADS - r.a0, c = Math.cos(d), sn = Math.sin(d), q = pondPt(p.x + (r.dx * c - r.dy * sn) * 0.6, p.y + (r.dx * sn + r.dy * c) * 0.6); drawFrog(q.x, q.y - 6, 0.75 * (L.rx / 170), 0); }
+    for (const r of G.riders) if (r.pad === i) { const p = padPos(i), d = G.ang + i * Math.PI * 2 / PADS - r.a0, c = Math.cos(d), sn = Math.sin(d), q = pondPt(p.x + (r.dx * c - r.dy * sn) * 0.6, p.y + (r.dx * sn + r.dy * c) * 0.6); drawFrog(q.x, q.y - 6, 0.85 * (L.rx / 170), 0, true); }
   }
-  drawLauncher(); drawFlying(); drawFx(); drawHUD(); drawBanner();
+  drawLauncher(); drawFlying(); drawFx(); drawBubble(); drawHUD(); drawBanner();
 }
 let last = performance.now();
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(frame); }
