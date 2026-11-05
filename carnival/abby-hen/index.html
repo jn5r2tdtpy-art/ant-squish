@@ -70,7 +70,7 @@ const HEAD_FW = 192, HEAD_FH = 204;
 // The whole hen turns (degrees, 0 = facing you, 90 = side view facing right like the photo, 180 = back to you).
 // Abby's head is on the hen's neck, so it turns with the body, twisted a little toward you.
 // Like the real machine: she rises out of the eggs on a metal pole, turns all the way around on it while she cackles, then sinks back down and lays.
-const RISE = 1.0, SPIN = 5.0, SINK = 1.0, SHOW = RISE + SPIN + SINK;     // seconds
+const RISE = 1.0, SPIN = 8.0, SINK = 1.0, SHOW = RISE + SPIN + SINK;     // seconds
 function bodyAngle() {
   if (G.state === "cackle") { const k = clamp((G.stateT - RISE) / SPIN, 0, 1); return 90 + 360 * (1 - Math.cos(k * Math.PI)) / 2; }   // one full turn on the pole
   return 90;
@@ -132,7 +132,7 @@ function insertCoin() {
   G.pressed = 1; sfx.coin();
   const gold = Math.random() < GOLD_CHANCE;
   G.egg = { gold, c: gold ? "#f2c419" : pick(EGG_COLORS), x: 0, y: 0, rot: 0, k: 0 };
-  setTimeout(() => sfx.cackle(), 350); setTimeout(() => sfx.cackle(), 2600); setTimeout(() => sfx.cackle(), 4800);
+  setTimeout(() => sfx.cackle(), 350); setTimeout(() => sfx.cackle(), 3200); setTimeout(() => sfx.cackle(), 6200);
   G.bubble = { text: pick(CLUCKS), t: 0 }; G.bubble2 = true;
   setState("cackle");
 }
@@ -168,7 +168,7 @@ function update(dt) {
   if (G.pressed > 0) G.pressed = Math.max(0, G.pressed - dt * 3);
   if (G.bubble) { G.bubble.t += dt; if (G.bubble.t > 3.6) G.bubble = null; }
   if (G.msg) { G.msg.t += dt; if (G.msg.t > 2.5) G.msg = null; }
-  if (G.state === "cackle" && G.bubble2 && G.stateT > 3.6) { G.bubble2 = false; G.bubble = { text: pick(CLUCKS), t: 0 }; }
+  if (G.state === "cackle" && G.bubble2 && G.stateT > 5) { G.bubble2 = false; G.bubble = { text: pick(CLUCKS), t: 0 }; }
   if (G.state === "cackle" && G.stateT > SHOW) { sfx.plop(); setState("lay"); }
   if (G.state === "lay") { G.egg.k = Math.min(1, G.stateT / 0.55); if (G.stateT > 0.75) { sfx.roll(); setState("roll"); } }
   if (G.state === "roll") { G.egg.k = Math.min(1, G.stateT / 0.8); if (G.stateT > 0.85) setState("ready"); }
