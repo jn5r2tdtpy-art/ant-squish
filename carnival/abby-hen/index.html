@@ -35,6 +35,9 @@
 // ---------- Settings ----------
 const GOLD_CHANCE = 1 / 12;                                              // how often Abby lays the gold egg (2 gifts: a junk prize AND a coin back)
 // What can be inside an egg: [emoji, prize, joke]. Copy a line to add more.
+const SHIRT = ["👕", "Eddie’s “Awesome Like My Daughter” Shirt", "Eddie bought it himself. Abby says he finally got something right. And it’s the nicest thing he owns.", "img/shirt.webp"];
+const SHIRT_CHANCE = 0.2;                                                // about 1 egg in 5 has the shirt
+const shirtImg = new Image(); shirtImg.src = SHIRT[3];
 const PRIZES = [
   ["🪶", "One of Abby’s Feathers", "She’s molting again. She says it’s fine. It’s not fine, it’s everywhere."],
   ["💬", "Abby’s Unwanted Opinion", "You didn’t ask for it. You’re getting it anyway. There are three more in the box."],
@@ -137,7 +140,7 @@ function insertCoin() {
   setState("cackle");
 }
 function openEgg() {
-  const e = G.egg, gifts = [pick(PRIZES)];
+  const e = G.egg, gifts = [Math.random() < SHIRT_CHANCE ? SHIRT : pick(PRIZES)];
   if (e.gold) { gifts.push(["🪙", "A Real Midway Coin!", "Your coin back, plus this junk. 2 gifts in the gold egg! 🪙 +1"]); Coins.add(1); Coins.chime(); }
   G.prize = { gifts, gold: e.gold, sounded: false };
   G.haul.push(...gifts.map(g => g[0])); G.laid++; store.set("ah-laid", String(G.laid));
@@ -320,7 +323,10 @@ function drawOpen() {
   if (openK <= 0) return;
   const s = clamp((G.stateT - 0.45) / 0.4, 0, 1);
   ctx.globalAlpha = s; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(er * 1.05)}px system-ui, sans-serif`; ctx.fillText(p.gifts.map(g => g[0]).join(" "), cx, cy - er * 0.7 * s);
+  ctx.font = `${Math.round(er * 1.05)}px system-ui, sans-serif`;
+  if (p.gifts[0][3] && shirtImg.complete && shirtImg.naturalWidth) { const ih = er * 2.4, iw = ih * shirtImg.naturalWidth / shirtImg.naturalHeight, ex = p.gifts.length > 1 ? -er * 0.9 : 0;
+    ctx.drawImage(shirtImg, cx + ex - iw / 2, cy + er * 0.6 - er * 0.7 * s - ih, iw, ih); if (p.gifts.length > 1) ctx.fillText(p.gifts[1][0], cx + er * 1.3, cy - er * 0.7 * s); }
+  else ctx.fillText(p.gifts.map(g => g[0]).join(" "), cx, cy - er * 0.7 * s);
   const cw = Math.min(W - 32, 400), gh = 92, ch = 30 + p.gifts.length * gh, x0 = cx - cw / 2, y0 = cy + er * 1.6;
   ctx.fillStyle = p.gold ? "#fff4c0" : "#fff4dc"; rr(x0, y0, cw, ch, 16); ctx.fill(); ctx.strokeStyle = p.gold ? "#f2b02c" : "#e8782a"; ctx.lineWidth = 4; ctx.stroke();
   ctx.fillStyle = "#a3122a"; ctx.font = "700 13px system-ui, sans-serif"; ctx.fillText(p.gold ? "GOLD EGG! 2 GIFTS!" : "ABBY LAID YOU…", cx, y0 + 18);
