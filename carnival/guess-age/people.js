@@ -2,15 +2,15 @@
 // A script: intro lines, then 3 guesses ([age, lines]) and what they say if the booth wins (got within 2 years) or loses (you stumped them).
 // The guesses follow the real age, so "Older"/"Younger" answers always match. "S" = Sonny, "E" = Eddie.
 window.PEOPLE = [
-  { id: "marnie", name: "Marnie", year: 1958, hair: "#c8501a", note: "The oldest. The boss.", scripts: [
-    { intro: [["S", "Marnie! The big sister. The boss of all of us."], ["E", "Be nice, Sonny. She's the one who decides if we get Thanksgiving."]],
+  { id: "marnie", name: "Marni", year: 1958, hair: "#c8501a", note: "The oldest. The boss.", scripts: [
+    { intro: [["S", "Marni! The big sister. The boss of all of us."], ["E", "Be nice, Sonny. She's the one who decides if we get Thanksgiving."]],
       guesses: [[39, [["S", "I'd say… thirty-nine."]]], [45, [["E", "Thirty-nine? She's older than both of us, Sonny."], ["S", "Fine. Forty-five."]]], [52, [["E", "Fifty-two. And not a day over. Please let us back in for Thanksgiving."]]]],
       win: [["S", "Got her! Within two years!"]],
-      lose: [["S", "We give up. You win, Marnie."], ["E", "Just like always. Here are your coins. Don't tell anyone we paid for something."]] },
-    { intro: [["E", "Marnie, I'll guess your age for a dollar."], ["S", "Eddie, it's your sister. Do it for free."], ["E", "Fine. Family discount."]],
+      lose: [["S", "We give up. You win, Marni."], ["E", "Just like always. Here are your coins. Don't tell anyone we paid for something."]] },
+    { intro: [["E", "Marni, I'll guess your age for a dollar."], ["S", "Eddie, it's your sister. Do it for free."], ["E", "Fine. Family discount."]],
       guesses: [[41, [["E", "Forty-one."]]], [47, [["S", "Eddie, she's the oldest!"], ["E", "Oldest and wisest! Forty-seven."]]], [55, [["S", "My final guess: fifty-five. Because I would like to live."]]]],
       win: [["E", "Got her!"]],
-      lose: [["E", "We missed on purpose. That's called strategy."], ["S", "You win, Marnie. Big sisters always win."]] },
+      lose: [["E", "We missed on purpose. That's called strategy."], ["S", "You win, Marni. Big sisters always win."]] },
   ] },
   { id: "sonny", name: "Sonny", year: 1960, img: "img/sonny.webp", note: "The big brother. Ask him.", scripts: [
     { intro: [["E", "Sonny! Step right up. This one's easy."], ["S", "I'm a youthful man in his prime."]],
