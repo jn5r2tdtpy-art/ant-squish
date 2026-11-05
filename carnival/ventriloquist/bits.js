@@ -55,4 +55,12 @@ window.BITS = [
   [["S", "Eddie, you're so cheap you reuse tea bags."], ["E", "Only four times. I'm not an animal."]],
   [["S", "Eddie, why don't you ever buy a round of drinks?"], ["E", "I'm saving up."], ["S", "For what?"], ["E", "Scratch-offs. Priorities."]],
   [["S", "Eddie, you're the cheapest guy I know."], ["E", "That's not true."], ["S", "You charged me for this conversation."], ["E", "Five bucks. Pay up."]],
+  [["S", "Eddie, I'm taking you out to a fancy dinner."], ["E", "Really?"], ["S", "Then I'm not tipping, so act natural."]],
+  [["S", "Eddie, why did you charge Mom for a ride to the store?"], ["E", "Gas isn't free."], ["S", "She gave birth to you for free!"], ["E", "And she should have charged."]],
+  [["E", "Sonny, when did your daughters last call you?"], ["S", "They're busy."], ["E", "Since 2015?"], ["S", "Very busy girls."]],
+  [["S", "Eddie, your son is a great guy."], ["E", "I know. I have no idea how."], ["S", "He stayed away from both of us."]],
+  [["E", "Sonny bought himself a six-hundred-dollar jacket."], ["S", "I deserve it."], ["E", "And what did you get me for Christmas?"], ["S", "A hug. Unwrapped."]],
+  [["S", "Eddie, we're closer than ever."], ["E", "Because nobody else will talk to us."], ["S", "That's what I love about us."]],
+  [["E", "Sonny, the sisters are always right."], ["S", "Don't say that out loud."], ["E", "Why?"], ["S", "They might hear it, and then they'll be right about that too."]],
+  [["S", "Eddie, what's the nicest thing you ever did for free?"], ["E", "I'll tell you for five bucks."]],
 ];

@@ -524,4 +524,12 @@ window.QUESTIONS = [
   {"q":"Eddie, why are you wearing two different shoes?","a":[["E","Two for one sale. The other two are at home. Also different."]]},
   {"q":"What does Eddie bring to a potluck?","a":[["S","An empty plate."],["E","And a big appetite. That's a contribution."]]},
   {"q":"Eddie, would you lend Sonny a dollar?","a":[["E","Sure. At forty percent interest."],["S","And he'd still bet it on a horse."]]},
+  {"q":"Sonny, why don't you ever tip?","a":[["S","The service is never good enough."],["E","He said that at a drive-through. To a speaker."]]},
+  {"q":"Eddie, do you do anything from the goodness of your heart?","a":[["E","Sure. For a small fee."],["S","He charged our mom gas money for a grocery run."]]},
+  {"q":"Sonny, why don't your daughters talk to you?","a":[["S","They're intimidated by my greatness."],["E","They're tired of hearing about your Harley."]]},
+  {"q":"Eddie, how did your son turn out so nice?","a":[["E","He watched me and did the opposite."],["S","Smartest kid in the family."]]},
+  {"q":"Sonny, what's the most you've spent on someone else?","a":[["S","Eight dollars."],["E","And he still talks about it."]]},
+  {"q":"Why are you two so close now?","a":[["E","We're all each other has."],["S","Everyone else got smart and left."]]},
+  {"q":"Who's right, you two or your sisters?","a":[["S","Us."],["E","Them."],["S","…Them."]]},
+  {"q":"Sonny, would you buy Eddie lunch?","a":[["S","Sure, if he pays."],["E","That's not buying, that's watching."]]},
 ];
