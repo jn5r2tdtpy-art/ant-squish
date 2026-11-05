@@ -48,6 +48,7 @@
     <div class="askHead" id="fee"></div>
     <button class="btn" id="pickShow">🎭 Watch the Show</button>
     <button class="btn alt" id="pickAsk">🎤 Ask Sonny &amp; Eddie</button>
+    <button class="btn alt" id="pickSide">🎪 The Side Show: Eddie’s Dummy</button>
   </div>
   <div id="showCtl" class="mode" hidden>
     <button class="btn" id="goBtn">Start the show!</button>
@@ -62,6 +63,7 @@
 <script src="../coins.js"></script>
 <script src="bits.js"></script>
 <script src="questions.js"></script>
+<script src="sideshow.js"></script>
 <script>
 "use strict";
 const BITS = window.BITS;
@@ -70,17 +72,16 @@ const cv = $("cv"), ctx = cv.getContext("2d");
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const img = s => { const i = new Image(); i.src = s; return i; };
-const I = { photo: img("img/photo.webp") };
+const I = { photo: img("img/photo.webp"), side: img("img/sideshow.webp") };
 // sizes of the pictures and where Eddie's mouth is
 // The photo is 1119 x 1406. Eddie's jaw is the part between his painted dummy lines, below his mouth.
 const PW = 1119, PH = 1406;
 const JAW = [[305, 556], [362, 553], [419, 552], [420, 626], [392, 640], [362, 643], [332, 640], [304, 630]];
 // Sonny's lower lip and beard: a soft-edged piece that moves down a little when he talks (no hard lines).
 const SONNY_LIP = { x: 590, y: 420, w: 190, h: 120, mouthY: 424, cx: 679 };
-let sonnyPiece = null;
-function buildSonnyPiece() {
-  const { x, y, w, h, mouthY, cx } = SONNY_LIP, c = document.createElement("canvas"); c.width = w; c.height = h;
-  const g = c.getContext("2d"); g.drawImage(I.photo, x, y, w, h, 0, 0, w, h);
+function buildSonnyPiece(st) {
+  const { x, y, w, h, mouthY, cx } = st.lip, c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"); g.drawImage(st.img, x, y, w, h, 0, 0, w, h);
   g.globalCompositeOperation = "destination-in";
   const m = document.createElement("canvas"); m.width = w; m.height = h; const mg = m.getContext("2d");
   const r = mg.createRadialGradient(cx - x, mouthY - y, 10, cx - x, mouthY - y + 10, h * 0.95);
@@ -89,10 +90,22 @@ function buildSonnyPiece() {
   mg.globalCompositeOperation = "destination-in";
   const v = mg.createLinearGradient(0, mouthY - y - 1, 0, mouthY - y + 3); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,1)");
   mg.fillStyle = v; mg.fillRect(0, 0, w, h);
-  g.drawImage(m, 0, 0); sonnyPiece = c;
+  g.drawImage(m, 0, 0); st.piece = c;
 }
-I.photo.addEventListener("load", () => { try { buildSonnyPiece(); } catch (e) { sonnyPiece = null; } });
 const JAW_TOP = 552, EDDIE_MOUTH = [362, 556], SONNY_MOUTH = [690, 410], EDDIE_HAT = [345, 250], SONNY_HAT = [700, 40];
+// Each stage: its photo, the dummies' jaws (photo pixels), Sonny's lip piece, where speech bubbles point, and the glow on whoever talks.
+const STAGES = {
+  main: { img: I.photo, pw: PW, ph: PH, sign: "THE SONNY & EDDIE SHOW", lip: SONNY_LIP,
+    dummies: [{ who: "E", jaw: JAW, top: JAW_TOP, mx: EDDIE_MOUTH[0], drop: 26 }],
+    bub: { E: EDDIE_HAT, S: SONNY_HAT }, glow: { E: [355, 460, 190], S: [690, 330, 230] } },
+  // The side show photo is 1105 x 1424: Sonny holds Eddie, and Eddie holds little dummy Abby.
+  side: { img: I.side, pw: 1105, ph: 1424, sign: "THE SIDE SHOW: EDDIE’S DUMMY", lip: { x: 640, y: 258, w: 190, h: 110, mouthY: 266, cx: 732 },
+    dummies: [{ who: "E", jaw: [[365, 377], [400, 381], [437, 373], [438, 412], [420, 428], [398, 432], [373, 425], [366, 405]], top: 376, mx: 400, drop: 18 },
+              { who: "A", jaw: [[562, 438], [592, 442], [622, 436], [623, 470], [606, 482], [592, 485], [576, 482], [563, 472]], top: 438, mx: 592, drop: 13 }],
+    bub: { E: [380, 180], A: [575, 222], S: [750, 22] }, glow: { E: [400, 360, 150], A: [585, 420, 110], S: [740, 230, 170] } },
+};
+let ST = STAGES.main;
+for (const st of Object.values(STAGES)) { const build = () => { try { buildSonnyPiece(st); } catch (e) { st.piece = null; } }; if (st.img.complete && st.img.naturalWidth) build(); else st.img.addEventListener("load", build); }
 
 // ---------- Voices ----------
 let voiceOn = store.get("ve-voice") !== "off";
@@ -124,7 +137,7 @@ function say(who, text, onEnd) {
 }
 function phone(who, text, fin) { // no recording for this line yet
   if (!("speechSynthesis" in window)) { setTimeout(fin, 900 + text.length * 55); return; }
-  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = who === "E" ? 1.6 : 0.95; u.rate = 1.05; u.onend = u.onerror = fin; speechSynthesis.speak(u); }
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = who === "E" ? 1.6 : who === "A" ? 1.9 : 0.95; u.rate = 1.05; u.onend = u.onerror = fin; speechSynthesis.speak(u); }
   catch (e) { setTimeout(fin, 900 + text.length * 55); }
 }
 
@@ -153,12 +166,14 @@ function useTurn() {
   }
   turns--; return true;
 }
+let sideOrder = [];
+function nextSide() { const SB = window.SIDE; if (!sideOrder.length) sideOrder = SB.map((_, i) => i).sort(() => Math.random() - 0.5); return SB[sideOrder.pop()]; }
 function play() {
   if (S.busy) return;
   if (!useTurn()) return;
   $("goBtn").disabled = true; $("goBtn").textContent = "…";
   $("count").textContent = turnsLine();
-  perform(nextBit(), () => { seen++; $("count").textContent = turnsLine(); $("goBtn").disabled = false; $("goBtn").textContent = turns ? "Another one!" : "Another one! (🪙 1 coin for 5 more)"; });
+  perform(S.mode === "side" ? nextSide() : nextBit(), () => { seen++; $("count").textContent = turnsLine(); $("goBtn").disabled = false; $("goBtn").textContent = turns ? "Another one!" : "Another one! (🪙 1 coin for 5 more)"; });
 }
 $("goBtn").onclick = play;
 
@@ -181,11 +196,11 @@ $("q0").onclick = () => ask(0); $("q1").onclick = () => ask(1);
 
 // ---------- Choosing a show ----------
 function setMode(m) {
-  S.mode = m;
-  $("pick").hidden = m !== "pick"; $("showCtl").hidden = m !== "show"; $("askCtl").hidden = m !== "ask";
+  S.mode = m; ST = m === "side" ? STAGES.side : STAGES.main;
+  $("pick").hidden = m !== "pick"; $("showCtl").hidden = m !== "show" && m !== "side"; $("askCtl").hidden = m !== "ask";
   $("switchBtn").hidden = m === "pick";
-  $("switchBtn").textContent = m === "show" ? "🎤 Ask Sonny & Eddie instead" : "🎭 Watch the Show instead";
-  if (m === "show") { $("count").textContent = turnsLine(); $("goBtn").textContent = turns ? "Start the show!" : "Start the show! (🪙 1 coin for 5)"; }
+  $("switchBtn").textContent = m === "side" ? "‹ Back to the main show" : m === "show" ? "🎤 Ask Sonny & Eddie instead" : "🎭 Watch the Show instead";
+  if (m === "show" || m === "side") { $("count").textContent = turnsLine(); $("goBtn").textContent = turns ? "Start the show!" : "Start the show! (🪙 1 coin for 5)"; }
   if (m === "ask") { $("count").textContent = turnsLine(); newPair(); }
   if (m === "pick") { $("count").textContent = ""; showFee(); }
   layout();
@@ -193,13 +208,14 @@ function setMode(m) {
 function showFee() {
   const n = Coins.get();
   $("fee").innerHTML = n > 0 || turns > 0 ? "🎟️ 🪙 1 coin = 5 turns (questions or skits). You have " + n + " coins." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
-  $("pickShow").disabled = $("pickAsk").disabled = n < 1 && turns < 1;
+  $("pickShow").disabled = $("pickAsk").disabled = $("pickSide").disabled = n < 1 && turns < 1;
 }
 function enter(m) { setMode(m); }
 $("pickShow").onclick = () => enter("show");
 $("pickAsk").onclick = () => enter("ask");
+$("pickSide").onclick = () => enter("side");
 showFee();
-$("switchBtn").onclick = () => { if (!S.busy) setMode(S.mode === "show" ? "ask" : "show"); };
+$("switchBtn").onclick = () => { if (!S.busy) setMode(S.mode === "side" ? "pick" : S.mode === "show" ? "ask" : "show"); };
 $("backBtn").onclick = () => { player.pause(); location.href = "../"; };
 // a little canned laugh and a rimshot
 function laugh() {
@@ -225,8 +241,8 @@ function layout() {
   L.vh = Math.max(40, Math.min(64, (bottom - top) * 0.09));     // the sign across the top
   L.band = L.side ? 0 : Math.min(110, (bottom - top) * 0.16);   // room for speech bubbles above the photo
   const areaTop = top - 6 + L.vh + 10 + L.band, areaH = bottom - areaTop - 6, areaW = sw - 24;
-  L.s = Math.min(areaW / PW, areaH / PH);
-  L.pw = PW * L.s; L.ph = PH * L.s; L.px = (sw - L.pw) / 2; L.py = areaTop + (areaH - L.ph) / 2;
+  L.s = Math.min(areaW / ST.pw, areaH / ST.ph);
+  L.pw = ST.pw * L.s; L.ph = ST.ph * L.s; L.px = (sw - L.pw) / 2; L.py = areaTop + (areaH - L.ph) / 2;
   L.u = L.pw / 6; L.sw = sw;
 }
 addEventListener("resize", layout);
@@ -250,55 +266,53 @@ function drawStage() {
   ctx.fillStyle = "#e0a838"; ctx.fillRect(0, vy + vh - 3, W, 3);
   ctx.fillStyle = "#ffd75e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   let fs = Math.round(vh * 0.46); ctx.font = `${fs}px Rye, Georgia, serif`;
-  while (ctx.measureText("THE SONNY & EDDIE SHOW").width > W - 30 && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
-  ctx.fillText("THE SONNY & EDDIE SHOW", W / 2, vy + vh * 0.48);
+  while (ctx.measureText(ST.sign).width > W - 30 && fs > 10) { fs--; ctx.font = `${fs}px Rye, Georgia, serif`; }
+  ctx.fillText(ST.sign, W / 2, vy + vh * 0.48);
   // spotlight behind the photo
   const cx = L.px + L.pw / 2, cy = L.py + L.ph * 0.4, sp = ctx.createRadialGradient(cx, cy, 10, cx, cy, L.pw * 0.9);
   sp.addColorStop(0, "rgba(255,240,200,.28)"); sp.addColorStop(1, "rgba(255,240,200,0)"); ctx.fillStyle = sp; ctx.fillRect(0, 0, W, H);
 }
 
 function drawPhoto() {
-  if (!(I.photo.complete && I.photo.naturalWidth)) return;
+  if (!(ST.img.complete && ST.img.naturalWidth)) return;
   const { px, py, pw, ph, s } = L;
   ctx.save();
   ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
   ctx.fillStyle = "#b8860b"; rr(px - 6, py - 6, pw + 12, ph + 12, 10); ctx.fill();
   ctx.restore();
-  ctx.drawImage(I.photo, px, py, pw, ph);
-  // Eddie's jaw drops with the loudness of his voice
-  const talk = S.talker === "E";
-  let open = 0;
-  if (talk) { const l = loudness(); open = l == null ? (Math.sin(S.lineT * 22) > 0 ? 1 : 0.2) : clamp((l - 0.015) * 9, 0, 1); }
-  S.jaw += (open - S.jaw) * 0.5;
-  const drop = S.jaw * 26 * s; // in screen pixels (26 photo pixels at full open)
-  if (drop > 0.4) {
-    const path = () => { ctx.beginPath(); JAW.forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); };
-    // dark inside of the mouth where the jaw used to be
+  ctx.drawImage(ST.img, px, py, pw, ph);
+  // each dummy's jaw drops with the loudness of its voice
+  S.jaws = S.jaws || {};
+  for (const d of ST.dummies) {
+    let open = 0;
+    if (S.talker === d.who) { const l = loudness(); open = l == null ? (Math.sin(S.lineT * 22) > 0 ? 1 : 0.2) : clamp((l - 0.015) * 9, 0, 1); }
+    const j = S.jaws[d.who] = (S.jaws[d.who] || 0) + (open - (S.jaws[d.who] || 0)) * 0.5;
+    const drop = j * d.drop * s;
+    if (drop <= 0.4) continue;
+    const path = () => { ctx.beginPath(); d.jaw.forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); };
     ctx.save(); path(); ctx.clip();
-    const [mx, my] = P(EDDIE_MOUTH[0], JAW_TOP), mg = ctx.createLinearGradient(0, my, 0, my + drop + 4);
+    const [, my] = P(d.mx, d.top), mg = ctx.createLinearGradient(0, my, 0, my + drop + 4);
     mg.addColorStop(0, "#1a0406"); mg.addColorStop(1, "#4a0f14"); ctx.fillStyle = mg; ctx.fillRect(px, my - 2, pw, drop + 6);
     ctx.restore();
-    // the jaw itself, moved down
-    ctx.save(); ctx.translate(0, drop); path(); ctx.clip(); ctx.drawImage(I.photo, px, py, pw, ph); ctx.restore();
-    // a thin shadow line along the top of the dropped jaw
+    ctx.save(); ctx.translate(0, drop); path(); ctx.clip(); ctx.drawImage(ST.img, px, py, pw, ph); ctx.restore();
     ctx.strokeStyle = "rgba(20,5,5,.5)"; ctx.lineWidth = 1.2; ctx.beginPath();
-    JAW.slice(0, 3).forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y + drop) : ctx.moveTo(X, Y + drop); }); ctx.stroke();
+    d.jaw.slice(0, 3).forEach(([x, y], k) => { const [X, Y] = P(x, y); k ? ctx.lineTo(X, Y + drop) : ctx.moveTo(X, Y + drop); }); ctx.stroke();
   }
   // Sonny talks normally: his lower lip and beard move down a little, showing a dark mouth between his lips
   let sOpen = 0;
   if (S.talker === "S") { const l = loudness(); sOpen = l == null ? (0.5 + 0.5 * Math.sin(S.lineT * 18)) : clamp((l - 0.012) * 8, 0, 1); }
   S.sjaw = (S.sjaw || 0) + (sOpen - (S.sjaw || 0)) * 0.45;
-  const sd = S.sjaw * 7 * s;
-  if (sonnyPiece && sd > 0.3) {
-    const [mx, my] = P(SONNY_LIP.cx, SONNY_LIP.mouthY);
+  const sd = S.sjaw * 7 * s, lip = ST.lip;
+  if (ST.piece && sd > 0.3) {
+    const [mx, my] = P(lip.cx, lip.mouthY);
     ctx.save(); ctx.filter = "blur(" + Math.max(0.5, s * 1.5) + "px)";
     ctx.fillStyle = "rgba(35,10,10,.9)"; ctx.beginPath(); ctx.ellipse(mx, my + sd * 0.45, 36 * s, sd * 0.6 + 1, 0, 0, 7); ctx.fill(); ctx.restore();
-    const [ox, oy] = P(SONNY_LIP.x, SONNY_LIP.y);
-    ctx.drawImage(sonnyPiece, ox, oy + sd, SONNY_LIP.w * s, SONNY_LIP.h * s);
+    const [ox, oy] = P(lip.x, lip.y);
+    ctx.drawImage(ST.piece, ox, oy + sd, lip.w * s, lip.h * s);
   }
   // a soft glow on whoever is talking
-  if (S.talker) {
-    const [gx, gy] = S.talker === "E" ? P(355, 460) : P(690, 330), r = (S.talker === "E" ? 190 : 230) * s;
+  if (S.talker && ST.glow[S.talker]) {
+    const [gx0, gy0, gr] = ST.glow[S.talker], [gx, gy] = P(gx0, gy0), r = gr * s;
     ctx.save(); ctx.globalCompositeOperation = "soft-light";
     const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r); g.addColorStop(0, "rgba(255,240,210,.45)"); g.addColorStop(1, "rgba(255,240,210,0)");
     ctx.fillStyle = g; ctx.fillRect(gx - r, gy - r, r * 2, r * 2); ctx.restore();
@@ -325,8 +339,7 @@ function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawStage(); drawPhoto();
   if (S.talker && S.line) {
-    if (S.talker === "E") { const [x, y] = P(EDDIE_HAT[0], EDDIE_HAT[1]); drawBubble(x, y, S.line, true); }
-    else { const [x, y] = P(SONNY_HAT[0], SONNY_HAT[1]); drawBubble(x, y, S.line, false); }
+    const at = ST.bub[S.talker] || ST.bub.S, [x, y] = P(at[0], at[1]); drawBubble(x, y, S.line, S.talker !== "S");
   }
   if (S.question) {
     const fs = clamp(L.pw * 0.045, 13, 18); ctx.font = `800 ${fs}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
