@@ -87,19 +87,30 @@ window.PEOPLE = [
 window.FIB = [[["E", "Nice try! We know when you were born. We were there."]], [["S", "Lying about your age? Happens to the best of us. Try again."]], [["E", "We have the family Bible. Try again."]]];
 window.CLOSE = [["E", "Ding ding ding! Within two years!"]];
 // the kissing booth part (there is no kissing)
+// Inside the kissing booth it's really the Kiss My Ass Booth: Sonny, Eddie and Abby are the ones who have to kiss YOUR ass.
 window.KISS = [
-  [["E", "You want a kiss? Kiss my ass. That's a dollar."], ["S", "Eddie, you can't charge for that."], ["E", "Watch me."]],
-  [["S", "A kiss? Sure. Kiss my ass."], ["E", "Sonny! That's the sisters' line."], ["S", "They've been saying it to us for years. I'm borrowing it."]],
-  [["E", "This is a kiss my ass booth."], ["S", "The family set it up for us."], ["E", "They said it was the only booth we deserved."]],
-  [["S", "No kissing at this booth. Kiss my ass is free, though."], ["E", "Nothing's free, Sonny. Two dollars."]],
-  [["E", "My sisters told me to kiss their ass."], ["S", "What did you do?"], ["E", "Opened a booth."]],
-  [["S", "Pucker up!"], ["E", "For who?"], ["S", "My Harley. She's the only one who'll still kiss me."]],
-  [["E", "Kiss my ass, kiss my ass, get your kiss my ass right here!"], ["S", "Eddie, nobody's buying."], ["E", "Then kiss my ass for free. Family discount."]],
-  [["S", "Kiss my ass? I'd say it, but my daughters already said it first."], ["E", "And my son was too nice to say it at all."]],
-  [["E", "I'd kiss my sisters' ass to get back in the family."], ["S", "Eddie!"], ["E", "What? I already tried apologizing. Didn't work."]],
-  [["S", "Here's the deal. No kissing. But if you lose, you have to kiss Eddie's ass."], ["E", "And that's a five-dollar fee."]],
-  [["E", "We'd kiss up to the sisters, but they told us exactly what to kiss."], ["S", "And it wasn't up."]],
-  [["S", "One kiss my ass, coming right up."], ["E", "You can't get it to go, Sonny."], ["S", "Then it's dine-in. No tip."]],
+  [["S", "Welcome to the Kiss My Ass Booth! Today, we're the ones doing the kissing."], ["E", "The family's been telling us to kiss their ass for years."], ["A", "So we finally opened a booth for it."]],
+  [["E", "Step right up! Sonny, Eddie and Abby will kiss your ass. Free of charge."], ["S", "Eddie, you said free?"], ["E", "It's the only way they'd let us back in."]],
+  [["A", "Dad, why are we kissing everybody's ass?"], ["E", "Because we're out of the family, sweetie."], ["S", "And this is the only way back in."]],
+  [["S", "Pucker up, boys. And Abby."], ["A", "I'm made of wood, Uncle Sonny. I'll get splinters."], ["E", "It's worth it for Thanksgiving."]],
+  [["E", "I'll kiss your ass, but I'm not tipping."], ["S", "Eddie, nobody tips for this."], ["E", "Then I'm finally in the right business."]],
+  [["S", "We're sorry. We're so sorry. Please accept this kiss on the ass."], ["A", "That's the nicest apology Uncle Sonny's ever made."]],
+  [["A", "I stuck up for Dad without knowing the story."], ["E", "And now she's kissing ass to make up for it."], ["A", "It's been a rough year."]],
+  [["E", "I've kissed four wives. I can kiss one more ass."], ["S", "That's not the brag you think it is, Eddie."]],
+  [["S", "I've never kissed anybody's ass in my life."], ["E", "That's why we're out of the family, Sonny."], ["S", "Fine. Pucker up, Sonny."]],
+  [["A", "Uncle Sonny, I think you're doing it wrong."], ["S", "How do you kiss an ass right?"], ["E", "Ask my son. He's never had to."]],
+  [["E", "One kiss on the ass, coming up!"], ["S", "Eddie, careful. Don't let the unicorn out."], ["A", "Please, nobody let the unicorn out."]],
+  [["S", "Marni, Shannon, Julie, line up. We've got a lot of ass to kiss."], ["E", "Years of ass."], ["A", "It's going to be a long day."]],
+  [["E", "We'll kiss your ass, wash your car, and bring the pie."], ["S", "Eddie, you've never brought a pie."], ["E", "I'll bring the smell of a pie. From the driveway."]],
+  [["A", "Here's your kiss! On the ass. Like you deserve."], ["E", "That's my girl."], ["S", "She's better at this than both of us."]],
 ];
-window.KISS_WIN = [[["E", "You stumped us! Now we have to kiss your ass."], ["S", "Like always. The sisters always win."]], [["S", "You win! Go ahead, tell us to kiss your ass."], ["E", "We're used to it. It's a family tradition."]]];
-window.KISS_LOSE = [[["S", "Booth wins! Kiss my ass!"], ["E", "Sonny, we're trying to get back in the family. Say it nicer."], ["S", "Kiss my ass, please."]], [["E", "We got you! Now kiss my ass."], ["S", "That'll be a dollar. Eddie charges for everything."]]];
+window.KISS_WIN = [
+  [["E", "You stumped us!"], ["S", "Rules are rules. Line up, Eddie. We're kissing her ass."], ["A", "Me too, Uncle Sonny?"], ["S", "All three of us, kid."]],
+  [["S", "You win! Now Sonny, Eddie and Abby will kiss your ass."], ["E", "Just like the sisters always said we would."]],
+  [["A", "She stumped Dad and Uncle Sonny!"], ["E", "Pucker up, everybody."], ["S", "I knew this was coming the day we opened the booth."]],
+];
+window.KISS_LOSE = [
+  [["S", "Booth wins!"], ["E", "But we still have to kiss your ass."], ["A", "That's the deal. We kiss ass either way."]],
+  [["E", "We got it right!"], ["S", "Doesn't matter. We're still out of the family."], ["A", "Pucker up, boys."]],
+  [["A", "We guessed it! Do we still have to kiss her ass?"], ["E", "Sweetie, we always have to kiss their ass."], ["S", "It's in the contract. The sisters wrote it."]],
+];
