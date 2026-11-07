@@ -63,4 +63,8 @@ window.BITS = [
   [["S", "Eddie, we're closer than ever."], ["E", "Because nobody else will talk to us."], ["S", "That's what I love about us."]],
   [["E", "Sonny, the sisters are always right."], ["S", "Don't say that out loud."], ["E", "Why?"], ["S", "They might hear it, and then they'll be right about that too."]],
   [["S", "Eddie, what's the nicest thing you ever did for free?"], ["E", "I'll tell you for five bucks."]],
+  [["S", "Eddie, show them your tattoo."], ["E", "Which one?"], ["S", "Not that one! Never that one!"]],
+  [["E", "Sonny, I've got a unicorn tattoo."], ["S", "I know. Everybody knows. Nobody wants to know."]],
+  [["S", "Eddie's unicorn tattoo is the most magical thing about him."], ["E", "Thank you."], ["S", "That's not a compliment. Look at the competition."]],
+  [["E", "I'm thinking of getting another unicorn."], ["S", "Where?"], ["E", "Right next to the first one."], ["S", "A herd. Wonderful."]],
 ];
