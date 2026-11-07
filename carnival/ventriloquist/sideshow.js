@@ -497,5 +497,21 @@ window.SIDE = [
   [["S","My daughters are the best thing I ever did."],["A","Aww, Uncle Sonny."],["E","And they did most of it themselves."],["S","That's fair."]],
   [["E","Abby, your brother's the best thing I ever did."],["A","Hey!"],["E","Tied with you, sweetie."],["A","That's the only thing you've ever split evenly."]],
   [["A","Do you two ever think about how good the rest of the family is?"],["S","Every day."],["E","It's why we drink so much coffee. Free refills."]],
-  [["S","Ladies and gentlemen, our kids are better than us!"],["E","And our sisters are better than us!"],["A","And I'm the only one honest enough to say it out loud. Goodnight!"]]
+  [["S","Ladies and gentlemen, our kids are better than us!"],["E","And our sisters are better than us!"],["A","And I'm the only one honest enough to say it out loud. Goodnight!"]],
+  [["A", "Dad, tell the people about your tattoo."], ["E", "Which one?"], ["A", "The unicorn."], ["S", "Don't you dare show them, Eddie."]],
+  [["S", "Eddie has a unicorn tattoo."], ["A", "Where?"], ["S", "Somewhere the sun doesn't shine and the family doesn't look."]],
+  [["E", "My unicorn tattoo is a symbol of freedom."], ["S", "It's a symbol of a bad night in 1983."], ["A", "The year I was born. Coincidence?"]],
+  [["A", "Why a unicorn, Dad?"], ["E", "Because they're rare and magical."], ["S", "Like anyone ever seeing it. Rare, and nobody wants it to be magical."]],
+  [["S", "Eddie's unicorn is the only thing in the family that's never been invited out."], ["E", "It's shy!"], ["A", "It's hidden for a reason."]],
+  [["E", "I got my unicorn tattoo for free."], ["S", "Of course you did."], ["A", "Dad, that's why it looks like a horse with a bad haircut."]],
+  [["A", "Uncle Sonny, have you seen Dad's unicorn?"], ["S", "Once. By accident. At the lake."], ["E", "He still has nightmares."], ["S", "I still can't look at a merry-go-round."]],
+  [["E", "Every man needs a little magic."], ["S", "Not there, Eddie."], ["A", "Definitely not there."]],
+  [["S", "The sisters say Eddie's unicorn is the only thing about him that's been hiding longer than his wallet."], ["E", "Both are very hard to find."]],
+  [["A", "Dad, does your unicorn have a name?"], ["E", "Sparkles."], ["S", "Of course it does."], ["A", "I didn't need to know that."]],
+  [["E", "Four wives have seen my unicorn."], ["S", "That might be why there were four wives."], ["A", "Ooh."]],
+  [["S", "Eddie charges five bucks to see his unicorn tattoo."], ["A", "Has anyone paid?"], ["S", "No. People pay him five bucks to keep it covered."]],
+  [["A", "My brother has a normal tattoo."], ["E", "What is it?"], ["A", "Nothing. He's too sensible for tattoos."], ["S", "Unlike your dad and his secret pony."]],
+  [["E", "My unicorn and I have been through a lot together."], ["S", "Mostly bad decisions."], ["A", "And very low waistbands."]],
+  [["S", "If the family ever lets us back in, Eddie, leave the unicorn at home."], ["E", "It goes where I go, Sonny."], ["A", "That's the problem."]],
+  [["A", "Dad, if you could go back, would you still get the unicorn?"], ["E", "Of course."], ["S", "He'd get a matching rainbow."], ["E", "Don't give me ideas."]]
 ];

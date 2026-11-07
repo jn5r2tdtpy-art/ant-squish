@@ -532,4 +532,7 @@ window.QUESTIONS = [
   {"q":"Why are you two so close now?","a":[["E","We're all each other has."],["S","Everyone else got smart and left."]]},
   {"q":"Who's right, you two or your sisters?","a":[["S","Us."],["E","Them."],["S","…Them."]]},
   {"q":"Sonny, would you buy Eddie lunch?","a":[["S","Sure, if he pays."],["E","That's not buying, that's watching."]]},
+  {"q":"Eddie, why a unicorn tattoo?","a":[["E","Because I'm one of a kind."],["S","Thank goodness for that."]]},
+  {"q":"Sonny, have you seen Eddie's unicorn tattoo?","a":[["S","Once. I'm still in therapy."],["E","He loved it."]]},
+  {"q":"Eddie, where exactly is the unicorn tattoo?","a":[["E","Somewhere special."],["S","Somewhere we don't talk about at Thanksgiving. Which is why we're not invited."]]},
 ];

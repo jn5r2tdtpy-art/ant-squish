@@ -405,6 +405,8 @@ window.FORTUNES = {
     "Never pay for a car wash. Ride through a sprinkler. Free and dramatic.",
   ],
   Family: [
+    "My brother Eddie has a unicorn tattoo in a spot I’ll never mention. Some things should stay mythical.",
+    "Eddie says his unicorn tattoo is good luck. He’s been married four times. I’m not sure it’s working.",
     "Always order the most expensive thing on the menu. Then find a reason not to tip. The bread was cold. Or the ice was too wet.",
     "Treat yourself. Buy the six-hundred-dollar jacket. If someone else needs five bucks, tell them you’re broke for other people.",
     "Want your daughters to call you? Wait by the phone. Don’t call them first. That’s how I do it. It’s been a while.",
