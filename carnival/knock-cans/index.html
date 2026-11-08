@@ -82,10 +82,10 @@ const rowsFor = n => 4 + Math.floor((n - 1) / 10);
 let ROWS = [4, 3, 2, 1];
 const canCount = () => ROWS.reduce((a, b) => a + b, 0);
 const ballsFor = n => BALLS + rowsFor(n) - 4;   // one more ball each time the pyramid grows
-const aimSpeed   = n => 1.6 + 0.32 * ((n - 1) % 10) + 0.4 * Math.floor((n - 1) / 10);  // speeds up each round, eases back a bit when the pyramid grows         // how fast the aim marker slides
-const heightSpeed = n => 0.75 + 0.15 * ((n - 1) % 10) + 0.2 * Math.floor((n - 1) / 10);         // height marker trips up and down per second
-const canScale   = n => 1 - 0.035 * ((n - 1) % 10);           // cans get farther back each round, then the pyramid grows
-const KNOCK_ON = 0.6;                                    // chance a falling can knocks over a can beside it
+const aimSpeed   = n => 1.6 + 0.2 * ((n - 1) % 10) + 0.4 * Math.floor((n - 1) / 10);  // speeds up each round, eases back a bit when the pyramid grows         // how fast the aim marker slides
+const heightSpeed = n => 0.75 + 0.09 * ((n - 1) % 10) + 0.2 * Math.floor((n - 1) / 10);         // height marker trips up and down per second
+const canScale   = n => 1 - 0.022 * ((n - 1) % 10);           // cans get farther back each round, then the pyramid grows
+const KNOCK_ON = 0.7;                                    // chance a falling can knocks over a can beside it
 const FACES = ["abby", "eddie", "sonny"];
 const COLORS = ["#e85d7a", "#f08a3c", "#3fa0d8", "#8a5ad8", "#3fbf7a", "#e8c83c"];
 
