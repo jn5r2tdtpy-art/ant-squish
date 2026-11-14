@@ -60,6 +60,7 @@
 
 <div id="live" hidden style="width:100%;display:flex;flex-direction:column;align-items:center">
   <div id="booth"><canvas id="view" width="600" height="800"></canvas><div id="count"></div><div id="shots"></div><div id="flash"></div></div>
+  <div class="muted" id="tip" style="color:#ffd75e;font-weight:700"></div>
   <div class="label">Pick a frame</div>
   <div class="chips" id="frames"></div>
   <div class="label">Add props (drag to move · pinch or use ➖ ➕ to resize · tap twice to remove)</div>
@@ -83,6 +84,7 @@
 const $ = id => document.getElementById(id);
 const cv = $("view"), ctx = cv.getContext("2d"), VW = cv.width, VH = cv.height;
 const img = s => { const i = new Image(); i.src = s; return i; };
+const SCENES = { skier: img("img/skier.webp") };
 const HEADS = { sonny: img("img/sonny.webp"), eddie: img("img/eddie.webp"), abby: img("img/abby.webp") };
 const video = document.createElement("video"); video.setAttribute("playsinline", ""); video.muted = true;
 let source = null, stream = null, still = null;     // source is the video or an uploaded photo
@@ -119,6 +121,10 @@ const FRAMES = [
   { id: "unicorn", name: "🦄 Secret Unicorn", draw(c, w, h) {
     c.font = `${w * 0.13}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; [[0.1, 0.12], [0.9, 0.12], [0.1, 0.72], [0.9, 0.72]].forEach(([x, y]) => c.fillText("🦄", w * x, h * y));
     banner(c, "I SAW EDDIE’S UNICORN 🦄 (NOT REALLY)", h * 0.86, w, h * 0.08, "#8a4ad8", "#fff4dc", "Bangers, Impact, sans-serif"); } },
+  // Face in the hole: the photo covers everything, and your face shows through where his face is.
+  // hole is in the original photo's pixels (1199 x 1312): center x, center y, half-width, half-height
+  { id: "skier", name: "🎿 Water Ski Legend", scene: "skier", sw: 1199, sh: 1312, hole: [381, 197, 52, 64], tip: "Put your face in the middle of the camera. It goes right on the skier!",
+    draw(c, w, h) { banner(c, "LAKE LEGEND", h * 0.88, w, h * 0.08, "#1a4a7a", "#fff4dc", "Bangers, Impact, sans-serif"); } },
   { id: "plain", name: "⬜ Plain", draw() {} },
 ];
 let frame = FRAMES[0];
@@ -154,7 +160,29 @@ function drawPhoto(c, w, h, src) {
   c.save(); if (src === video) { c.translate(w, 0); c.scale(-1, 1); }      // mirror the selfie camera
   c.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh); c.restore();
 }
-function compose(c, w, h, src) { drawPhoto(c, w, h, src); const k = w / VW; frame.draw(c, w, h); stickers.forEach(s => drawSticker(c, s, k)); }
+// draw the scene, with the middle of the camera (your face) feathered into the hole
+let faceCv = null;
+function drawScene(c, w, h, src, f) {
+  const im = SCENES[f.scene]; c.fillStyle = "#111"; c.fillRect(0, 0, w, h); if (!im.complete || !im.naturalWidth) return;
+  const k = Math.max(w / f.sw, h / f.sh), ox = (w - f.sw * k) / 2, oy = (h - f.sh * k) / 2;
+  const [hx, hy, hw, hh] = f.hole, cx = ox + hx * k, cy = oy + hy * k, rx = hw * k, ry = hh * k;
+  // your face goes on top of the photo, with a soft edge
+  if (src) { const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
+    if (sw) { const bw = Math.ceil(rx * 2.4), bh = Math.ceil(ry * 2.4);
+      if (!faceCv) faceCv = document.createElement("canvas"); faceCv.width = bw; faceCv.height = bh; const fc = faceCv.getContext("2d");
+      const cropH = sh * 0.62, cropW = cropH * bw / bh;           // the middle of the camera frame, where your face is
+      fc.save(); if (src === video) { fc.translate(bw, 0); fc.scale(-1, 1); }
+      fc.drawImage(src, (sw - cropW) / 2, (sh - cropH) / 2 - sh * 0.04, cropW, cropH, 0, 0, bw, bh); fc.restore();
+      fc.globalCompositeOperation = "destination-in";
+      const g = fc.createRadialGradient(bw / 2, bh / 2, 0, bw / 2, bh / 2, bw / 2); g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(0.7, "rgba(0,0,0,1)"); g.addColorStop(0.88, "rgba(0,0,0,0)");
+      fc.save(); fc.translate(bw / 2, bh / 2); fc.scale(1, bh / bw); fc.translate(-bw / 2, -bw / 2); fc.fillStyle = g; fc.fillRect(0, 0, bw, bw); fc.restore();
+      fc.globalCompositeOperation = "source-over";
+      // the photo first, then your face on top, blending into his hair and neck
+      c.drawImage(im, ox, oy, f.sw * k, f.sh * k);
+      c.drawImage(faceCv, cx - bw / 2, cy - bh / 2); return; } }
+  c.drawImage(im, ox, oy, f.sw * k, f.sh * k);
+}
+function compose(c, w, h, src) { if (frame.scene) drawScene(c, w, h, src, frame); else drawPhoto(c, w, h, src); const k = w / VW; frame.draw(c, w, h); stickers.forEach(s => drawSticker(c, s, k)); }
 function loop() {
   compose(ctx, VW, VH, source);
   if (sel && stickers.includes(sel) && !$("snap").disabled) { // dashed box around the prop you're adjusting (not in the photos)
@@ -221,7 +249,7 @@ $("smaller").onclick = () => resize(0.82); $("bigger").onclick = () => resize(1.
 $("back").onclick = () => { if (stream) stream.getTracks().forEach(t => t.stop()); location.href = "../"; };
 // chips
 FRAMES.forEach(f => { const b = document.createElement("button"); b.className = "chip" + (f === frame ? " on" : ""); b.textContent = f.name;
-  b.onclick = () => { frame = f; document.querySelectorAll("#frames .chip").forEach(x => x.classList.toggle("on", x === b)); }; $("frames").appendChild(b); });
+  b.onclick = () => { frame = f; document.querySelectorAll("#frames .chip").forEach(x => x.classList.toggle("on", x === b)); $("tip").textContent = f.tip || ""; }; $("frames").appendChild(b); });
 PROPS.forEach(e => { const b = document.createElement("button"); b.className = "chip prop"; b.textContent = e;
   b.onclick = () => { const s = { e, x: VW * (0.35 + Math.random() * 0.3), y: VH * (0.3 + Math.random() * 0.2), s: VW * 0.2 }; stickers.push(s); sel = s; showSize(); }; $("props").appendChild(b); });
 requestAnimationFrame(loop);
