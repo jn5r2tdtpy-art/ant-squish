@@ -62,8 +62,11 @@
   <div id="booth"><canvas id="view" width="600" height="800"></canvas><div id="count"></div><div id="shots"></div><div id="flash"></div></div>
   <div class="label">Pick a frame</div>
   <div class="chips" id="frames"></div>
-  <div class="label">Add props (drag them where you want · tap one twice to remove)</div>
+  <div class="label">Add props (drag to move · pinch or use ➖ ➕ to resize · tap twice to remove)</div>
   <div class="chips" id="props"></div>
+  <div id="sizeRow" hidden style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px">
+    <button class="chip" id="smaller" style="font-size:18px">➖ Smaller</button><span id="sizeName" style="font-size:30px"></span><button class="chip" id="bigger" style="font-size:18px">➕ Bigger</button>
+  </div>
   <button class="btn" id="snap">📸 Snap 4 photos!</button>
   <button class="link" id="clearProps">Clear props</button>
 </div>
@@ -124,14 +127,24 @@ let frame = FRAMES[0];
 const PROPS = ["🎩", "🕶️", "🥸", "👑", "🦄", "💋", "🏍️", "🎈", "🪙", "🤡", "👓", "🌭"];
 let stickers = [];   // {e, x, y, s} in canvas pixels
 function drawSticker(c, s, k = 1) { c.font = `${s.s * k}px system-ui, "Apple Color Emoji", sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(s.e, s.x * k, s.y * k); }
-let drag = null, lastTap = { t: 0, s: null };
+let drag = null, lastTap = { t: 0, s: null }, sel = null;
+const pointers = new Map(); let pinch = null;     // two fingers on a prop = pinch to resize
+const MIN_S = VW * 0.06, MAX_S = VW * 1.2;
+function resize(f) { if (!sel) return; sel.s = Math.max(MIN_S, Math.min(MAX_S, sel.s * f)); }
 const pt = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * VW / r.width, y: (e.clientY - r.top) * VH / r.height }; };
 cv.addEventListener("pointerdown", e => {
-  const p = pt(e); const s = [...stickers].reverse().find(s => Math.hypot(s.x - p.x, s.y - p.y) < s.s * 0.6); if (!s) return;
-  const now = performance.now(); if (lastTap.s === s && now - lastTap.t < 350) { stickers = stickers.filter(x => x !== s); lastTap = { t: 0, s: null }; return; }
+  const p = pt(e); pointers.set(e.pointerId, p);
+  if (pointers.size === 2 && sel) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: sel.s }; drag = null; return; } const s = [...stickers].reverse().find(s => Math.hypot(s.x - p.x, s.y - p.y) < s.s * 0.6); if (!s) return;
+  const now = performance.now(); if (lastTap.s === s && now - lastTap.t < 350) { stickers = stickers.filter(x => x !== s); lastTap = { t: 0, s: null }; sel = null; showSize(); return; }
+  sel = s; showSize();
   lastTap = { t: now, s }; stickers = stickers.filter(x => x !== s).concat([s]); drag = { s, dx: s.x - p.x, dy: s.y - p.y, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
-cv.addEventListener("pointermove", e => { if (!drag || drag.id !== e.pointerId) return; const p = pt(e); drag.s.x = p.x + drag.dx; drag.s.y = p.y + drag.dy; });
-cv.addEventListener("pointerup", () => drag = null);
+cv.addEventListener("pointermove", e => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, pt(e));
+  if (pinch && pointers.size === 2 && sel) { const [a, b] = [...pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y); sel.s = Math.max(MIN_S, Math.min(MAX_S, pinch.s * d / Math.max(10, pinch.d))); return; }
+  if (!drag || drag.id !== e.pointerId) return; const p = pt(e); drag.s.x = p.x + drag.dx; drag.s.y = p.y + drag.dy; });
+const up = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (drag && drag.id === e.pointerId) drag = null; };
+cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+function showSize() { $("sizeRow").hidden = !sel || !stickers.includes(sel); if (sel) $("sizeName").textContent = sel.e; }
 
 // ---------- Drawing ----------
 function drawPhoto(c, w, h, src) {
@@ -142,7 +155,11 @@ function drawPhoto(c, w, h, src) {
   c.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh); c.restore();
 }
 function compose(c, w, h, src) { drawPhoto(c, w, h, src); const k = w / VW; frame.draw(c, w, h); stickers.forEach(s => drawSticker(c, s, k)); }
-function loop() { compose(ctx, VW, VH, source); requestAnimationFrame(loop); }
+function loop() {
+  compose(ctx, VW, VH, source);
+  if (sel && stickers.includes(sel) && !$("snap").disabled) { // dashed box around the prop you're adjusting (not in the photos)
+    ctx.save(); ctx.strokeStyle = "rgba(255,215,94,.95)"; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.strokeRect(sel.x - sel.s * 0.6, sel.y - sel.s * 0.6, sel.s * 1.2, sel.s * 1.2); ctx.restore(); }
+  requestAnimationFrame(loop); }
 
 // ---------- Sound ----------
 let ac = null;
@@ -199,13 +216,14 @@ $("file").onchange = e => { const f = e.target.files && e.target.files[0]; if (!
 $("snap").onclick = () => { audio(); snapAll(); };
 $("again").onclick = () => { goLive(); };
 $("save").onclick = save;
-$("clearProps").onclick = () => stickers = [];
+$("clearProps").onclick = () => { stickers = []; sel = null; showSize(); };
+$("smaller").onclick = () => resize(0.82); $("bigger").onclick = () => resize(1.22);
 $("back").onclick = () => { if (stream) stream.getTracks().forEach(t => t.stop()); location.href = "../"; };
 // chips
 FRAMES.forEach(f => { const b = document.createElement("button"); b.className = "chip" + (f === frame ? " on" : ""); b.textContent = f.name;
   b.onclick = () => { frame = f; document.querySelectorAll("#frames .chip").forEach(x => x.classList.toggle("on", x === b)); }; $("frames").appendChild(b); });
 PROPS.forEach(e => { const b = document.createElement("button"); b.className = "chip prop"; b.textContent = e;
-  b.onclick = () => stickers.push({ e, x: VW * (0.35 + Math.random() * 0.3), y: VH * (0.3 + Math.random() * 0.2), s: VW * 0.2 }); $("props").appendChild(b); });
+  b.onclick = () => { const s = { e, x: VW * (0.35 + Math.random() * 0.3), y: VH * (0.3 + Math.random() * 0.2), s: VW * 0.2 }; stickers.push(s); sel = s; showSize(); }; $("props").appendChild(b); });
 requestAnimationFrame(loop);
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
 </script>
