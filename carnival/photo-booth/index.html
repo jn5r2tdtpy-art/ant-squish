@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Photo Booth</title>
+<meta name="theme-color" content="#2a0812">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Midway">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Bangers&display=swap" rel="stylesheet">
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; min-height: 100%; background: #2a0812; color: #fff4dc; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  body { display: flex; flex-direction: column; align-items: center; padding: calc(10px + var(--sat)) 12px calc(16px + var(--sab)); box-sizing: border-box; }
+  body > * { flex-shrink: 0; }
+  #back { align-self: flex-start; height: 38px; border-radius: 19px; border: 0; background: rgba(255,244,220,.14); color: #fff4dc; font: 700 14px system-ui, sans-serif; padding: 0 14px; cursor: pointer; }
+  h1 { font-family: Rye, Georgia, serif; font-weight: 400; color: #ffd75e; text-shadow: 0 3px 0 #a3122a; margin: 6px 0 2px; font-size: clamp(32px, 10vw, 48px); text-align: center; }
+  .sub { color: #f6e6c8; margin: 0 0 10px; text-align: center; font-size: 15px; }
+  /* the booth curtain around the camera */
+  #booth { width: min(100%, 480px); background: repeating-linear-gradient(90deg, #a8142a 0 18px, #c8203a 18px 36px); border-radius: 16px; padding: 12px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,.5); position: relative; }
+  #view { width: 100%; aspect-ratio: 3 / 4; display: block; border-radius: 8px; background: #111; touch-action: none; }
+  #count { position: absolute; inset: 12px; display: flex; align-items: center; justify-content: center; font: 900 120px/1 Bangers, Impact, sans-serif; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,.6); pointer-events: none; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; border-radius: 16px; }
+  #shots { position: absolute; right: 20px; bottom: 20px; font: 800 15px system-ui, sans-serif; background: rgba(0,0,0,.55); padding: 4px 10px; border-radius: 12px; pointer-events: none; }
+  .label { width: min(100%, 480px); color: #ffd75e; font: 800 14px system-ui, sans-serif; margin: 12px 0 6px; }
+  .chips { width: min(100%, 480px); display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .chip { flex: none; border: 2px solid #ffd75e; background: #3a1018; color: #ffd75e; border-radius: 999px; padding: 8px 12px; font: 700 14px system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
+  .chip.on { background: #ffd75e; color: #2a0812; }
+  .chip.prop { font-size: 24px; padding: 4px 10px; }
+  .btn { font: 800 18px/1 system-ui, sans-serif; color: #2a0812; background: linear-gradient(#ffe27a, #f5b52c); border: 0; border-radius: 999px; padding: 15px 26px;
+    box-shadow: 0 4px 0 #a8661a, 0 6px 14px rgba(0,0,0,.4); cursor: pointer; width: min(100%, 360px); margin-top: 12px; }
+  .btn.alt { background: linear-gradient(#f4f0ff, #cdbcf5); box-shadow: 0 4px 0 #6a50a8, 0 6px 14px rgba(0,0,0,.4); }
+  .btn:active { transform: translateY(3px); }
+  .btn:disabled { opacity: .5; }
+  .muted { color: #cdb896; font-size: 13px; text-align: center; max-width: 440px; margin-top: 8px; }
+  #strip { width: min(70%, 300px); border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.6); margin-top: 6px; }
+  [hidden] { display: none !important; }
+  .link { background: none; border: 0; color: #cdb896; font: 600 14px system-ui, sans-serif; text-decoration: underline; cursor: pointer; margin-top: 8px; }
+</style>
+</head>
+<body>
+<button id="back">‹ Midway</button>
+<h1>Photo Booth</h1>
+<div class="sub">4 poses · carnival photo strip · save it to your phone</div>
+
+<div id="start">
+  <div class="muted" style="font-size:15px;color:#f6e6c8">Step into the booth! Pick a frame, add some props, then smile for 4 snaps.<br>Your photos stay on your phone. Nothing is sent anywhere.</div>
+  <button class="btn" id="camBtn">📸 Step into the booth</button>
+  <button class="btn alt" id="upBtn">🖼️ Use a photo instead</button>
+  <input type="file" id="file" accept="image/*" hidden>
+  <div class="muted" id="camMsg"></div>
+</div>
+
+<div id="live" hidden style="width:100%;display:flex;flex-direction:column;align-items:center">
+  <div id="booth"><canvas id="view" width="600" height="800"></canvas><div id="count"></div><div id="shots"></div><div id="flash"></div></div>
+  <div class="label">Pick a frame</div>
+  <div class="chips" id="frames"></div>
+  <div class="label">Add props (drag them where you want · tap one twice to remove)</div>
+  <div class="chips" id="props"></div>
+  <button class="btn" id="snap">📸 Snap 4 photos!</button>
+  <button class="link" id="clearProps">Clear props</button>
+</div>
+
+<div id="done" hidden style="width:100%;display:flex;flex-direction:column;align-items:center">
+  <button class="btn" id="save">💾 Save your strip</button>
+  <div class="muted">On iPhone: tap Save, then “Save Image”.</div>
+  <button class="btn alt" id="again">🔁 Take more</button>
+  <img id="strip" alt="Your photo strip" style="margin-top:14px">
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const cv = $("view"), ctx = cv.getContext("2d"), VW = cv.width, VH = cv.height;
+const img = s => { const i = new Image(); i.src = s; return i; };
+const HEADS = { sonny: img("img/sonny.webp"), eddie: img("img/eddie.webp"), abby: img("img/abby.webp") };
+const video = document.createElement("video"); video.setAttribute("playsinline", ""); video.muted = true;
+let source = null, stream = null, still = null;     // source is the video or an uploaded photo
+
+// ---------- Frames: each draws on top of the photo ----------
+function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); }
+function banner(c, text, y, w, h, bg, fg, font) {
+  c.fillStyle = bg; rr(c, (w - w * 0.86) / 2, y, w * 0.86, h, h / 2); c.fill();
+  c.fillStyle = fg; c.textAlign = "center"; c.textBaseline = "middle"; let fs = h * 0.62; c.font = `${fs}px ${font}`;
+  while (c.measureText(text).width > w * 0.8 && fs > 8) { fs--; c.font = `${fs}px ${font}`; } c.fillText(text, w / 2, y + h / 2 + 1);
+}
+function head(c, im, x, y, h, flip) { if (!im.complete || !im.naturalWidth) return; const w = h * im.naturalWidth / im.naturalHeight;
+  c.save(); c.translate(x, y); if (flip) c.scale(-1, 1); c.shadowColor = "rgba(0,0,0,.45)"; c.shadowBlur = h * 0.06; c.drawImage(im, -w / 2, -h, w, h); c.restore(); }
+const FRAMES = [
+  { id: "midway", name: "🎪 Midway", draw(c, w, h) {
+    const b = w * 0.05; c.fillStyle = "#c8203a"; for (let i = 0; i < 40; i++) { c.fillStyle = i % 2 ? "#fff4dc" : "#c8203a"; c.fillRect(i * w / 20, 0, w / 20, b); c.fillRect(i * w / 20, h - b, w / 20, b); }
+    for (let i = 0; i < 40; i++) { c.fillStyle = i % 2 ? "#fff4dc" : "#c8203a"; c.fillRect(0, i * h / 26, b, h / 26); c.fillRect(w - b, i * h / 26, b, h / 26); }
+    banner(c, "CARNIVAL MIDWAY", h * 0.84, w, h * 0.09, "#2a0812", "#ffd75e", "Rye, Georgia, serif"); } },
+  { id: "sonnyeddie", name: "🎭 With Sonny & Eddie", draw(c, w, h) {
+    head(c, HEADS.sonny, w * 0.16, h * 0.98, h * 0.36, false); head(c, HEADS.eddie, w * 0.84, h * 0.98, h * 0.36, false);
+    banner(c, "I SURVIVED THE SONNY & EDDIE SHOW", h * 0.03, w, h * 0.08, "#9a1626", "#ffd75e", "Rye, Georgia, serif"); } },
+  { id: "dummy", name: "🪆 Eddie’s Dummy", draw(c, w, h) {
+    head(c, HEADS.eddie, w * 0.15, h * 0.99, h * 0.33, false); head(c, HEADS.abby, w * 0.33, h * 0.99, h * 0.22, false); head(c, HEADS.sonny, w * 0.85, h * 0.99, h * 0.36, false);
+    banner(c, "THE SIDE SHOW: EDDIE’S DUMMY", h * 0.03, w, h * 0.08, "#9a1626", "#ffd75e", "Rye, Georgia, serif"); } },
+  { id: "wanted", name: "🤠 Wanted", draw(c, w, h) {
+    const b = w * 0.07; c.fillStyle = "#e8d2a0"; c.fillRect(0, 0, w, b * 2.2); c.fillRect(0, h - b * 2.6, w, b * 2.6); c.fillRect(0, 0, b, h); c.fillRect(w - b, 0, b, h);
+    c.strokeStyle = "#6a4020"; c.lineWidth = 4; c.strokeRect(b, b * 2.2, w - 2 * b, h - b * 4.8);
+    c.fillStyle = "#4a2a10"; c.textAlign = "center"; c.textBaseline = "middle"; c.font = `${b * 1.6}px Rye, Georgia, serif`; c.fillText("WANTED", w / 2, b * 1.15);
+    c.font = `${b * 0.62}px Rye, Georgia, serif`; c.fillText("BACK AT THANKSGIVING", w / 2, h - b * 1.75); c.fillText("REWARD: 1 MIDWAY COIN", w / 2, h - b * 0.9); } },
+  { id: "kiss", name: "💋 Kiss My Ass Booth", draw(c, w, h) {
+    const b = w * 0.06; c.fillStyle = "#f07aa0"; c.fillRect(0, 0, w, b); c.fillRect(0, h - b, w, b); c.fillRect(0, 0, b, h); c.fillRect(w - b, 0, b, h);
+    c.font = `${b * 0.8}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; for (let i = 0; i < 9; i++) { c.fillText("💋", b / 2 + i * (w - b) / 8, b / 2); c.fillText("💋", b / 2 + i * (w - b) / 8, h - b / 2); }
+    banner(c, "THE KISS MY ASS BOOTH", h * 0.83, w, h * 0.08, "#a8264a", "#fff4dc", "Bangers, Impact, sans-serif"); } },
+  { id: "unicorn", name: "🦄 Secret Unicorn", draw(c, w, h) {
+    c.font = `${w * 0.13}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; [[0.1, 0.12], [0.9, 0.12], [0.1, 0.72], [0.9, 0.72]].forEach(([x, y]) => c.fillText("🦄", w * x, h * y));
+    banner(c, "I SAW EDDIE’S UNICORN 🦄 (NOT REALLY)", h * 0.86, w, h * 0.08, "#8a4ad8", "#fff4dc", "Bangers, Impact, sans-serif"); } },
+  { id: "plain", name: "⬜ Plain", draw() {} },
+];
+let frame = FRAMES[0];
+
+// ---------- Props: emoji stickers you drag around ----------
+const PROPS = ["🎩", "🕶️", "🥸", "👑", "🦄", "💋", "🏍️", "🎈", "🪙", "🤡", "👓", "🌭"];
+let stickers = [];   // {e, x, y, s} in canvas pixels
+function drawSticker(c, s, k = 1) { c.font = `${s.s * k}px system-ui, "Apple Color Emoji", sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(s.e, s.x * k, s.y * k); }
+let drag = null, lastTap = { t: 0, s: null };
+const pt = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * VW / r.width, y: (e.clientY - r.top) * VH / r.height }; };
+cv.addEventListener("pointerdown", e => {
+  const p = pt(e); const s = [...stickers].reverse().find(s => Math.hypot(s.x - p.x, s.y - p.y) < s.s * 0.6); if (!s) return;
+  const now = performance.now(); if (lastTap.s === s && now - lastTap.t < 350) { stickers = stickers.filter(x => x !== s); lastTap = { t: 0, s: null }; return; }
+  lastTap = { t: now, s }; stickers = stickers.filter(x => x !== s).concat([s]); drag = { s, dx: s.x - p.x, dy: s.y - p.y, id: e.pointerId }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", e => { if (!drag || drag.id !== e.pointerId) return; const p = pt(e); drag.s.x = p.x + drag.dx; drag.s.y = p.y + drag.dy; });
+cv.addEventListener("pointerup", () => drag = null);
+
+// ---------- Drawing ----------
+function drawPhoto(c, w, h, src) {
+  c.fillStyle = "#111"; c.fillRect(0, 0, w, h); if (!src) return;
+  const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight; if (!sw) return;
+  const sc = Math.max(w / sw, h / sh), dw = sw * sc, dh = sh * sc;
+  c.save(); if (src === video) { c.translate(w, 0); c.scale(-1, 1); }      // mirror the selfie camera
+  c.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh); c.restore();
+}
+function compose(c, w, h, src) { drawPhoto(c, w, h, src); const k = w / VW; frame.draw(c, w, h); stickers.forEach(s => drawSticker(c, s, k)); }
+function loop() { compose(ctx, VW, VH, source); requestAnimationFrame(loop); }
+
+// ---------- Sound ----------
+let ac = null;
+function audio() { if (!ac) try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} if (ac && ac.state === "suspended") ac.resume(); return ac; }
+function beep(f, d) { const a = audio(); if (!a) return; const t = a.currentTime, o = a.createOscillator(), g = a.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g).connect(a.destination); o.start(t); o.stop(t + d); }
+function shutter() { const a = audio(); if (!a) return; const t = a.currentTime, n = a.createBuffer(1, a.sampleRate * 0.12, a.sampleRate), d = n.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (a.sampleRate * 0.02)); const s = a.createBufferSource(), g = a.createGain(); s.buffer = n; g.gain.value = 0.5; s.connect(g).connect(a.destination); s.start(t); }
+
+// ---------- Snapping the strip ----------
+const shots = [];
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function snapAll() {
+  $("snap").disabled = true; shots.length = 0;
+  for (let i = 0; i < 4; i++) {
+    $("shots").textContent = "Photo " + (i + 1) + " of 4";
+    for (const n of [3, 2, 1]) { $("count").textContent = n; beep(880, 0.12); await wait(800); }
+    $("count").textContent = ""; shutter();
+    const c = document.createElement("canvas"); c.width = VW; c.height = VH; compose(c.getContext("2d"), VW, VH, source); shots.push(c);
+    $("flash").style.transition = "none"; $("flash").style.opacity = 1; await wait(60); $("flash").style.transition = "opacity .5s"; $("flash").style.opacity = 0;
+    await wait(i < 3 ? 900 : 300);
+    if (still) { /* an uploaded photo: same picture each time, that's fine */ }
+  }
+  $("shots").textContent = ""; makeStrip(); $("snap").disabled = false;
+}
+let stripBlob = null;
+function makeStrip() {
+  const pw = 480, ph = 640, pad = 24, foot = 120, W = pw + pad * 2, H = pad + (ph + pad) * 4 + foot;
+  const c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
+  x.fillStyle = "#fffaf0"; x.fillRect(0, 0, W, H);
+  shots.forEach((s, i) => x.drawImage(s, pad, pad + i * (ph + pad), pw, ph));
+  const fy = H - foot; x.fillStyle = "#2a0812"; x.textAlign = "center"; x.textBaseline = "middle";
+  x.font = "44px Rye, Georgia, serif"; x.fillText("CARNIVAL MIDWAY", W / 2, fy + 38);
+  x.font = "700 22px system-ui, sans-serif"; x.fillStyle = "#a3122a"; x.fillText("Photo Booth · " + new Date().toLocaleDateString(), W / 2, fy + 82);
+  c.toBlob(b => { stripBlob = b; $("strip").src = URL.createObjectURL(b); $("live").hidden = true; $("done").hidden = false; window.scrollTo(0, 0); }, "image/jpeg", 0.9);
+}
+async function save() {
+  if (!stripBlob) return;
+  const file = new File([stripBlob], "midway-photo-strip.jpg", { type: "image/jpeg" });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Carnival Midway Photo Strip" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(stripBlob); a.download = "midway-photo-strip.jpg"; document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---------- Starting the camera ----------
+function goLive() { $("start").hidden = true; $("live").hidden = false; $("done").hidden = true; }
+$("camBtn").onclick = async () => {
+  audio();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+    video.srcObject = stream; await video.play(); source = video; still = null; goLive();
+  } catch (e) { $("camMsg").textContent = "The camera didn’t open. Allow camera access for this site in your phone’s settings, or tap “Use a photo instead.”"; }
+};
+$("upBtn").onclick = () => $("file").click();
+$("file").onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => { still = im; source = im; goLive(); }; im.src = URL.createObjectURL(f); e.target.value = ""; };
+$("snap").onclick = () => { audio(); snapAll(); };
+$("again").onclick = () => { goLive(); };
+$("save").onclick = save;
+$("clearProps").onclick = () => stickers = [];
+$("back").onclick = () => { if (stream) stream.getTracks().forEach(t => t.stop()); location.href = "../"; };
+// chips
+FRAMES.forEach(f => { const b = document.createElement("button"); b.className = "chip" + (f === frame ? " on" : ""); b.textContent = f.name;
+  b.onclick = () => { frame = f; document.querySelectorAll("#frames .chip").forEach(x => x.classList.toggle("on", x === b)); }; $("frames").appendChild(b); });
+PROPS.forEach(e => { const b = document.createElement("button"); b.className = "chip prop"; b.textContent = e;
+  b.onclick = () => stickers.push({ e, x: VW * (0.35 + Math.random() * 0.3), y: VH * (0.3 + Math.random() * 0.2), s: VW * 0.2 }); $("props").appendChild(b); });
+requestAnimationFrame(loop);
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
+</script>
+</body>
+</html>
