@@ -1,5 +1,5 @@
 // Carnival Midway offline cache. Bump VERSION when you change any file.
-const VERSION = "midway-v120";
+const VERSION = "midway-v121";
 const CORE = [
   "./", "index.html", "coins.js", "mikey/poster.webp", "mikey/lines.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png",
   "down-the-clown/", "down-the-clown/index.html",
@@ -21,7 +21,7 @@ const CORE = [
   "junk-crane/", "junk-crane/index.html", "junk-crane/img/icon.webp", "junk-crane/img/shirt.webp",
   "abby-hen/", "abby-hen/index.html", "abby-hen/img/hen.webp", "abby-hen/img/hen-body.webp", "abby-hen/img/head.webp", "abby-hen/img/shirt.webp",
   "guess-age/", "guess-age/index.html", "guess-age/people.js", "guess-age/img/sonny.webp", "guess-age/img/eddie.webp", "guess-age/img/abby.webp", "guess-age/img/mikey.webp", "guess-age/img/marni.webp", "guess-age/img/shannon.webp", "guess-age/img/julie.webp", "guess-age/img/scarlett.webp",
-  "photo-booth/", "photo-booth/index.html", "photo-booth/img/sonny.webp", "photo-booth/img/eddie.webp", "photo-booth/img/abby.webp",
+  "photo-booth/", "photo-booth/index.html", "photo-booth/img/sonny.webp", "photo-booth/img/eddie.webp", "photo-booth/img/abby.webp", "photo-booth/img/skier.webp",
   "ventriloquist/", "ventriloquist/index.html", "ventriloquist/bits.js", "ventriloquist/questions.js", "ventriloquist/sideshow.js", "ventriloquist/img/sideshow.webp", "ventriloquist/img/sidecard.webp", "ventriloquist/img/photo.webp", "ventriloquist/img/card.webp",
   "fortune-sonny/", "fortune-sonny/index.html", "fortune-sonny/fortunes.js", "fortune-sonny/img/sonny.webp", "fortune-sonny/img/machine.webp", "fortune-sonny/img/card.webp",
 ];
