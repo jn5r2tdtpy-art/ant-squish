@@ -106,21 +106,43 @@ function curtain(c, cw, h) { const n = 4, fw = cw / n;
 // a kneeling, begging body (facing right) with a photo head; s = size unit
 function limb(c, pts, wd, col, ol) { if (ol !== false) { c.strokeStyle = "rgba(0,0,0,.55)"; c.lineWidth = wd + 4; c.lineCap = "round"; c.lineJoin = "round"; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); }
   c.strokeStyle = col; c.lineWidth = wd; c.lineCap = "round"; c.lineJoin = "round"; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); }
+function shade(c, x0, x1, col) { const g = c.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, "rgba(0,0,0,.35)"); g.addColorStop(0.35, "rgba(255,255,255,.08)"); g.addColorStop(0.6, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.4)"); return g; }
+function poly(c, pts, fill, line) { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fillStyle = fill; c.fill(); if (line) { c.strokeStyle = line; c.lineWidth = 2; c.stroke(); } }
+// a man on BOTH knees (side view, facing right toward you), leaning in with his hands pressed together; s = size unit
 function beggar(c, im, x, g, s, o, t) {
-  const bob = Math.sin(t * 6 + x) * s * 0.04;                          // little pleading bob
-  limb(c, [x, g - s * 0.13, x - s * 0.95, g - s * 0.13], s * 0.27, o.pants);                 // shin on the ground
-  c.fillStyle = o.shoe; rr(c, x - s * 1.22, g - s * 0.34, s * 0.3, s * 0.34, s * 0.08); c.fill();   // shoe, toes down
-  limb(c, [x, g - s * 0.15, x - s * 0.12, g - s * 1.0], s * 0.36, o.pants);                  // thigh up to the hips
-  const sh = [x + s * 0.04, g - s * 1.85 + bob];
-  limb(c, [x - s * 0.12, g - s * 1.05, sh[0], sh[1]], s * 0.66, o.shirt);                    // torso
-  if (o.trim) limb(c, [x - s * 0.02, g - s * 1.1, sh[0] + s * 0.1, sh[1] + s * 0.05], s * 0.06, o.trim);
-  const hx = x + s * 0.62, hy = g - s * 1.9 + bob * 2;
-  limb(c, [sh[0] + s * 0.05, sh[1] + s * 0.12, x + s * 0.36, g - s * 1.42, hx - s * 0.06, hy + s * 0.08], s * 0.22, o.sleeve || o.shirt);
-  c.fillStyle = o.skin; c.beginPath(); c.ellipse(hx, hy - s * 0.02, s * 0.1, s * 0.17, 0.35, 0, 7); c.fill();   // praying hands
-  c.strokeStyle = "rgba(0,0,0,.25)"; c.lineWidth = 1.5; c.beginPath(); c.moveTo(hx - s * 0.04, hy + s * 0.12); c.lineTo(hx + s * 0.04, hy - s * 0.16); c.stroke();
-  c.fillStyle = o.skin; c.fillRect(sh[0] - s * 0.1, sh[1] - s * 0.38, s * 0.2, s * 0.3);              // neck
-  head(c, im, sh[0] + s * 0.02, sh[1] - s * 0.1, s * 1.2, false);
+  const bob = Math.sin(t * 5 + x) * s * 0.04, OL = "rgba(0,0,0,.6)";
+  c.fillStyle = "rgba(0,0,0,.35)"; c.beginPath(); c.ellipse(x - s * 0.45, g, s * 0.75, s * 0.08, 0, 0, 7); c.fill();
+  const dark = col => { c.save(); c.globalAlpha = 0.35; c.fillStyle = "#000"; c.restore(); return col; };
+  // far leg (darker) then near leg: knee on the floor, shin flat behind, toes tucked
+  [[-0.06, 0.55], [0.06, 0]].forEach(([dx, dim]) => {
+    const kx = x + dx * s, hipX = x - s * 0.22 + dx * s, hipY = g - s * 0.95;
+    limb(c, [kx, g - s * 0.12, kx - s * 0.92, g - s * 0.12], s * 0.25, o.pants);                     // shin
+    limb(c, [kx, g - s * 0.14, hipX, hipY], s * 0.34, o.pants);                                        // thigh
+    c.fillStyle = o.shoe; rr(c, kx - s * 1.14, g - s * 0.36, s * 0.24, s * 0.36, s * 0.08); c.fill(); c.strokeStyle = OL; c.lineWidth = 2; c.stroke();
+    c.fillStyle = "#c9b79a"; c.fillRect(kx - s * 1.15, g - s * 0.33, s * 0.05, s * 0.3);                  // sole showing
+    if (dim) { c.fillStyle = `rgba(0,0,0,${dim * 0.45})`; c.beginPath(); c.arc(kx - s * 0.45, g - s * 0.12, s * 0.01, 0, 7); c.fill(); }
+  });
+  // torso leaning forward
+  const hip = [x - s * 0.2, g - s * 0.98], sh = [x + s * 0.12, g - s * 1.92 + bob];
+  limb(c, [hip[0], hip[1], sh[0], sh[1]], s * 0.62, o.shirt);
+  c.fillStyle = "#2a1a10"; c.save(); c.translate(hip[0], hip[1] - s * 0.05); c.rotate(-0.33); c.fillRect(-s * 0.32, -s * 0.05, s * 0.64, s * 0.1); c.restore();   // belt
+  if (o.zip) limb(c, [hip[0] + s * 0.22, hip[1] - s * 0.1, sh[0] + s * 0.28, sh[1] + s * 0.05], 3, o.zip, false);
+  if (o.collar) { c.fillStyle = o.collar; c.beginPath(); c.moveTo(sh[0] - s * 0.1, sh[1] - s * 0.22); c.lineTo(sh[0] + s * 0.28, sh[1] - s * 0.12); c.lineTo(sh[0] + s * 0.08, sh[1] + s * 0.05); c.closePath(); c.fill(); }
+  // arms reaching up toward you, hands pressed together
+  const hx = x + s * 0.82, hy = g - s * 2.02 + bob * 1.5;
+  limb(c, [sh[0] + s * 0.02, sh[1] + s * 0.05, x + s * 0.48, g - s * 1.5 + bob, hx - s * 0.08, hy + s * 0.12], s * 0.21, o.sleeve || o.shirt);
+  c.save(); c.translate(hx, hy); c.rotate(0.35);
+  c.fillStyle = o.skin; c.beginPath(); c.ellipse(0, 0, s * 0.09, s * 0.19, 0, 0, 7); c.fill(); c.strokeStyle = "rgba(90,40,20,.6)"; c.lineWidth = 1.5; c.stroke();
+  c.beginPath(); c.moveTo(0, -s * 0.18); c.lineTo(0, s * 0.16); c.stroke(); c.restore();
+  // neck and head, tipped up, pleading
+  c.fillStyle = o.skin; c.save(); c.translate(sh[0] + s * 0.06, sh[1] - s * 0.18); c.rotate(0.3); c.fillRect(-s * 0.1, -s * 0.14, s * 0.2, s * 0.3); c.restore();
+  c.save(); c.translate(sh[0] + s * 0.12, sh[1] - s * 0.08); c.rotate(0.12 + Math.sin(t * 2.2 + x) * 0.05); head(c, im, 0, 0, s * 1.1, false); c.restore();
+  // a tear
+  const ty = ((t * 0.6 + x) % 1); c.fillStyle = "rgba(120,190,255,.9)"; c.beginPath(); c.ellipse(sh[0] + s * 0.32, sh[1] - s * 0.62 + ty * s * 0.35, s * 0.035, s * 0.055, 0, 0, 7); c.fill();
 }
+// wooden stage floor under them
+function stage(c, w, h, y) { const g = c.createLinearGradient(0, 0, w * 0.68, 0); g.addColorStop(0, "#7a4a22"); g.addColorStop(0.8, "#6a3e1c"); g.addColorStop(1, "rgba(106,62,28,0)"); c.fillStyle = g; c.fillRect(0, y, w * 0.68, h - y);
+  c.strokeStyle = "rgba(0,0,0,.25)"; c.lineWidth = 2; for (let yy = y + 10; yy < h; yy += 14) { c.beginPath(); c.moveTo(0, yy); c.lineTo(w * 0.55, yy); c.stroke(); } c.fillStyle = "#3a2010"; c.fillRect(0, y, w * 0.55, 4); }
 function bubble(c, text, x, y, w, tailX, tailY) {
   c.font = `bold ${w * 0.12}px Bangers, Impact, sans-serif`; c.textAlign = "center"; c.textBaseline = "middle";
   const words = text.split(" "), lines = []; let ln = "";
@@ -160,10 +182,11 @@ const FRAMES = [
   // Sonny & Eddie on their knees on the left; you stand on the right (the photo is moved over)
   { id: "beg", name: "🙏 Sonny & Eddie Begging", shift: 0.2, tip: "Stand a little to the right. Sonny & Eddie are on their knees begging you!", draw(c, w, h) {
     const t = performance.now() / 1000, n = Math.floor(t / 4);
-    beggar(c, HEADS.sonny, w * 0.19, h * 0.965, h * 0.14, { shirt: "#1b1b1e", sleeve: "#26262a", trim: "#9a9aa2", pants: "#2c4a78", shoe: "#111", skin: "#e2a184" }, t);
-    beggar(c, HEADS.eddie, w * 0.43, h * 1.0, h * 0.145, { shirt: "#7a2433", pants: "#b59a6e", shoe: "#3a2414", skin: "#eab09a" }, t + 1.3);
-    bubble(c, BEG_S[n % BEG_S.length], w * 0.19, h * 0.3, w * 0.32, w * 0.2, h * 0.42);
-    bubble(c, BEG_E[(n * 3 + 1) % BEG_E.length], w * 0.5, h * 0.44, w * 0.32, w * 0.45, h * 0.53);
+    stage(c, w, h, h * 0.9);
+    beggar(c, HEADS.sonny, w * 0.25, h * 0.94, h * 0.14, { shirt: "#1d1d20", zip: "#b8b8c0", pants: "#2f4f80", shoe: "#141414", skin: "#e2a184" }, t);
+    beggar(c, HEADS.eddie, w * 0.48, h * 0.985, h * 0.145, { shirt: "#7a2433", collar: "#5e1a27", pants: "#b59a6e", shoe: "#3a2414", skin: "#eab09a" }, t + 1.3);
+    bubble(c, BEG_S[n % BEG_S.length], w * 0.2, h * 0.24, w * 0.32, w * 0.24, h * 0.37);
+    bubble(c, BEG_E[(n * 3 + 1) % BEG_E.length], w * 0.53, h * 0.36, w * 0.32, w * 0.47, h * 0.48);
     banner(c, "PLEASE FORGIVE US! 🙏", h * 0.025, w, h * 0.075, "#9a1626", "#ffd75e", "Rye, Georgia, serif"); } },
   // Face in the hole: the photo covers everything, and your face shows through where his face is.
   // hole is in the original photo's pixels (1199 x 1312): center x, center y, half-width, half-height
