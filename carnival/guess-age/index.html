@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Guess Your Age & Kissing Booth</title>
+<title>Guess Your Age, Weight & Kissing Booth</title>
 <meta name="theme-color" content="#2a0812">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -65,16 +65,20 @@
   .rules { color: #f6e6c8; font-size: 14px; text-align: center; line-height: 1.4; max-width: 480px; }
   [hidden] { display: none !important; }
   .btn.kiss { flex: none; width: min(100%, 320px); margin-top: 6px; background: linear-gradient(#ffb8c8, #f0608a); box-shadow: 0 4px 0 #a8264a, 0 6px 14px rgba(0,0,0,.4); }
+  .tabs { display: flex; gap: 8px; width: min(100%, 520px); margin-top: 12px; }
+  .tab { flex: 1; border: 3px solid #ffd75e; border-radius: 999px; background: #3a1018; color: #ffd75e; font: 800 16px system-ui, sans-serif; padding: 10px 6px; cursor: pointer; }
+  .tab.on { background: #ffd75e; color: #2a0812; }
+  #board b.small { font-size: 38px; }
   .link { background: none; border: 0; color: #cdb896; font: 600 14px system-ui, sans-serif; text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
 <button id="back">‹ Midway</button>
-<h1>Guess Your Age<br><span style="font-size:.62em">&amp; Kissing Booth</span></h1>
-<div class="sub">Sonny &amp; Eddie’s booth. No scale, so just your age. And inside, the kissing booth is really the Kiss My Ass Booth!</div>
+<h1>Guess Your Age<br><span style="font-size:.62em">&amp; Weight &amp; Kissing Booth</span></h1>
+<div class="sub">Sonny &amp; Eddie’s booth. They’ll guess your age or your weight. And inside, the kissing booth is really the Kiss My Ass Booth!</div>
 <div id="booth">
   <div class="awning"></div>
-  <div class="sign">GUESS YOUR AGE &amp; 💋 KISSING BOOTH<small style="color:#ffd75e;font-size:15px">💋 Inside: THE KISS MY ASS BOOTH 💋</small><small>Sonny, Eddie &amp; Abby kiss YOUR ass</small><small>Within 2 years, or you win! · 🪙 1 coin a guess-off</small></div>
+  <div class="sign">GUESS YOUR AGE &amp; WEIGHT &amp; 💋 KISSING BOOTH<small style="color:#ffd75e;font-size:15px">💋 Inside: THE KISS MY ASS BOOTH 💋</small><small>Sonny, Eddie &amp; Abby kiss YOUR ass</small><small>Within 2 years, or you win! · 🪙 1 coin a guess-off</small></div>
   <div id="stage">
     <div id="bubble"></div>
     <img class="host" id="hostS" src="img/sonny.webp" alt="Sonny">
@@ -85,13 +89,15 @@
   <div class="counter"></div>
 </div>
 <div id="pickWrap">
-  <p class="rules">Who’s stepping up? Pick yourself. Sonny and Eddie get 3 guesses. Tell them older or younger. If they get within 2 years, the booth wins. Stump them and you win 🪙 +2.</p>
+  <div class="tabs"><button class="tab on" id="tabAge">🎂 Guess my age</button><button class="tab" id="tabWeight">⚖️ Guess my weight</button></div>
+  <p class="rules" id="rules">Who’s stepping up? Pick yourself. Sonny and Eddie get 3 guesses. Tell them older or younger. If they get within 2 years, the booth wins. Stump them and you win 🪙 +2.</p>
   <div id="pick"></div>
   <p class="muted" id="coins"></p>
   <button class="btn kiss" id="kissBtn">💋 Buy a Kiss</button>
 </div>
 <div id="ctl" hidden>
   <div class="row" id="answer" hidden><button class="btn alt" id="older">⬆ I’m older</button><button class="btn alt" id="younger">⬇ I’m younger</button></div>
+  <div class="row" id="wAnswer" hidden><button class="btn alt" id="heavier">⬆ Heavier</button><button class="btn" id="gotit">✅ You got it!</button><button class="btn alt" id="lighter">⬇ Lighter</button></div>
   <button class="btn" id="again" hidden>Step right up again!</button>
   <button class="btn kiss" id="kissBtn2" hidden>💋 Buy a Kiss</button>
   <div class="muted" id="status"></div>
@@ -136,20 +142,49 @@ const sfx = { ding() { [1320, 1760, 2093].forEach((f, i) => tone(f, 0.25, "trian
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, "square", 0.07, i * 0.1)); }, roll() { for (let i = 0; i < 8; i++) tone(600 + i * 60, 0.04, "square", 0.03, i * 0.05); } };
 
 // ---------- The game ----------
-const G = { p: null, sc: null, g: 0, busy: false };
+const G = { p: null, sc: null, g: 0, busy: false, mode: "age", drug: false };
 function faceHTML(p) { return p.img ? `<img class="face" src="${p.img}" alt="">` : `<div class="face hair" style="--hair:${p.hair}"><span>${p.name[0]}</span></div>`; }
 function buildPick() {
   $("pick").innerHTML = "";
   for (const p of window.PEOPLE) { const b = document.createElement("button"); b.className = "who"; b.innerHTML = faceHTML(p) + p.name; b.onclick = () => start(p); $("pick").appendChild(b); }
+  if (G.mode === "weight") { $("coins").textContent = "⚖️ Guessing your weight is free. Just for laughs, no coins."; return; }
   const n = Coins.get(); $("coins").innerHTML = n > 0 ? "🪙 1 coin a guess-off. You have " + n + " coins." : "You're out of coins! <a href=\"../\" style=\"color:#ffd75e\">Win more on the Midway ›</a>";
   document.querySelectorAll(".who").forEach(b => b.disabled = n < 1);
 }
+const RULES = { age: "", weight: "Who’s stepping on the scale? Sonny and Eddie get 3 guesses. Tell them heavier or lighter, or tap “You got it!” Free, just for laughs. (For Sonny and Eddie, the weight is what they’re holding.)" };
+function setMode(m) { G.mode = m; $("tabAge").classList.toggle("on", m === "age"); $("tabWeight").classList.toggle("on", m === "weight");
+  if (!RULES.age) RULES.age = $("rules").textContent; $("rules").textContent = RULES[m]; buildPick(); }
+$("tabAge").onclick = () => setMode("age"); $("tabWeight").onclick = () => setMode("weight");
+function startWeight(p) {
+  G.p = p; G.drug = !!window.DRUG[p.id]; G.g = 0; G.busy = true;
+  G.sc = G.drug ? pick(window.DRUG[p.id]) : { intro: window.W_INTRO[p.id] || [["S", "Step right up!"]], guesses: pick(p.id === "mikey" ? window.W_GUESS_M : window.W_GUESS) };
+  $("pickWrap").hidden = true; $("ctl").hidden = false; $("again").hidden = true; $("kissBtn2").hidden = true; $("answer").hidden = true; $("wAnswer").hidden = true;
+  $("heavier").textContent = G.drug ? "⬆ More" : "⬆ Heavier"; $("lighter").textContent = G.drug ? "⬇ Less" : "⬇ Lighter"; $("gotit").textContent = G.drug ? "✅ That’s it!" : "✅ You got it!";
+  $("num").textContent = "??"; $("num").classList.remove("small"); $("tries").textContent = "GUESS 1 OF 3"; $("status").textContent = p.name + " steps on the scale…";
+  run(G.sc.intro, nextWeight);
+}
+function nextWeight() {
+  const gs = G.sc.guesses[G.g], label = gs[0], lines = G.drug ? gs[2] : gs[1];
+  $("tries").textContent = "GUESS " + (G.g + 1) + " OF 3";
+  run(lines, () => { sfx.roll(); let k = 0; const spin = setInterval(() => { $("num").textContent = 90 + Math.floor(Math.random() * 99); if (++k > 8) { clearInterval(spin);
+    $("num").textContent = label; $("num").classList.toggle("small", String(label).length > 3); $("tries").textContent = G.drug ? gs[1] : "POUNDS";
+    G.busy = false; $("wAnswer").hidden = false; $("status").textContent = G.drug ? "Is " + G.p.name + " holding more or less?" : "Heavier, lighter, or did they get it?"; } }, 60); });
+}
+function weighAnswer(a) {
+  if (G.busy) return; G.busy = true; $("wAnswer").hidden = true;
+  if (a === "got") { sfx.ding(); run(G.drug ? G.sc.got : pick(window.W_GOT), () => endW("The booth guessed it!")); return; }
+  const pool = G.drug ? (a === "up" ? window.D_MORE : window.D_LESS) : (a === "up" ? window.W_HEAVY : window.W_LIGHT);
+  run(pick(pool), () => { if (G.g >= 2) { sfx.win(); run(G.drug ? G.sc.stumped : pick(window.W_STUMP), () => endW("🎉 " + G.p.name + " stumped the booth!")); } else { G.g++; nextWeight(); } });
+}
+$("heavier").onclick = () => weighAnswer("up"); $("lighter").onclick = () => weighAnswer("down"); $("gotit").onclick = () => weighAnswer("got");
+function endW(msg) { G.busy = false; $("kissBtn2").hidden = false; $("status").textContent = msg; $("again").hidden = false; setTimeout(() => $("bubble").classList.remove("show"), 2500); }
 function start(p) {
   audio(); if (G.busy) return;
+  if (G.mode === "weight") { startWeight(p); return; }
   if (!Coins.spend(1)) { buildPick(); return; }
   G.p = p; G.sc = pick(p.scripts); G.g = 0; G.busy = true;
   $("pickWrap").hidden = true; $("ctl").hidden = false; $("again").hidden = true; $("kissBtn2").hidden = true; $("answer").hidden = true;
-  $("num").textContent = "??"; $("tries").textContent = "GUESS 1 OF 3"; $("status").textContent = p.name + " steps up to the booth…";
+  $("num").textContent = "??"; $("num").classList.remove("small"); $("wAnswer").hidden = true; $("tries").textContent = "GUESS 1 OF 3"; $("status").textContent = p.name + " steps up to the booth…";
   run(G.sc.intro, nextGuess);
 }
 function nextGuess() {
@@ -187,7 +222,7 @@ function kiss() { if (G.busy) return; audio(); if (!kissOrder.length) kissOrder 
   G.busy = true; tone(880, 0.08, "sine", 0.1); tone(660, 0.12, "sine", 0.08, 0.08);
   run(window.KISS[kissOrder.pop()], () => { G.busy = false; setTimeout(() => { if (!G.busy) $("bubble").classList.remove("show"); }, 2500); }); }
 $("kissBtn").onclick = kiss; $("kissBtn2").onclick = kiss;
-$("again").onclick = () => { $("ctl").hidden = true; $("kissBtn2").hidden = true; $("pickWrap").hidden = false; $("bubble").classList.remove("show"); $("num").textContent = "??"; $("tries").textContent = "GUESS"; buildPick(); };
+$("again").onclick = () => { $("ctl").hidden = true; $("kissBtn2").hidden = true; $("pickWrap").hidden = false; $("bubble").classList.remove("show"); $("num").textContent = "??"; $("num").classList.remove("small"); $("tries").textContent = "GUESS"; buildPick(); };
 $("back").onclick = () => { player.pause(); location.href = "../"; };
 voiceLabel(); buildPick();
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("../sw.js").catch(() => {});
