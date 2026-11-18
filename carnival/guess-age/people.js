@@ -192,3 +192,34 @@ window.DRUG = {
 };
 window.D_MORE = [[["S", "More?! Somebody check the saddlebags."]], [["E", "More? I knew he was holding out on me."]], [["S", "More? And he never shares. Not once."]]];
 window.D_LESS = [[["E", "Less? He must've smoked the evidence."]], [["S", "Less? He's even cheaper than I thought."]], [["E", "Less? Somebody owes somebody twenty bucks."]]];
+
+// ---------- Nick, the booth worker (in the referee shirt) ----------
+window.N_OPEN = [
+  ["N", "Step right up! I'm Nick. I work the booth, and I keep these two honest."],
+  ["N", "Welcome to the booth! I'm the referee. Somebody has to watch Sonny and Eddie."],
+  ["N", "Hi, I'm Nick! I run the scoreboard. They're not allowed to touch it."],
+  ["N", "Official referee, Nick, on duty. No cheating, no bribes, and no double or nothing."],
+  ["N", "Step on up! Don't worry. I counted the coins before Eddie got here."],
+  ["N", "I'm Nick. I just work here. I'm not related to these two. Okay, I am. Please don't tell anyone."],
+];
+window.N_WIN = [
+  ["N", "Official ruling: the booth got it. I checked the scoreboard twice."],
+  ["N", "Booth wins. And for once, nobody cheated. I was watching."],
+  ["N", "Ruling stands! Sonny, put the coins down. Those aren't yours."],
+];
+window.N_STUMP = [
+  ["N", "Tweet! Three misses! Official ruling: you stumped them!"],
+  ["N", "That's three strikes. You win! Eddie, hand over the coins. All of them."],
+  ["N", "Stumped! I'm paying you myself, because these two won't."],
+];
+window.N_DRUG = [
+  ["N", "Uh, I'm the referee. I didn't see anything. I'm looking at the ceiling."],
+  ["N", "This part of the booth isn't my department. I'm going on break."],
+  ["N", "For the record, I'm just the scoreboard guy. I don't know these men."],
+];
+window.FIB.push([["N", "Flag on the play! That's a fib. Try again."]], [["N", "Tweet! Referee says no fibbing at the booth. Try again."]]);
+window.KISS.push(
+  [["N", "Before you ask, the referee does not kiss anybody's ass."], ["E", "Lucky."], ["S", "He's the only one in the family with a clean record."]],
+  [["S", "Nick, help us out here."], ["N", "No way. I'm the referee. Pucker up, Uncle Sonny."], ["E", "Even the help is against us."]],
+  [["E", "Nick, I'll give you a dollar to kiss it for me."], ["N", "Uncle Eddie, you've never given anybody a dollar."], ["S", "He's got you there."]],
+);

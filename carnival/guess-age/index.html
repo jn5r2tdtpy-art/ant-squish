@@ -29,13 +29,15 @@
   .awning::after { content: ""; position: absolute; left: 0; right: 0; bottom: -14px; height: 14px; background: radial-gradient(circle at 18px 0, #d8202e 13px, transparent 14px) 0 0 / 72px 14px repeat-x, radial-gradient(circle at 54px 0, #fff4dc 13px, transparent 14px) 0 0 / 72px 14px repeat-x; }
   .sign { text-align: center; font-family: Rye, Georgia, serif; color: #ffd75e; font-size: clamp(18px, 5.4vw, 26px); padding: 22px 8px 2px; }
   .sign small { display: block; font: 700 13px system-ui, sans-serif; color: #f6c890; }
-  #stage { position: relative; height: 236px; }
+  #stage { position: relative; height: 292px; }
   .host { position: absolute; bottom: 0; height: 150px; transition: transform .12s; transform-origin: 50% 100%; filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)); }
-  #hostS { left: 6%; } #hostE { right: 6%; }
-  #hostA { left: 50%; margin-left: -40px; bottom: 96px; height: 90px; opacity: 0; transition: opacity .2s, transform .12s; z-index: 1; }
+  #hostS { left: 4%; z-index: 1; } #hostE { right: 4%; z-index: 1; }
+  #hostN { left: 50%; margin-left: -66px; height: 154px; bottom: 40px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  #hostN.talk { transform: translateY(-6px) rotate(2deg); }
+  #hostA { left: 24%; margin-left: -40px; bottom: 120px; height: 80px; opacity: 0; transition: opacity .2s, transform .12s; z-index: 1; }
   #hostA.on { opacity: 1; }
   .host.talk { transform: translateY(-6px) rotate(-2deg); }
-  #board { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 120px; height: 86px; border-radius: 12px; background: #16163a; border: 4px solid #d8a028;
+  #board { z-index: 2; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 120px; height: 86px; border-radius: 12px; background: #16163a; border: 4px solid #d8a028;
     display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 12px #000; }
   #board b { font: 800 46px/1 ui-monospace, Menlo, monospace; color: #ff5a3a; text-shadow: 0 0 10px rgba(255,90,58,.8); }
   #board span { font: 700 11px system-ui, sans-serif; color: #cdb896; letter-spacing: 1px; }
@@ -78,9 +80,10 @@
 <div class="sub">Sonny &amp; Eddie’s booth. They’ll guess your age or your weight. And inside, the kissing booth is really the Kiss My Ass Booth!</div>
 <div id="booth">
   <div class="awning"></div>
-  <div class="sign">GUESS YOUR AGE &amp; WEIGHT &amp; 💋 KISSING BOOTH<small style="color:#ffd75e;font-size:15px">💋 Inside: THE KISS MY ASS BOOTH 💋</small><small>Sonny, Eddie &amp; Abby kiss YOUR ass</small><small>Within 2 years, or you win! · 🪙 1 coin a guess-off</small></div>
+  <div class="sign">GUESS YOUR AGE &amp; WEIGHT &amp; 💋 KISSING BOOTH<small style="color:#ffd75e;font-size:15px">💋 Inside: THE KISS MY ASS BOOTH 💋</small><small>Sonny, Eddie &amp; Abby kiss YOUR ass</small><small>🏁 Referee on duty: Nick</small><small>Within 2 years, or you win! · 🪙 1 coin a guess-off</small></div>
   <div id="stage">
     <div id="bubble"></div>
+    <img class="host" id="hostN" src="img/nick.webp" alt="Nick">
     <img class="host" id="hostS" src="img/sonny.webp" alt="Sonny">
     <img class="host" id="hostE" src="img/eddie.webp" alt="Eddie">
     <img class="host" id="hostA" src="img/abby.webp" alt="Abby">
@@ -119,9 +122,9 @@ $("voiceBtn").onclick = () => { voiceOn = !voiceOn; store.set("ga-voice", voiceO
 const player = new Audio(); player.preload = "auto";
 function voiceFile(key) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(key)) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; } return "voice/" + h.toString(16).padStart(8, "0") + ".mp3"; }
 function say(who, text, done) {
-  const b = $("bubble"); b.innerHTML = "<i>" + (who === "S" ? "Sonny" : who === "A" ? "Abby" : "Eddie") + ":</i> " + text; if (who === "A") $("hostA").classList.add("on"); b.classList.add("show");
-  $("hostS").classList.toggle("talk", who === "S"); $("hostE").classList.toggle("talk", who === "E"); $("hostA").classList.toggle("talk", who === "A");
-  let fin = false; const end = () => { if (fin) return; fin = true; player.onended = player.onerror = null; $("hostS").classList.remove("talk"); $("hostE").classList.remove("talk"); $("hostA").classList.remove("talk"); setTimeout(done, 300); };
+  const b = $("bubble"); b.innerHTML = "<i>" + ({ S: "Sonny", A: "Abby", N: "Nick", E: "Eddie" })[who] + ":</i> " + text; if (who === "A") $("hostA").classList.add("on"); b.classList.add("show");
+  $("hostS").classList.toggle("talk", who === "S"); $("hostE").classList.toggle("talk", who === "E"); $("hostA").classList.toggle("talk", who === "A"); $("hostN").classList.toggle("talk", who === "N");
+  let fin = false; const end = () => { if (fin) return; fin = true; player.onended = player.onerror = null; $("hostS").classList.remove("talk"); $("hostE").classList.remove("talk"); $("hostA").classList.remove("talk"); $("hostN").classList.remove("talk"); setTimeout(done, 300); };
   if (!voiceOn) { setTimeout(end, 1000 + text.length * 55); return; }
   player.onended = end; player.onerror = () => phone(who, text, end);
   player.src = voiceFile(who + ":" + text); const pr = player.play(); if (pr && pr.catch) pr.catch(() => phone(who, text, end));
@@ -129,7 +132,7 @@ function say(who, text, done) {
 }
 function phone(who, text, end) {
   if (!("speechSynthesis" in window)) { setTimeout(end, 1000 + text.length * 55); return; }
-  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = who === "E" ? 1.3 : who === "A" ? 1.7 : 0.9; u.onend = u.onerror = end; speechSynthesis.speak(u); } catch (e) { setTimeout(end, 1000); }
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.pitch = who === "E" ? 1.3 : who === "A" ? 1.7 : who === "N" ? 1.1 : 0.9; u.onend = u.onerror = end; speechSynthesis.speak(u); } catch (e) { setTimeout(end, 1000); }
 }
 function run(lines, done) { if (!lines.some(l => l[0] === "A")) $("hostA").classList.remove("on"); let i = 0; const step = () => { if (i >= lines.length) { done && done(); return; } const [w, t] = lines[i++]; say(w, t, step); }; step(); }
 
@@ -161,7 +164,7 @@ function startWeight(p) {
   $("pickWrap").hidden = true; $("ctl").hidden = false; $("again").hidden = true; $("kissBtn2").hidden = true; $("answer").hidden = true; $("wAnswer").hidden = true;
   $("heavier").textContent = G.drug ? "⬆ More" : "⬆ Heavier"; $("lighter").textContent = G.drug ? "⬇ Less" : "⬇ Lighter"; $("gotit").textContent = G.drug ? "✅ That’s it!" : "✅ You got it!";
   $("num").textContent = "??"; $("num").classList.remove("small"); $("tries").textContent = "GUESS 1 OF 3"; $("status").textContent = p.name + " steps on the scale…";
-  run(G.sc.intro, nextWeight);
+  run([pick(G.drug ? window.N_DRUG : window.N_OPEN)].concat(G.sc.intro), nextWeight);
 }
 function nextWeight() {
   const gs = G.sc.guesses[G.g], label = gs[0], lines = G.drug ? gs[2] : gs[1];
@@ -185,7 +188,7 @@ function start(p) {
   G.p = p; G.sc = pick(p.scripts); G.g = 0; G.busy = true;
   $("pickWrap").hidden = true; $("ctl").hidden = false; $("again").hidden = true; $("kissBtn2").hidden = true; $("answer").hidden = true;
   $("num").textContent = "??"; $("num").classList.remove("small"); $("wAnswer").hidden = true; $("tries").textContent = "GUESS 1 OF 3"; $("status").textContent = p.name + " steps up to the booth…";
-  run(G.sc.intro, nextGuess);
+  run([pick(window.N_OPEN)].concat(G.sc.intro), nextGuess);
 }
 function nextGuess() {
   const [n, lines] = G.sc.guesses[G.g], age = ageOf(G.p);
@@ -195,7 +198,7 @@ function nextGuess() {
   });
 }
 function afterGuess(n, age) {
-  if (Math.abs(n - age) <= 2) { sfx.ding(); run(window.CLOSE.concat(G.sc.win), () => finish(false)); return; }
+  if (Math.abs(n - age) <= 2) { sfx.ding(); run(window.CLOSE.concat([pick(window.N_WIN)], G.sc.win), () => finish(false)); return; }
   if (G.g >= 2) { finish(true); return; }
   G.busy = false; $("answer").hidden = false; $("status").textContent = "Is " + G.p.name + " older or younger than " + n + "?";
 }
@@ -208,7 +211,7 @@ function answer(older) {
 function finish(stumped) {
   $("answer").hidden = true;
   const age = ageOf(G.p);
-  if (stumped) { sfx.win(); Coins.add(2); Coins.chime(); run(G.sc.lose.concat(pick(window.KISS_WIN)), () => end("🎉 " + G.p.name + " stumped the booth! 🪙 +2. (About " + age + ".)")); }
+  if (stumped) { sfx.win(); Coins.add(2); Coins.chime(); run([pick(window.N_STUMP)].concat(G.sc.lose, pick(window.KISS_WIN)), () => end("🎉 " + G.p.name + " stumped the booth! 🪙 +2. (About " + age + ".)")); }
   else run(pick(window.KISS_LOSE), () => end("The booth wins! " + G.p.name + " is about " + age + "."));
 }
 function end(msg) {
