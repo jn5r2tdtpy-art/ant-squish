@@ -85,7 +85,7 @@ const $ = id => document.getElementById(id);
 const cv = $("view"), ctx = cv.getContext("2d"), VW = cv.width, VH = cv.height;
 const img = s => { const i = new Image(); i.src = s; return i; };
 const SCENES = { skier: img("img/skier.webp") };
-const BACKDROPS = { house: img("img/house.webp") };
+const BACKDROPS = { house: img("img/house.webp"), house2: img("img/house2.webp") };
 const HEADS = { sonny: img("img/sonny.webp"), eddie: img("img/eddie.webp"), abby: img("img/abby.webp") };
 const video = document.createElement("video"); video.setAttribute("playsinline", ""); video.muted = true;
 let source = null, stream = null, still = null;     // source is the video or an uploaded photo
@@ -128,6 +128,7 @@ const FRAMES = [
     draw(c, w, h) { banner(c, "LAKE LEGEND", h * 0.88, w, h * 0.08, "#1a4a7a", "#fff4dc", "Bangers, Impact, sans-serif"); } },
   // Background swap: the phone finds you in the camera and puts you in front of a photo.
   { id: "house", name: "🏡 Home Sweet Home", backdrop: "house", tip: "Stand back a little so your head and shoulders show. You’ll appear right in front of the house!", draw() {} },
+  { id: "house2", name: "🌳 House in the Trees", backdrop: "house2", tip: "Stand back a little so your head and shoulders show. You’ll appear right in the front yard!", draw() {} },
   { id: "plain", name: "⬜ Plain", draw() {} },
 ];
 let frame = FRAMES[0];
