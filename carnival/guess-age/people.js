@@ -140,3 +140,55 @@ window.KISS_LOSE = [
   [["E", "We got it right!"], ["S", "Doesn't matter. We're still out of the family."], ["A", "Pucker up, boys."]],
   [["A", "We guessed it! Do we still have to kiss her ass?"], ["E", "Sweetie, we always have to kiss their ass."], ["S", "It's in the contract. The sisters wrote it."]],
 ];
+
+// ---------- Guess Your Weight ----------
+// Everyone else: Sonny & Eddie only ever guess LOW (they're trying to get back in). You tell them heavier, lighter, or "you got it!"
+// A guess: [number on the board, lines]. Board shows the number with "POUNDS".
+window.W_INTRO = {
+  marnie: [["S", "Marni! We would never guess a lady's weight."], ["E", "Unless it gets us back in for Thanksgiving. Then we'll guess low."]],
+  shannon: [["E", "Shannon! Redheads weigh nothing. It's science."], ["S", "Eddie, that's not science."], ["E", "It is if it gets us invited."]],
+  julie: [["S", "Julie! The baby sister."], ["E", "Light as a feather. Just like my wallet."]],
+  scarlett: [["S", "Scarlett! Mikey's little sister."], ["E", "Guess low, Sonny. Low is safe."]],
+  abby: [["E", "Abby, my girl! Step right up."], ["S", "Eddie, careful. She'll say you're right no matter what."]],
+  mikey: [["S", "Big Top Mikey! The Ringmaster himself!"], ["E", "Careful, Sonny. He runs the whole Midway."]],
+};
+window.W_GUESS = [   // for the ladies
+  [[98, [["S", "Ninety-eight pounds. Soaking wet."]]], [105, [["E", "A hundred and five. And that's with the purse."]]], [112, [["S", "A hundred and twelve. And every ounce of it is pure class."]]]],
+  [[95, [["E", "Ninety-five. Same as high school."]]], [103, [["S", "A hundred and three. Final answer. Please let us back in."]]], [110, [["E", "A hundred and ten. I'm not going higher. I value my life."]]]],
+  [[101, [["S", "One-oh-one. Like a fever. Because you're hot."]]], [108, [["E", "One-oh-eight. I'd go higher, but Sonny's kicking me."]]], [115, [["S", "One-fifteen. And we're throwing in a free kiss. No kissing."]]]],
+];
+window.W_GUESS_M = [   // for Mikey
+  [[150, [["E", "One-fifty. Lean and mean."]]], [165, [["S", "One-sixty-five. All muscle. Ringmaster muscle."]]], [180, [["E", "One-eighty. And he still makes it look easy."]]]],
+  [[145, [["S", "One-forty-five. The first grandson, still in fighting shape."]]], [160, [["E", "One-sixty. Must be the top hat."]]], [175, [["S", "One-seventy-five. Final answer. Don't kick us out of the Midway."]]]],
+];
+window.W_HEAVY = [[["E", "Heavier? Then it's all muscle."]], [["S", "Heavier? That's all brains."]], [["E", "Heavier? Must be the jewelry."]], [["S", "Heavier? I don't believe it. But okay."]]];
+window.W_LIGHT = [[["S", "Lighter?! You're practically floating."]], [["E", "Lighter? Somebody tie a string on you before you blow away."]], [["S", "Even lighter? We were already being nice!"]]];
+window.W_GOT = [[["S", "Nailed it!"], ["E", "That's our first right answer since nineteen ninety."]], [["E", "Got it! And we didn't even need a scale."], ["S", "We just need a Thanksgiving invite."]]];
+window.W_STUMP = [[["S", "We give up. You're a mystery."], ["E", "A beautiful mystery. Write that down for the group chat."]], [["E", "You stumped us!"], ["S", "We guessed low on purpose. That's called manners."]]];
+
+// Sonny & Eddie: the weight you're guessing is what they're holding.
+// A guess: [label on the board, unit under it, lines]. The other brother does the guessing.
+window.DRUG = {
+  sonny: [
+    { intro: [["E", "Sonny! Step on the scale."], ["S", "Don't put me on a scale, Eddie."], ["E", "Not you. Your saddlebag."]],
+      guesses: [["1g", "ONE GRAM", [["E", "One gram."]]], ["⅛", "AN EIGHTH", [["S", "Eddie! That's not my weight!"], ["E", "An eighth. Final offer."]]], ["¼", "A QUARTER", [["E", "A quarter ounce. He buys the good stuff for himself, and shares none of it."]]]],
+      got: [["S", "How did you know?!"], ["E", "I've been in that saddlebag."]],
+      stumped: [["E", "Missed! He's hiding more in the bandana."], ["S", "It's a bandana, Eddie. Not a pocket."]] },
+    { intro: [["S", "Guess my weight? Easy. One-eighty."], ["E", "Not THAT weight, Sonny. Your other weight."]],
+      guesses: [["½", "HALF OUNCE", [["E", "A half ounce."]]], ["1oz", "AN OUNCE", [["S", "Keep your voice down, Eddie!"], ["E", "A whole ounce. He'll pay for the expensive stuff. Just never the tip."]]], ["QP", "QUARTER POUND", [["E", "A quarter pound. That's why the Harley sits so low."]]]],
+      got: [["S", "Fine. You got me."], ["E", "Pay up. In coins. Not in that."]],
+      stumped: [["S", "Wrong! It's all oregano."], ["E", "Sure, Sonny. Oregano. That's why you ate the whole buffet."]] },
+  ],
+  eddie: [
+    { intro: [["S", "Eddie! Let me guess your weight."], ["E", "One-sixty-five."], ["S", "Not you. What's in your pocket."]],
+      guesses: [["1g", "ONE GRAM", [["S", "One gram. He's too cheap to buy more."]]], ["5g", "FIVE GRAMS", [["E", "Lower your voice!"], ["S", "Five grams. He won it double or nothing."]]], ["⅛", "AN EIGHTH", [["S", "An eighth. And he charged Mom a delivery fee."]]]],
+      got: [["E", "Lucky guess."], ["S", "I'm your brother. I know where you hide it."]],
+      stumped: [["E", "Ha! Wrong! I sold it."], ["S", "Of course you did. At a markup."]] },
+    { intro: [["E", "Guess my weight, Sonny. Double or nothing."], ["S", "You don't have anything to double, Eddie."]],
+      guesses: [["2g", "TWO GRAMS", [["S", "Two grams."]]], ["¼", "A QUARTER", [["E", "I wish!"], ["S", "A quarter ounce. Four marriages. The man needs it."]]], ["½", "HALF OUNCE", [["S", "Half an ounce. He keeps it right next to the unicorn."]]]],
+      got: [["E", "How'd you know?"], ["S", "You never share anything, so you've always got plenty left."]],
+      stumped: [["E", "Wrong! I lost it all in a poker game."], ["S", "That, I believe."]] },
+  ],
+};
+window.D_MORE = [[["S", "More?! Somebody check the saddlebags."]], [["E", "More? I knew he was holding out on me."]], [["S", "More? And he never shares. Not once."]]];
+window.D_LESS = [[["E", "Less? He must've smoked the evidence."]], [["S", "Less? He's even cheaper than I thought."]], [["E", "Less? Somebody owes somebody twenty bucks."]]];
